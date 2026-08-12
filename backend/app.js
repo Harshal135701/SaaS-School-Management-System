@@ -19,13 +19,14 @@ app.use(express.json());
 const authRoutes = require("./routes/authRoutes");
 const systemAdminRoutes = require("./routes/systemAdminRoutes");
 const royaltyRoutes = require("./routes/royaltyRoutes");
+const monthlyRoyaltyRoutes = require("./routes/monthlyRoyaltyRoutes");
 
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
 app.use("/api/system-admin", systemAdminRoutes);
 app.use("/api/system-admin/royalties", royaltyRoutes);
-
+app.use("/api/royalties/monthly", monthlyRoyaltyRoutes);
 
 // Test route
 app.get("/", (req, res) => {
