@@ -14,6 +14,15 @@ app.use(cors());
 // Parse JSON
 app.use(express.json());
 
+// Here all the apis init
+
+const authRoutes = require("./routes/authRoutes");
+
+
+// using all apis for calling
+
+app.use("/api/auth", authRoutes);
+
 // Test route
 app.get("/", (req, res) => {
   res.json({
