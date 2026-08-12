@@ -17,11 +17,14 @@ app.use(express.json());
 // Here all the apis init
 
 const authRoutes = require("./routes/authRoutes");
+const systemAdminRoutes = require("./routes/systemAdminRoutes");
 
 
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
+app.use("/api/system-admin", systemAdminRoutes);
+
 
 // Test route
 app.get("/", (req, res) => {
