@@ -59,4 +59,4 @@ RoyaltyConfiguration.belongsTo(Franchise, {
     as: "franchise",
 });
 
-module.exports = { RoyaltyConfiguration };
+module.exports = RoyaltyConfiguration ;

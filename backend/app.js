@@ -18,12 +18,13 @@ app.use(express.json());
 
 const authRoutes = require("./routes/authRoutes");
 const systemAdminRoutes = require("./routes/systemAdminRoutes");
-
+const royaltyRoutes = require("./routes/royaltyRoutes");
 
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
 app.use("/api/system-admin", systemAdminRoutes);
+app.use("/api/system-admin/royalties", royaltyRoutes);
 
 
 // Test route
