@@ -20,6 +20,7 @@ const authRoutes = require("./routes/authRoutes");
 const systemAdminRoutes = require("./routes/systemAdminRoutes");
 const royaltyRoutes = require("./routes/royaltyRoutes");
 const monthlyRoyaltyRoutes = require("./routes/monthlyRoyaltyRoutes");
+const contractRoutes = require("./routes/contractRoutes");
 
 // using all apis for calling
 
@@ -27,6 +28,7 @@ app.use("/api/auth", authRoutes);
 app.use("/api/system-admin", systemAdminRoutes);
 app.use("/api/system-admin/royalties", royaltyRoutes);
 app.use("/api/royalties/monthly", monthlyRoyaltyRoutes);
+app.use("/api/contracts", contractRoutes);
 
 // Test route
 app.get("/", (req, res) => {

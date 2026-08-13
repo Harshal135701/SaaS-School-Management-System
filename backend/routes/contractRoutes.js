@@ -17,4 +17,4 @@ router.get("/:id", protect, getContractById);
 router.put("/:id", protect, updateContract);
 router.delete("/:id", protect, deleteContract);
 
-module.exports = router;  
+module.exports = router;
