@@ -123,6 +123,50 @@ exports.updateContract = async (req, res) => {
   }
 };
 
+// Renew Contract
+exports.renewContract = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { startDate, endDate } = req.body || {};
+
+    if (!startDate || !endDate) {
+      return res.status(400).json({
+        success: false,
+        message: "startDate and endDate are required",
+      });
+    }
+
+    const contract = await Contract.findByPk(id);
+
+    if (!contract) {
+      return res.status(404).json({
+        success: false,
+        message: "Contract not found",
+      });
+    }
+
+    await contract.update({
+      startDate,
+      endDate,
+      status: "RENEWED",
+    });
+
+    res.status(200).json({
+      success: true,
+      message: "Contract renewed successfully",
+      data: contract,
+    });
+  } catch (error) {
+    console.error("Renew Contract Error:", error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to renew contract",
+      error: error.message,
+    });
+  }
+};
+
 // Delete Contract
 exports.deleteContract = async (req, res) => {
   try {
