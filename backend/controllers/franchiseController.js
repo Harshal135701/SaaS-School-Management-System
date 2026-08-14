@@ -87,6 +87,8 @@ const getFranchises = async (req, res) => {
     });
   }
 };
+
+
 const getFranchiseById = async (req, res) => {
   try {
     const { id } = req.params;

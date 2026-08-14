@@ -2,19 +2,28 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  createContract,
-  getContracts,
-  getContractById,
-  updateContract,
-  deleteContract,
-} = require("../controllers/contractController");
+  createRoyaltyConfiguration,
+  getRoyaltyConfigurations,
+  getRoyaltyConfigurationsByFranchise,
+  updateRoyaltyConfiguration,
+} = require("../controllers/royaltyConfigurationController");
 
 const protect = require("../middleware/authMiddleware");
 
-router.post("/", protect, createContract);
-router.get("/", protect, getContracts);
-router.get("/:id", protect, getContractById);
-router.put("/:id", protect, updateContract);
-router.delete("/:id", protect, deleteContract);
+router.post("/configurations", protect, createRoyaltyConfiguration);
 
-module.exports = router;  
+router.get("/configurations", protect, getRoyaltyConfigurations);
+
+router.get(
+  "/configurations/franchise/:franchiseId",
+  protect,
+  getRoyaltyConfigurationsByFranchise
+);
+
+router.put(
+  "/configurations/:id",
+  protect,
+  updateRoyaltyConfiguration
+);
+
+module.exports = router;

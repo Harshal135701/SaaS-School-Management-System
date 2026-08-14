@@ -13,8 +13,5 @@ router.get("/report", protect, getRoyaltyReport);
 router.post("/", protect, createMonthlyRoyalty);
 
 router.put( "/:id/status", protect,updateMonthlyRoyaltyStatus);
- 
- 
-  
 
 module.exports = router;
