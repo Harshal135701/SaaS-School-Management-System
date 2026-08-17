@@ -5,7 +5,7 @@ import { login } from '../../services/authService'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 
 interface LoginFormProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (email?: string) => void;
   onNavigateRegister: () => void;
   onNavigateForgotPassword: () => void;
 }
@@ -39,7 +39,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       console.log('Login successful:', data);
 
       setIsLoading(false);
-      onLoginSuccess();
+      onLoginSuccess(email);
     } catch (error: any) {
       console.error('Login failed:', error);
 
