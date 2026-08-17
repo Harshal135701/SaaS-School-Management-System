@@ -60,6 +60,14 @@ const Franchise = sequelize.define(
       defaultValue: "ACTIVE",
       allowNull: false,
     },
+    planId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+      references: {
+        model: "plans",
+        key: "id",
+      },
+    },
   },
   {
     tableName: "franchises",

@@ -1,5 +1,5 @@
 const bcrypt = require("bcryptjs");
-const { Franchise, FranchiseAdmin } = require("../models");
+const { Franchise, FranchiseAdmin, Plan, Feature } = require("../models");
 
 const createFranchise = async (req, res) => {
   try {
@@ -12,6 +12,7 @@ const createFranchise = async (req, res) => {
       city,
       state,
       pincode,
+      planId,
     } = req.body;
 
     if (
@@ -22,11 +23,12 @@ const createFranchise = async (req, res) => {
       !address ||
       !city ||
       !state ||
-      !pincode
+      !pincode ||
+      !planId
     ) {
       return res.status(400).json({
         success: false,
-        message: "All franchise fields are required",
+        message: "All franchise fields including plan are required",
       });
     }
 
@@ -41,6 +43,15 @@ const createFranchise = async (req, res) => {
       });
     }
 
+    const plan = await Plan.findByPk(planId);
+
+    if (!plan || !plan.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or inactive plan",
+      });
+    }
+
     const franchise = await Franchise.create({
       name,
       code,
@@ -50,6 +61,7 @@ const createFranchise = async (req, res) => {
       city,
       state,
       pincode,
+      planId,
     });
 
     return res.status(201).json({
@@ -88,7 +100,6 @@ const getFranchises = async (req, res) => {
   }
 };
 
-
 const getFranchiseById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -99,6 +110,23 @@ const getFranchiseById = async (req, res) => {
           model: FranchiseAdmin,
           as: "admin",
           attributes: ["id", "name", "email", "isActive", "createdAt"],
+        },
+        {
+          model: Plan,
+          as: "plan",
+          include: [
+            {
+              model: Feature,
+              as: "features",
+              through: {
+                attributes: [],
+              },
+              where: {
+                isActive: true,
+              },
+              required: false,
+            },
+          ],
         },
       ],
     });
@@ -226,9 +254,59 @@ const createFranchiseAdmin = async (req, res) => {
   }
 };
 
+const updateFranchisePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { planId } = req.body;
 
+    if (!planId) {
+      return res.status(400).json({
+        success: false,
+        message: "planId is required",
+      });
+    }
+
+    const franchise = await Franchise.findByPk(id);
+
+    if (!franchise) {
+      return res.status(404).json({
+        success: false,
+        message: "Franchise not found",
+      });
+    }
+
+    const plan = await Plan.findByPk(planId);
+
+    if (!plan || !plan.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or inactive plan",
+      });
+    }
+
+    franchise.planId = planId;
+    await franchise.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Franchise plan updated successfully",
+      data: {
+        franchiseId: franchise.id,
+        planId: franchise.planId,
+        plan: plan.name,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update franchise plan",
+    });
+  }
+};
 
 
 module.exports = {
-  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin,
+  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin,updateFranchisePlan
 };
