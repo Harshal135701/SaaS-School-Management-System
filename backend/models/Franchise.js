@@ -62,7 +62,7 @@ const Franchise = sequelize.define(
     },
     planId: {
       type: DataTypes.UUID,
-      allowNull: false,
+     allowNull: true,
       references: {
         model: "plans",
         key: "id",
