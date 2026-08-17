@@ -15,7 +15,7 @@ const protect = (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    console.log("JWT DECODED:", decoded);
+    // console.log("J WT DECODED:", decoded);
 
     if (decoded.role !== "SYSTEM_ADMIN") {
       return res.status(403).json({
