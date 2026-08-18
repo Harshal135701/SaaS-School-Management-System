@@ -111,8 +111,8 @@ export const AddFranchiseSchoolModal: React.FC<AddFranchiseSchoolModalProps> = (
     <Modal
       isOpen={isOpen}
       onClose={onClose}
-      title={isEditMode ? 'Edit Franchise School' : 'Add New Franchise School'}
-      subtitle={isEditMode ? `Editing: ${editFranchise?.name}` : 'Register a new franchise school and set up subscription details'}
+      title={isEditMode ? 'Edit Franchise School' : 'Add Franchise School'}
+      subtitle={isEditMode ? `Editing: ${editFranchise?.name}` : 'Register a new franchise school and configure subscription details'}
       maxWidth="2xl"
     >
       <form onSubmit={handleSubmit} className="space-y-6">

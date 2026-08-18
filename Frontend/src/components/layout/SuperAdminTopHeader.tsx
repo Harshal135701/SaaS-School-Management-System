@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { Badge } from '../ui/Badge';
-import { Avatar } from '../ui/Avatar';
-import { mockSuperAdminNotifications, superAdminProfile } from '../../data/superAdminMockData';
+import { mockSuperAdminNotifications } from '../../data/superAdminMockData';
 import { 
   Search, 
   Bell, 
@@ -15,7 +14,7 @@ import {
 
 interface SuperAdminTopHeaderProps {
   onToggleMobileSidebar: () => void;
-  onLogout: () => void;
+  onLogout?: () => void;
   onNavigate: (path: string) => void;
   onOpenAddFranchiseModal?: () => void;
 }
@@ -64,7 +63,7 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
       </div>
 
       {/* Right Controls */}
-      <div className="flex items-center gap-2 md:gap-4 shrink-0">
+      <div className="flex items-center gap-2 md:gap-3 shrink-0">
 
         {/* Platform Status Badge */}
         <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200/80 text-xs font-bold text-emerald-700">
@@ -144,29 +143,16 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
           )}
         </div>
 
-        {/* System Settings Icon */}
+        {/* System Settings Button at Top Right */}
         <button
           onClick={() => onNavigate('/super-admin/settings')}
-          className="p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
+          className="flex items-center gap-2 px-3 py-2 text-slate-700 hover:text-blue-600 bg-slate-100/90 hover:bg-blue-50 border border-slate-200/80 hover:border-blue-200 rounded-2xl transition-all cursor-pointer shadow-2xs group"
+          title="System Settings"
           aria-label="System Settings"
         >
-          <Settings className="w-5 h-5" />
+          <Settings className="w-4 h-4 text-slate-600 group-hover:text-blue-600 group-hover:rotate-45 transition-transform duration-300" />
+          <span className="text-xs font-extrabold hidden sm:inline">Settings</span>
         </button>
-
-        {/* Divider */}
-        <div className="w-px h-8 bg-slate-200 hidden md:block mx-1"></div>
-
-        {/* Super Admin Avatar Badge */}
-        <div 
-          onClick={() => onNavigate('/super-admin/settings')}
-          className="flex items-center gap-2 pl-2 border-l border-slate-200/80 cursor-pointer hover:opacity-90 transition-opacity"
-        >
-          <Avatar src={superAdminProfile.avatar} name={superAdminProfile.name} size="sm" status="online" />
-          <div className="hidden xl:block text-left">
-            <p className="text-xs font-extrabold text-slate-900 leading-tight">{superAdminProfile.name}</p>
-            <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-wider block">Super Admin</span>
-          </div>
-        </div>
       </div>
     </header>
   );

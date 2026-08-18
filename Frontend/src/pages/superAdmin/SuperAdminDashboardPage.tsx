@@ -14,14 +14,9 @@ import type { Franchise } from '../../types/superAdmin';
 import {
   Building2,
   CheckCircle2,
-  XCircle,
   GraduationCap,
-  Users,
   IndianRupee,
-  Clock,
-  AlertTriangle,
   FileCheck2,
-  FileClock,
   Search,
   Filter,
   PlusCircle,
@@ -93,29 +88,57 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
     setDeleteConfirmId(null);
   };
 
-  const kpiData = [
-    { title: 'TOTAL FRANCHISES', value: String(franchises.length), subtext: 'across all regions', change: '+12.5%', isPositive: true, icon: Building2, color: 'blue' },
-    { title: 'ACTIVE FRANCHISES', value: String(franchises.filter(f => f.status === 'Active').length), subtext: 'operational schools', change: '87.5%', isPositive: true, icon: CheckCircle2, color: 'emerald' },
-    { title: 'INACTIVE FRANCHISES', value: String(franchises.filter(f => f.status === 'Inactive').length), subtext: 'needs follow-up', change: '12.5%', isPositive: false, icon: XCircle, color: 'rose' },
-    { title: 'TOTAL STUDENTS', value: '18,450', subtext: 'across all schools', change: '+14.2%', isPositive: true, icon: GraduationCap, color: 'purple' },
-    { title: 'TOTAL TEACHERS / STAFF', value: '1,240', subtext: 'registered educators', change: '+6.8%', isPositive: true, icon: Users, color: 'indigo' },
-    { title: 'MONTHLY ROYALTY', value: '₹8,45,000', subtext: 'current month billing', change: '+8.5%', isPositive: true, icon: IndianRupee, color: 'emerald' },
-    { title: 'PENDING ROYALTY', value: '₹1,25,000', subtext: 'within grace period', change: '18%', isPositive: true, icon: Clock, color: 'amber' },
-    { title: 'OVERDUE ROYALTY', value: '₹65,000', subtext: 'action required', change: '10%', isPositive: false, icon: AlertTriangle, color: 'rose' },
-    { title: 'ACTIVE CONTRACTS', value: '21', subtext: 'valid agreements', change: '87.5%', isPositive: true, icon: FileCheck2, color: 'blue' },
-    { title: 'EXPIRING SOON', value: '3', subtext: 'next 60 days', change: 'Renewal due', isPositive: false, icon: FileClock, color: 'amber' }
+  const activeFranchisesCount = franchises.filter(f => f.status === 'Active').length;
+  const inactiveFranchisesCount = franchises.filter(f => f.status === 'Inactive').length;
+
+  // 4 Core clean KPI cards (uncluttered & high impact)
+  const coreKpis = [
+    {
+      title: 'TOTAL FRANCHISES',
+      value: `${franchises.length}`,
+      subtext: `${activeFranchisesCount} Active · ${inactiveFranchisesCount} Inactive`,
+      change: '+12.5%',
+      isPositive: true,
+      icon: Building2,
+      color: 'blue'
+    },
+    {
+      title: 'MONTHLY ROYALTY',
+      value: '₹8,45,000',
+      subtext: '₹1,25,000 pending grace',
+      change: '+8.5%',
+      isPositive: true,
+      icon: IndianRupee,
+      color: 'emerald'
+    },
+    {
+      title: 'NETWORK STUDENTS & STAFF',
+      value: '18,450',
+      subtext: '1,240 active educators',
+      change: '+14.2%',
+      isPositive: true,
+      icon: GraduationCap,
+      color: 'purple'
+    },
+    {
+      title: 'ACTIVE CONTRACTS',
+      value: '21 / 24',
+      subtext: '3 renewals due in 60d',
+      change: '87.5%',
+      isPositive: true,
+      icon: FileCheck2,
+      color: 'indigo'
+    }
   ];
 
   return (
     <div className="space-y-8">
 
-      {/* ── HERO BANNER ── */}
+      {/* ── 1. HERO BANNER ── */}
       <div className="relative w-full rounded-3xl overflow-hidden hero-gradient p-6 md:p-8 text-white shadow-xl shadow-blue-600/15 flex flex-col md:flex-row items-center justify-between gap-6">
-        {/* Background soft glow */}
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none transform translate-x-12 -translate-y-12" />
 
-        <div className="relative z-10 max-w-2xl space-y-4">
-          {/* Top badges */}
+        <div className="relative z-10 max-w-2xl space-y-3">
           <div className="flex flex-wrap items-center gap-2 text-xs">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md font-semibold text-white/90 border border-white/20">
               <Calendar className="w-3.5 h-3.5 text-blue-200" />
@@ -123,45 +146,42 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/20 backdrop-blur-md font-semibold text-emerald-200 border border-emerald-300/30">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              SaaS Platform Live
+              SaaS Multi-Tenant Live
             </span>
           </div>
 
-          {/* Heading */}
           <div>
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
               Super Admin Dashboard 🛡️
             </h1>
             <p className="text-xs md:text-sm font-medium text-blue-100/90 mt-1 max-w-xl leading-relaxed">
-              Real-time SaaS platform analytics, franchise operations, royalty collections, and contract statuses across all <strong className="text-white font-bold">{franchises.length} enrolled schools</strong>.
+              Real-time platform overview across <strong className="text-white font-bold">{franchises.length} franchise schools</strong>, royalty collections, and contract agreements.
             </p>
           </div>
 
-          {/* Stat chips */}
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="flex flex-wrap items-center gap-3 pt-1">
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
               <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
               Revenue up <strong className="text-white font-bold">+8.5%</strong> this month
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              {franchises.filter(f => f.status === 'Active').length} Schools Active
+              {activeFranchisesCount} Operational Schools
             </span>
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
               <Globe className="w-3.5 h-3.5 text-blue-300" />
-              Multi-Region SaaS
+              Centralized Control
             </span>
           </div>
         </div>
 
-        {/* Right: CTA Buttons */}
         <div className="relative z-10 flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
           <Button
             variant="primary"
             size="md"
             onClick={onOpenAddSchoolModal}
             leftIcon={<PlusCircle className="w-4 h-4" />}
-            className="bg-white text-blue-700 hover:bg-blue-50 border-white shadow-lg"
+            className="bg-white text-blue-700 hover:bg-blue-50 border-white shadow-lg font-bold"
           >
             Add Franchise School
           </Button>
@@ -170,71 +190,21 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
             size="md"
             onClick={onOpenAddAdminModal}
             leftIcon={<UserPlus className="w-4 h-4" />}
-            className="bg-white/15 hover:bg-white/25 text-white border-white/30"
+            className="bg-white/15 hover:bg-white/25 text-white border-white/30 font-bold"
           >
             Add Franchise Admin
           </Button>
         </div>
       </div>
 
-      {/* ── KPI CARDS ── */}
-      <div>
-        <div className="flex items-center justify-between mb-4">
-          <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
-            <TrendingUp className="w-5 h-5 text-blue-600" />
-            Key SaaS Metrics & Performance KPIs
-          </h2>
-          <span className="text-xs font-semibold text-slate-500">Updated 5 mins ago</span>
-        </div>
-
-        <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
-          {kpiData.map((kpi, idx) => {
-            const Icon = kpi.icon;
-            return (
-              <Card key={idx} hoverLift className="p-4 flex flex-col justify-between border-slate-200/80">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 truncate pr-1">
-                    {kpi.title}
-                  </span>
-                  <div className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${
-                    kpi.color === 'emerald' ? 'bg-emerald-500' :
-                    kpi.color === 'purple' ? 'bg-purple-500' :
-                    kpi.color === 'indigo' ? 'bg-indigo-500' :
-                    kpi.color === 'amber' ? 'bg-amber-500' :
-                    kpi.color === 'rose' ? 'bg-rose-500' :
-                    'bg-blue-500'
-                  }`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                </div>
-
-                <div>
-                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                    {kpi.value}
-                  </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-                    <span className="text-[11px] font-medium text-slate-500 truncate">{kpi.subtext}</span>
-                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${
-                      kpi.isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                    }`}>
-                      {kpi.change}
-                    </span>
-                  </div>
-                </div>
-              </Card>
-            );
-          })}
-        </div>
-      </div>
-
-      {/* ── CHARTS ROW 1 ── */}
+      {/* ── 2. PRIMARY ANALYTICS ROW (GRAPHS AT START) ── */}
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Trend */}
-        <Card className="lg:col-span-2 p-6 border-slate-200/80">
+        {/* Revenue Trend Area Chart */}
+        <Card hoverLift className="lg:col-span-2 p-6 border-slate-200/80">
           <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
             <div>
               <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Royalty Revenue Trend</h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Monthly collected vs total billed royalty revenue</p>
+              <p className="text-xs text-slate-500 font-medium mt-0.5">Monthly collected royalty vs total invoiced billings</p>
             </div>
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
               {(['6 Months', '12 Months', 'This Year'] as const).map((t) => (
@@ -255,11 +225,11 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
               <AreaChart data={mockRevenueTrends[timeRange]}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35}/>
                     <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
                   </linearGradient>
                   <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
                     <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
                   </linearGradient>
                 </defs>
@@ -268,23 +238,23 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
                 <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `₹${(v/100000).toFixed(1)}L`} />
                 <Tooltip formatter={(value: any) => [`₹${Number(value).toLocaleString('en-IN')}`, '']} contentStyle={{ borderRadius: '12px', borderColor: '#e2e8f0', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
                 <Legend iconType="circle" />
-                <Area type="monotone" dataKey="revenue" name="Total Billed" stroke="#2563eb" strokeWidth={3} fillOpacity={1} fill="url(#colorRevenue)" />
-                <Area type="monotone" dataKey="collected" name="Collected Royalty" stroke="#10b981" strokeWidth={3} fillOpacity={1} fill="url(#colorCollected)" />
+                <Area type="monotone" dataKey="revenue" name="Total Invoiced" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
+                <Area type="monotone" dataKey="collected" name="Collected Royalty" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCollected)" />
               </AreaChart>
             </ResponsiveContainer>
           </div>
         </Card>
 
-        {/* Royalty Payment Status */}
-        <Card className="p-6 border-slate-200/80 flex flex-col justify-between">
+        {/* Royalty Payment Status Donut */}
+        <Card hoverLift className="p-6 border-slate-200/80 flex flex-col justify-between">
           <div>
             <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Royalty Payment Status</h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Current month payment compliance</p>
+            <p className="text-xs text-slate-500 font-medium mt-0.5">Current month collection compliance</p>
           </div>
-          <div className="h-52 my-2">
+          <div className="h-48 my-2">
             <ResponsiveContainer width="100%" height="100%">
               <PieChart>
-                <Pie data={mockRoyaltyPaymentStatusData} cx="50%" cy="50%" innerRadius={55} outerRadius={80} paddingAngle={4} dataKey="value">
+                <Pie data={mockRoyaltyPaymentStatusData} cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={4} dataKey="value">
                   {mockRoyaltyPaymentStatusData.map((entry, index) => (
                     <Cell key={`cell-${index}`} fill={entry.color} />
                   ))}
@@ -310,82 +280,142 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
         </Card>
       </div>
 
-      {/* ── CHARTS ROW 2 ── */}
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-        {/* Plan Distribution */}
-        <Card className="p-6 border-slate-200/80">
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Subscription Plans</h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">Basic, Pro & Enterprise breakdown</p>
-          <div className="h-44">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={mockPlanDistributionData} cx="50%" cy="50%" outerRadius={65} dataKey="value">
-                  {mockPlanDistributionData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(val: any) => [`${val} Schools`, 'Count']} />
-              </PieChart>
-            </ResponsiveContainer>
+      {/* ── 3. CLEAN 4 CORE KPI METRICS ── */}
+      <div>
+        <div className="flex items-center justify-between mb-4">
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+            <TrendingUp className="w-4 h-4 text-blue-600" />
+            Key SaaS Platform Performance
+          </h2>
+          <span className="text-xs font-semibold text-slate-400">Live Metric Stream</span>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
+          {coreKpis.map((kpi, idx) => {
+            const Icon = kpi.icon;
+            return (
+              <Card key={idx} hoverLift className="p-5 flex flex-col justify-between border-slate-200/80">
+                <div className="flex items-center justify-between mb-3">
+                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 truncate pr-1">
+                    {kpi.title}
+                  </span>
+                  <div className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${
+                    kpi.color === 'emerald' ? 'bg-emerald-500' :
+                    kpi.color === 'purple' ? 'bg-purple-500' :
+                    kpi.color === 'indigo' ? 'bg-indigo-500' :
+                    'bg-blue-500'
+                  }`}>
+                    <Icon className="w-4 h-4" />
+                  </div>
+                </div>
+
+                <div>
+                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                    {kpi.value}
+                  </div>
+                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
+                    <span className="text-xs font-medium text-slate-500 truncate">{kpi.subtext}</span>
+                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${
+                      kpi.isPositive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                    }`}>
+                      {kpi.change}
+                    </span>
+                  </div>
+                </div>
+              </Card>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ── 4. SECONDARY INSIGHTS (SPACIOUS 2-COLUMN) ── */}
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        {/* Franchise Growth & Plans */}
+        <Card hoverLift className="p-6 border-slate-200/80 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Franchise Growth & Subscriptions</h3>
+              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
+                {franchises.length} Total Schools
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mb-4">Cumulative franchise expansion and tier distribution</p>
+
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={mockFranchiseGrowthData}>
+                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <Tooltip formatter={(val: any) => [`${val} Active Schools`, 'Active']} />
+                  <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
           </div>
-          <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-slate-100">
+
+          <div className="grid grid-cols-3 gap-3 text-center pt-4 border-t border-slate-100 mt-2">
             {mockPlanDistributionData.map(p => (
-              <div key={p.name} className="p-2 rounded-xl bg-slate-50">
-                <span className="text-[10px] font-bold text-slate-500 block uppercase">{p.name}</span>
-                <span className="text-sm font-extrabold text-slate-900">{p.value}</span>
+              <div key={p.name} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
+                <span className="text-[10px] font-bold text-slate-500 block uppercase">{p.name} Plan</span>
+                <span className="text-sm font-extrabold text-slate-900">{p.value} schools</span>
               </div>
             ))}
           </div>
         </Card>
 
-        {/* Franchise Growth */}
-        <Card className="p-6 border-slate-200/80">
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Franchise Growth Rate</h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">Cumulative schools onboarded</p>
-          <div className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockFranchiseGrowthData}>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                <Tooltip formatter={(val: any) => [`${val} Active Schools`, 'Active']} />
-                <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
-              </BarChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+        {/* Contract & Agreement Overview */}
+        <Card hoverLift className="p-6 border-slate-200/80 flex flex-col justify-between">
+          <div>
+            <div className="flex items-center justify-between mb-2">
+              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Contract Status & Renewals</h3>
+              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
+                87.5% Active Rate
+              </span>
+            </div>
+            <p className="text-xs text-slate-500 font-medium mb-4">Active contracts, upcoming renewals and expired agreements</p>
 
-        {/* Contract Overview */}
-        <Card className="p-6 border-slate-200/80">
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Contract Status</h3>
-          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">Active vs Expiring vs Expired</p>
-          <div className="h-52">
-            <ResponsiveContainer width="100%" height="100%">
-              <BarChart data={mockContractOverviewData} layout="vertical">
-                <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                <YAxis type="category" dataKey="category" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={90} />
-                <Tooltip />
-                <Bar dataKey="count" radius={[0, 6, 6, 0]}>
-                  {mockContractOverviewData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Bar>
-              </BarChart>
-            </ResponsiveContainer>
+            <div className="h-44">
+              <ResponsiveContainer width="100%" height="100%">
+                <BarChart data={mockContractOverviewData} layout="vertical">
+                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
+                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
+                  <YAxis type="category" dataKey="category" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={90} />
+                  <Tooltip />
+                  <Bar dataKey="count" radius={[0, 6, 6, 0]}>
+                    {mockContractOverviewData.map((entry, index) => (
+                      <Cell key={`cell-${index}`} fill={entry.color} />
+                    ))}
+                  </Bar>
+                </BarChart>
+              </ResponsiveContainer>
+            </div>
+          </div>
+
+          <div className="flex items-center justify-between p-3 bg-blue-50/70 rounded-xl border border-blue-100 text-xs font-semibold text-blue-900 mt-2">
+            <div className="flex items-center gap-2">
+              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
+              <span>3 Franchise contracts up for renewal within the next 60 days</span>
+            </div>
+            <button
+              onClick={() => onNavigate('/super-admin/contracts')}
+              className="text-xs font-bold text-blue-700 hover:text-blue-900 underline shrink-0 cursor-pointer"
+            >
+              View Contracts
+            </button>
           </div>
         </Card>
       </div>
 
-      {/* ── FRANCHISE TABLE WITH CRUD ── */}
-      <Card className="p-6 border-slate-200/80">
+      {/* ── 5. FRANCHISE SCHOOLS TABLE WITH CRUD ── */}
+      <Card hoverLift className="p-6 border-slate-200/80">
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
           <div>
             <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-              Franchise Schools & Enrolled Schools
+              Franchise Schools Directory
             </h3>
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Manage all franchise schools — view, edit or remove
+              Manage all enrolled franchise schools — view credentials, edit subscription plans, or remove
             </p>
           </div>
 
@@ -394,10 +424,10 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
               <input
                 type="text"
-                placeholder="Search school name or code..."
+                placeholder="Search school or city..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-9 pr-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 w-52"
+                className="pl-9 pr-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 w-52 transition-all"
               />
             </div>
 
@@ -455,7 +485,7 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
               {filteredFranchises.length === 0 ? (
                 <tr>
                   <td colSpan={8} className="p-8 text-center text-slate-400 text-sm font-semibold">
-                    No franchise schools found.
+                    No franchise schools found matching your search.
                   </td>
                 </tr>
               ) : (
