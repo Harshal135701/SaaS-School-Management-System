@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
@@ -34,6 +35,38 @@ export function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
+  useEffect(() => {
+    const token = localStorage.getItem('token');
+
+    if (!token) {
+      return;
+    }
+
+    try {
+      const decoded: { role?: string; exp?: number } = jwtDecode(token);
+
+      if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        localStorage.removeItem('token');
+        return;
+      }
+
+      if (decoded.role === 'SYSTEM_ADMIN') {
+        setUserRole('Super Admin');
+        setCurrentPath('/super-admin/dashboard');
+        setIsAuthenticated(true);
+      } else if (decoded.role === 'FRANCHISE_ADMIN') {
+        setUserRole('Franchise Admin');
+        setCurrentPath('/admin/dashboard');
+        setIsAuthenticated(true);
+      } else {
+        localStorage.removeItem('token');
+      }
+    } catch (error) {
+      console.error('Invalid authentication token:', error);
+      localStorage.removeItem('token');
+    }
+  }, []);
+
   const handleLoginSuccess = (user?: any) => {
     setIsAuthenticated(true);
 
@@ -56,6 +89,7 @@ export function App() {
   };
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
     setCurrentPath('/login');
     showToast('Signed out successfully.');
