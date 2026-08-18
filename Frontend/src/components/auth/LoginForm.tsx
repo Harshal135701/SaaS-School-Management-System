@@ -5,7 +5,7 @@ import { login } from '../../services/authService'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 
 interface LoginFormProps {
-  onLoginSuccess: () => void;
+  onLoginSuccess: (user?: any) => void;
   onNavigateRegister: () => void;
   onNavigateForgotPassword: () => void;
 }
@@ -15,8 +15,8 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   onNavigateRegister,
   onNavigateForgotPassword
 }) => {
-  const [email, setEmail] = useState('krishna.admin@edusphere.edu');
-  const [password, setPassword] = useState('SuperAdmin2026!');
+  const [email, setEmail] = useState('');
+  const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
   const [rememberMe, setRememberMe] = useState(true);
   const [isLoading, setIsLoading] = useState(false);
@@ -35,11 +35,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
     try {
       const data = await login(email, password);
-
       console.log('Login successful:', data);
-
       setIsLoading(false);
-      onLoginSuccess();
+      onLoginSuccess(data.admin);
     } catch (error: any) {
       console.error('Login failed:', error);
 
@@ -84,7 +82,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         <Input
           label="EMAIL OR USERNAME"
           type="text"
-          placeholder="krishna.admin@edusphere.edu"
+          placeholder="Enter your email"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           leftIcon={<Mail className="w-4 h-4" />}
