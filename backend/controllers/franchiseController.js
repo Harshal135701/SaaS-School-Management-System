@@ -1,6 +1,11 @@
 const bcrypt = require("bcryptjs");
-const { Franchise, FranchiseAdmin, Plan, Feature } = require("../models");
-
+const {
+  Franchise,
+  FranchiseAdmin,
+  Plan,
+  Contract,
+  MonthlyRoyalty,
+} = require("../models");
 const createFranchise = async (req, res) => {
   try {
     const {
@@ -78,10 +83,48 @@ const createFranchise = async (req, res) => {
     });
   }
 };
-
 const getFranchises = async (req, res) => {
   try {
     const franchises = await Franchise.findAll({
+      include: [
+        {
+          model: FranchiseAdmin,
+          as: "admin",
+          attributes: ["id", "name", "email", "isActive"],
+        },
+        {
+          model: Plan,
+          as: "plan",
+          attributes: ["id", "name", "price", "billingCycle"],
+        },
+        {
+          model: Contract,
+          as: "contracts",
+          attributes: [
+            "id",
+            "agreementNumber",
+            "agreementType",
+            "startDate",
+            "endDate",
+            "status",
+          ],
+        },
+        {
+          model: MonthlyRoyalty,
+          as: "monthlyRoyalties",
+          attributes: [
+            "id",
+            "billingMonth",
+            "royaltyAmount",
+            "totalAmount",
+            "status",
+            "dueDate",
+          ],
+          separate: true,
+          limit: 1,
+          order: [["billingMonth", "DESC"]],
+        },
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -91,11 +134,12 @@ const getFranchises = async (req, res) => {
       data: franchises,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Get Franchises Error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Failed to fetch franchises",
+      error: error.message,
     });
   }
 };
@@ -308,5 +352,5 @@ const updateFranchisePlan = async (req, res) => {
 
 
 module.exports = {
-  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin,updateFranchisePlan
+  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin, updateFranchisePlan
 };

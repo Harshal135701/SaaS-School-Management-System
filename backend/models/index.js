@@ -34,6 +34,7 @@ Plan.hasMany(Franchise, {
   as: "franchises",
 });
 
+
 module.exports = {
   sequelize,
   Franchise,

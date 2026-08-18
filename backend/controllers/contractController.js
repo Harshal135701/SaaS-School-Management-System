@@ -1,5 +1,5 @@
 const Contract = require("../models/Contract");
-
+const Franchise =require("../models/Franchise")
 // Create Contract
 exports.createContract = async (req, res) => {
   try {
@@ -40,13 +40,21 @@ exports.createContract = async (req, res) => {
 };
 
 // Get All Contracts
+// Get All Contracts
 exports.getContracts = async (req, res) => {
   try {
     const contracts = await Contract.findAll({
+      include: [
+        {
+          model: Franchise,
+          as: "franchise",
+          attributes: ["id", "name", "code"],
+        },
+      ],
       order: [["createdAt", "DESC"]],
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       count: contracts.length,
       data: contracts,
@@ -54,7 +62,7 @@ exports.getContracts = async (req, res) => {
   } catch (error) {
     console.error("Get Contracts Error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch contracts",
       error: error.message,

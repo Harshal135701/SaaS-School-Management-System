@@ -4,7 +4,7 @@ import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
 import { Input } from '../../components/ui/Input';
-import { mockContracts } from '../../data/superAdminMockData';
+import api from '../../services/api';
 import type { Contract, ContractStatus } from '../../types/superAdmin';
 import {
   FileText,
@@ -41,8 +41,69 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
     onNavigate(path);
   };
 
-  const [contractsList, setContractsList] = useState<Contract[]>(mockContracts);
+  const [contractsList, setContractsList] = useState<Contract[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
+
+  React.useEffect(() => {
+    const fetchContracts = async () => {
+      try {
+        const response = await api.get('/contracts');
+
+        if (response.data.success) {
+          const contracts = response.data.data.map((contract: any) => {
+            const today = new Date();
+            const endDate = new Date(contract.endDate);
+
+            const diffTime = endDate.getTime() - today.getTime();
+            const daysRemaining = Math.ceil(
+              diffTime / (1000 * 60 * 60 * 24)
+            );
+
+            let status: ContractStatus;
+
+            if (daysRemaining <= 0 || contract.status === 'EXPIRED') {
+              status = 'Expired';
+            } else if (daysRemaining <= 60) {
+              status = 'Expiring Soon';
+            } else {
+              status = 'Active';
+            }
+
+            return {
+              id: String(contract.id),
+              contractNumber: contract.agreementNumber,
+              schoolId: contract.franchiseId,
+              schoolName: contract.franchise?.name || 'Unknown School',
+              schoolCode: contract.franchise?.code || 'N/A',
+              agreementTitle: contract.agreementType,
+              startDate: contract.startDate,
+              endDate: contract.endDate,
+              durationMonths: 0,
+              monthlyRoyalty: 0,
+              plan: 'Basic',
+              renewalStatus:
+                contract.status === 'RENEWED'
+                  ? 'Auto Renewal'
+                  : 'Manual Renewal',
+              status,
+              daysRemaining,
+              documentUrl: contract.documentUrl,
+            };
+          });
+
+          setContractsList(contracts);
+        }
+      } catch (error) {
+        console.error('Failed to fetch contracts:', error);
+        showToast('Failed to load contracts');
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchContracts();
+  }, []);
 
   // Selected contract for View or Renew
   const [viewingContract, setViewingContract] = useState<Contract | null>(null);
@@ -55,31 +116,97 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const handleRenewSubmit = (e: React.FormEvent) => {
+  const handleRenewSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
+
     if (!renewingContract) return;
 
-    setContractsList(prev => prev.map(c => {
-      if (c.id === renewingContract.id) {
-        return {
-          ...c,
-          status: 'Active',
-          daysRemaining: c.daysRemaining + extensionMonths * 30,
-          endDate: '2028-09-30',
-          renewalStatus: 'Auto Renewal'
-        };
-      }
-      return c;
-    }));
+    try {
+      const oldEndDate = new Date(renewingContract.endDate);
 
-    showToast(`Contract ${renewingContract.contractNumber} renewed successfully for ${extensionMonths} months!`);
-    setRenewingContract(null);
+      const newStartDate = new Date(oldEndDate);
+      newStartDate.setDate(newStartDate.getDate() + 1);
+
+      const newEndDate = new Date(newStartDate);
+      newEndDate.setMonth(newEndDate.getMonth() + extensionMonths);
+
+      const formatDate = (date: Date) =>
+        date.toISOString().split('T')[0];
+
+      const response = await api.patch(
+        `/contracts/${renewingContract.id}/renew`,
+        {
+          startDate: formatDate(newStartDate),
+          endDate: formatDate(newEndDate),
+        }
+      );
+
+      if (response.data.success) {
+        showToast(
+          `Contract ${renewingContract.contractNumber} renewed successfully!`
+        );
+
+        setRenewingContract(null);
+
+        // Refresh contracts
+        const refreshed = await api.get('/contracts');
+
+        if (refreshed.data.success) {
+          const contracts = refreshed.data.data.map((contract: any) => {
+            const today = new Date();
+            const endDate = new Date(contract.endDate);
+
+            const diffTime = endDate.getTime() - today.getTime();
+
+            const daysRemaining = Math.ceil(
+              diffTime / (1000 * 60 * 60 * 24)
+            );
+
+            let status: ContractStatus;
+
+            if (daysRemaining <= 0 || contract.status === 'EXPIRED') {
+              status = 'Expired';
+            } else if (daysRemaining <= 60) {
+              status = 'Expiring Soon';
+            } else {
+              status = 'Active';
+            }
+
+            return {
+              id: String(contract.id),
+              contractNumber: contract.agreementNumber,
+              schoolId: contract.franchiseId,
+              schoolName: contract.franchise?.name || 'Unknown School',
+              schoolCode: contract.franchise?.code || 'N/A',
+              agreementTitle: contract.agreementType,
+              startDate: contract.startDate,
+              endDate: contract.endDate,
+              durationMonths: 0,
+              monthlyRoyalty: 0,
+              plan: 'Basic',
+              renewalStatus:
+                contract.status === 'RENEWED'
+                  ? 'Auto Renewal'
+                  : 'Manual Renewal',
+              status,
+              daysRemaining,
+              documentUrl: contract.documentUrl,
+            };
+          });
+
+          setContractsList(contracts);
+        }
+      }
+    } catch (error) {
+      console.error('Renew contract error:', error);
+      showToast('Failed to renew contract');
+    }
   };
 
   const filteredContracts = contractsList.filter(c => {
     const matchesSearch = c.schoolName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          c.contractNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          c.schoolCode.toLowerCase().includes(searchQuery.toLowerCase());
+      c.contractNumber.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      c.schoolCode.toLowerCase().includes(searchQuery.toLowerCase());
 
     if (activeTab === 'active') return matchesSearch && c.status === 'Active';
     if (activeTab === 'expiring') return matchesSearch && c.status === 'Expiring Soon';
@@ -157,11 +284,10 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
             <button
               key={t.id}
               onClick={() => handleTabChange(t.id)}
-              className={`pb-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                isActive
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
+              className={`pb-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${isActive
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
             >
               <Icon className="w-4 h-4" />
               <span>{t.label}</span>
@@ -203,9 +329,8 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
             </thead>
             <tbody className="divide-y divide-slate-100">
               {filteredContracts.map((c) => (
-                <tr key={c.id} className={`hover:bg-slate-50/80 transition-colors ${
-                  c.status === 'Expiring Soon' ? 'bg-amber-50/30' : ''
-                }`}>
+                <tr key={c.id} className={`hover:bg-slate-50/80 transition-colors ${c.status === 'Expiring Soon' ? 'bg-amber-50/30' : ''
+                  }`}>
                   <td className="p-3.5">
                     <div className="font-extrabold text-slate-900">{c.schoolName}</div>
                     <span className="text-[10px] font-bold text-blue-600">{c.schoolCode}</span>
