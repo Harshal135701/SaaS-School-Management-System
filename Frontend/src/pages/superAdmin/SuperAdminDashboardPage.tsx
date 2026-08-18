@@ -1,8 +1,9 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
+import api from '../../services/api'
 import {
   mockFranchises,
   mockRevenueTrends,
@@ -62,11 +63,41 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('All');
 
+
+
+  const [dashboardData, setDashboardData] = useState({
+    totalFranchises: 0,
+    activeFranchises: 0,
+    inactiveFranchises: 0,
+    totalFranchiseAdmins: 0,
+  });
+
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const response = await api.get('/system-admin/dashboard');
+
+        if (response.data.success) {
+          setDashboardData(response.data.data);
+        }
+      } catch (error) {
+        console.error('Failed to fetch dashboard data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, []);
+
+  const [loading, setLoading] = useState(true);
+
   // Filtered recent franchises
   const filteredFranchises = mockFranchises.filter(f => {
     const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.city.toLowerCase().includes(searchQuery.toLowerCase());
+      f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      f.city.toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPlan = planFilter === 'All' || f.plan === planFilter;
     return matchesSearch && matchesPlan;
   });
@@ -74,93 +105,31 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
   const kpiData = [
     {
       title: 'TOTAL FRANCHISES',
-      value: '24',
+      value: dashboardData.totalFranchises,
       subtext: 'across all regions',
-      change: '+12.5%',
-      isPositive: true,
       icon: Building2,
       color: 'blue'
     },
     {
       title: 'ACTIVE FRANCHISES',
-      value: '21',
+      value: dashboardData.activeFranchises,
       subtext: 'operational schools',
-      change: '87.5%',
-      isPositive: true,
       icon: CheckCircle2,
       color: 'emerald'
     },
     {
       title: 'INACTIVE FRANCHISES',
-      value: '3',
+      value: dashboardData.inactiveFranchises,
       subtext: 'needs follow-up',
-      change: '12.5%',
-      isPositive: false,
       icon: XCircle,
       color: 'rose'
     },
     {
-      title: 'TOTAL STUDENTS',
-      value: '18,450',
-      subtext: 'across all schools',
-      change: '+14.2%',
-      isPositive: true,
-      icon: GraduationCap,
-      color: 'purple'
-    },
-    {
-      title: 'TOTAL TEACHERS / STAFF',
-      value: '1,240',
-      subtext: 'registered educators',
-      change: '+6.8%',
-      isPositive: true,
+      title: 'FRANCHISE ADMINS',
+      value: dashboardData.totalFranchiseAdmins,
+      subtext: 'registered admins',
       icon: Users,
       color: 'indigo'
-    },
-    {
-      title: 'MONTHLY ROYALTY REVENUE',
-      value: '₹8,45,000',
-      subtext: 'current month billing',
-      change: '+8.5%',
-      isPositive: true,
-      icon: IndianRupee,
-      color: 'emerald'
-    },
-    {
-      title: 'PENDING ROYALTY',
-      value: '₹1,25,000',
-      subtext: 'within grace period',
-      change: '18%',
-      isPositive: true,
-      icon: Clock,
-      color: 'amber'
-    },
-    {
-      title: 'OVERDUE ROYALTY',
-      value: '₹65,000',
-      subtext: 'action required',
-      change: '10%',
-      isPositive: false,
-      icon: AlertTriangle,
-      color: 'rose'
-    },
-    {
-      title: 'ACTIVE CONTRACTS',
-      value: '21',
-      subtext: 'valid agreements',
-      change: '87.5%',
-      isPositive: true,
-      icon: FileCheck2,
-      color: 'blue'
-    },
-    {
-      title: 'EXPIRING SOON',
-      value: '3',
-      subtext: 'next 60 days',
-      change: 'Renewal due',
-      isPositive: false,
-      icon: FileClock,
-      color: 'amber'
     }
   ];
 
@@ -212,7 +181,7 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
           <span className="text-xs font-semibold text-slate-500">Updated 5 mins ago</span>
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
           {kpiData.map((kpi, idx) => {
             const Icon = kpi.icon;
             return (
@@ -221,14 +190,13 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
                   <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 truncate">
                     {kpi.title}
                   </span>
-                  <div className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${
-                    kpi.color === 'emerald' ? 'bg-emerald-600' :
+                  <div className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${kpi.color === 'emerald' ? 'bg-emerald-600' :
                     kpi.color === 'purple' ? 'bg-purple-600' :
-                    kpi.color === 'indigo' ? 'bg-indigo-600' :
-                    kpi.color === 'amber' ? 'bg-amber-600' :
-                    kpi.color === 'rose' ? 'bg-rose-600' :
-                    'bg-blue-600'
-                  }`}>
+                      kpi.color === 'indigo' ? 'bg-indigo-600' :
+                        kpi.color === 'amber' ? 'bg-amber-600' :
+                          kpi.color === 'rose' ? 'bg-rose-600' :
+                            'bg-blue-600'
+                    }`}>
                     <Icon className="w-4 h-4" />
                   </div>
                 </div>
@@ -239,11 +207,11 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
                   </div>
                   <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
                     <span className="text-[11px] font-medium text-slate-500 truncate">{kpi.subtext}</span>
-                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md ${
-                      kpi.isPositive ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-700'
-                    }`}>
-                      {kpi.change}
-                    </span>
+                    <div className="mt-2 pt-2 border-t border-slate-100">
+                      <span className="text-[11px] font-medium text-slate-500">
+                        {kpi.subtext}
+                      </span>
+                    </div>
                   </div>
                 </div>
               </Card>
@@ -272,11 +240,10 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
                 <button
                   key={t}
                   onClick={() => setTimeRange(t)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    timeRange === t 
-                      ? 'bg-white text-slate-900 shadow-xs' 
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
+                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${timeRange === t
+                    ? 'bg-white text-slate-900 shadow-xs'
+                    : 'text-slate-600 hover:text-slate-900'
+                    }`}
                 >
                   {t}
                 </button>
@@ -289,24 +256,24 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
               <AreaChart data={mockRevenueTrends[timeRange]}>
                 <defs>
                   <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0} />
                   </linearGradient>
                   <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
+                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                    <stop offset="95%" stopColor="#10b981" stopOpacity={0} />
                   </linearGradient>
                 </defs>
                 <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
                 <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis 
-                  tickLine={false} 
-                  axisLine={false} 
-                  tick={{ fontSize: 11, fill: '#64748b' }} 
-                  tickFormatter={(v) => `₹${(v/100000).toFixed(1)}L`}
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{ fontSize: 11, fill: '#64748b' }}
+                  tickFormatter={(v) => `₹${(v / 100000).toFixed(1)}L`}
                 />
-                <Tooltip 
-                  formatter={(value: any) => [`₹${Number(value).toLocaleString('en-IN')}`, '']} 
+                <Tooltip
+                  formatter={(value: any) => [`₹${Number(value).toLocaleString('en-IN')}`, '']}
                   contentStyle={{ borderRadius: '12px', borderColor: '#e2e8f0', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }}
                 />
                 <Legend iconType="circle" />
@@ -487,9 +454,8 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
                 <button
                   key={p}
                   onClick={() => setPlanFilter(p)}
-                  className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                    planFilter === p ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'
-                  }`}
+                  className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${planFilter === p ? 'bg-white text-slate-900 shadow-2xs font-bold' : 'text-slate-600'
+                    }`}
                 >
                   {p}
                 </button>
@@ -537,11 +503,10 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
                   </td>
 
                   <td className="p-3.5">
-                    <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
-                      f.plan === 'Enterprise' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
+                    <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${f.plan === 'Enterprise' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
                       f.plan === 'Pro' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                      'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                    }`}>
+                        'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                      }`}>
                       {f.plan}
                     </span>
                   </td>
@@ -559,14 +524,13 @@ export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = (
 
                   <td className="p-3.5">
                     <Badge variant={f.royaltyStatus === 'Paid' ? 'emerald' : f.royaltyStatus === 'Pending' ? 'amber' : 'rose'} size="sm">
-                      {f.royaltyStatus} (₹{(f.monthlyRoyalty/1000).toFixed(0)}k)
+                      {f.royaltyStatus} (₹{(f.monthlyRoyalty / 1000).toFixed(0)}k)
                     </Badge>
                   </td>
 
                   <td className="p-3.5">
-                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                      f.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
-                    }`}>
+                    <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${f.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
+                      }`}>
                       <span className={`w-1.5 h-1.5 rounded-full ${f.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                       {f.status}
                     </span>
