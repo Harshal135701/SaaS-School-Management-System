@@ -1,4 +1,5 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
+import { jwtDecode } from 'jwt-decode';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
@@ -24,7 +25,7 @@ import { mockFranchises } from './data/superAdminMockData';
 import type { Franchise } from './types/superAdmin';
 
 // Super Admin email — the only hardcoded check needed
-const SUPER_ADMIN_EMAIL = 'krishna.admin@edusphere.edu';
+
 
 export function App() {
   const [currentPath, setCurrentPath] = useState<string>('/login');
@@ -49,39 +50,92 @@ export function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
 
-  const handleLoginSuccess = (loginEmail?: string) => {
-    setIsAuthenticated(true);
+  useEffect(() => {
+    const token = localStorage.getItem('token');
 
-    // Check if this is the Super Admin
-    if (!loginEmail || loginEmail.toLowerCase() === SUPER_ADMIN_EMAIL.toLowerCase()) {
-      setUserRole('Super Admin');
-      setLoggedInFranchise(null);
-      setCurrentPath('/super-admin/dashboard');
-      showToast('Welcome back, Krishna Patil! Signed in as SaaS Super Admin.');
+    if (!token) {
       return;
     }
 
-    // Check if this email matches any franchise admin in the franchise list
+    try {
+      const decoded: { role?: string; exp?: number } = jwtDecode(token);
+
+      if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        localStorage.removeItem('token');
+        return;
+      }
+
+      if (decoded.role === 'SYSTEM_ADMIN') {
+        setUserRole('Super Admin');
+        setCurrentPath('/super-admin/dashboard');
+        setIsAuthenticated(true);
+      } else if (decoded.role === 'FRANCHISE_ADMIN') {
+        setUserRole('Franchise Admin');
+        setCurrentPath('/admin/dashboard');
+        setIsAuthenticated(true);
+      } else {
+        localStorage.removeItem('token');
+      }
+    } catch (error) {
+      console.error('Invalid authentication token:', error);
+      localStorage.removeItem('token');
+    }
+  }, []);
+
+  const handleLoginSuccess = (user?: any) => {
+  setIsAuthenticated(true);
+
+  // System Admin / Super Admin
+  if (user?.role === 'SYSTEM_ADMIN') {
+    setUserRole('Super Admin');
+    setLoggedInFranchise(null);
+    setCurrentPath('/super-admin/dashboard');
+
+    showToast(
+      `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
+    );
+    return;
+  }
+
+  // Franchise / School Admin
+  if (user?.role === 'FRANCHISE_ADMIN') {
+    setUserRole('Franchise Admin');
+
+    // Find the school/franchise associated with this admin.
+    // Match by admin email when the franchise data is available.
     const matchedFranchise = franchises.find(
-      f => f.adminEmail && f.adminEmail.toLowerCase() === loginEmail.toLowerCase()
+      f =>
+        f.adminEmail &&
+        user.email &&
+        f.adminEmail.toLowerCase() === user.email.toLowerCase()
     );
 
+    setLoggedInFranchise(matchedFranchise || null);
+    setCurrentPath('/admin/dashboard');
+
     if (matchedFranchise) {
-      // It's a Franchise Admin — load their specific school
-      setUserRole('Franchise Admin');
-      setLoggedInFranchise(matchedFranchise);
-      setCurrentPath('/admin/dashboard');
-      showToast(`Welcome, ${matchedFranchise.adminName}! Signed in to ${matchedFranchise.name}.`);
+      showToast(
+        `Welcome, ${matchedFranchise.adminName}! Signed in to ${matchedFranchise.name}.`
+      );
     } else {
-      // Unknown user — treat as generic Franchise Admin (no school matched)
-      setUserRole('Franchise Admin');
-      setLoggedInFranchise(null);
-      setCurrentPath('/admin/dashboard');
-      showToast(`Signed in as Franchise Admin (${loginEmail})`);
+      showToast(
+        `Signed in successfully as Franchise Admin (${user.email}).`
+      );
     }
-  };
+
+    return;
+  }
+
+  // Unknown / invalid role
+  setIsAuthenticated(false);
+  setLoggedInFranchise(null);
+  setCurrentPath('/login');
+
+  showToast('Invalid user role.');
+};
 
   const handleLogout = () => {
+    localStorage.removeItem('token');
     setIsAuthenticated(false);
     setLoggedInFranchise(null);
     setCurrentPath('/login');

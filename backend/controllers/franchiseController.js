@@ -1,6 +1,11 @@
 const bcrypt = require("bcryptjs");
-const { Franchise, FranchiseAdmin } = require("../models");
-
+const {
+  Franchise,
+  FranchiseAdmin,
+  Plan,
+  Contract,
+  MonthlyRoyalty,
+} = require("../models");
 const createFranchise = async (req, res) => {
   try {
     const {
@@ -12,6 +17,7 @@ const createFranchise = async (req, res) => {
       city,
       state,
       pincode,
+      planId,
     } = req.body;
 
     if (
@@ -22,11 +28,12 @@ const createFranchise = async (req, res) => {
       !address ||
       !city ||
       !state ||
-      !pincode
+      !pincode ||
+      !planId
     ) {
       return res.status(400).json({
         success: false,
-        message: "All franchise fields are required",
+        message: "All franchise fields including plan are required",
       });
     }
 
@@ -41,6 +48,15 @@ const createFranchise = async (req, res) => {
       });
     }
 
+    const plan = await Plan.findByPk(planId);
+
+    if (!plan || !plan.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or inactive plan",
+      });
+    }
+
     const franchise = await Franchise.create({
       name,
       code,
@@ -50,6 +66,7 @@ const createFranchise = async (req, res) => {
       city,
       state,
       pincode,
+      planId,
     });
 
     return res.status(201).json({
@@ -66,10 +83,48 @@ const createFranchise = async (req, res) => {
     });
   }
 };
-
 const getFranchises = async (req, res) => {
   try {
     const franchises = await Franchise.findAll({
+      include: [
+        {
+          model: FranchiseAdmin,
+          as: "admin",
+          attributes: ["id", "name", "email", "isActive"],
+        },
+        {
+          model: Plan,
+          as: "plan",
+          attributes: ["id", "name", "price", "billingCycle"],
+        },
+        {
+          model: Contract,
+          as: "contracts",
+          attributes: [
+            "id",
+            "agreementNumber",
+            "agreementType",
+            "startDate",
+            "endDate",
+            "status",
+          ],
+        },
+        {
+          model: MonthlyRoyalty,
+          as: "monthlyRoyalties",
+          attributes: [
+            "id",
+            "billingMonth",
+            "royaltyAmount",
+            "totalAmount",
+            "status",
+            "dueDate",
+          ],
+          separate: true,
+          limit: 1,
+          order: [["billingMonth", "DESC"]],
+        },
+      ],
       order: [["createdAt", "DESC"]],
     });
 
@@ -79,15 +134,15 @@ const getFranchises = async (req, res) => {
       data: franchises,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Get Franchises Error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Failed to fetch franchises",
+      error: error.message,
     });
   }
 };
-
 
 const getFranchiseById = async (req, res) => {
   try {
@@ -99,6 +154,23 @@ const getFranchiseById = async (req, res) => {
           model: FranchiseAdmin,
           as: "admin",
           attributes: ["id", "name", "email", "isActive", "createdAt"],
+        },
+        {
+          model: Plan,
+          as: "plan",
+          include: [
+            {
+              model: Feature,
+              as: "features",
+              through: {
+                attributes: [],
+              },
+              where: {
+                isActive: true,
+              },
+              required: false,
+            },
+          ],
         },
       ],
     });
@@ -226,9 +298,59 @@ const createFranchiseAdmin = async (req, res) => {
   }
 };
 
+const updateFranchisePlan = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { planId } = req.body;
 
+    if (!planId) {
+      return res.status(400).json({
+        success: false,
+        message: "planId is required",
+      });
+    }
+
+    const franchise = await Franchise.findByPk(id);
+
+    if (!franchise) {
+      return res.status(404).json({
+        success: false,
+        message: "Franchise not found",
+      });
+    }
+
+    const plan = await Plan.findByPk(planId);
+
+    if (!plan || !plan.isActive) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid or inactive plan",
+      });
+    }
+
+    franchise.planId = planId;
+    await franchise.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Franchise plan updated successfully",
+      data: {
+        franchiseId: franchise.id,
+        planId: franchise.planId,
+        plan: plan.name,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update franchise plan",
+    });
+  }
+};
 
 
 module.exports = {
-  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin,
+  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin, updateFranchisePlan
 };

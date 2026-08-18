@@ -42,6 +42,18 @@ const createRoyaltyConfiguration = async (req, res) => {
       });
     }
 
+    // Deactivate previous active configuration
+    await RoyaltyConfiguration.update(
+      { isActive: false },
+      {
+        where: {
+          franchiseId,
+          isActive: true,
+        },
+      }
+    );
+
+    // Create new configuration
     const royaltyConfiguration = await RoyaltyConfiguration.create({
       franchiseId,
       royaltyType,

@@ -5,7 +5,7 @@ import { login } from '../../services/authService'
 import { Mail, Lock, Eye, EyeOff, ArrowRight, ShieldCheck } from 'lucide-react';
 
 interface LoginFormProps {
-  onLoginSuccess: (email?: string) => void;
+  onLoginSuccess: (user?: any) => void;
   onNavigateRegister: () => void;
   onNavigateForgotPassword: () => void;
 }
@@ -35,11 +35,9 @@ export const LoginForm: React.FC<LoginFormProps> = ({
 
     try {
       const data = await login(email, password);
-
       console.log('Login successful:', data);
-
       setIsLoading(false);
-      onLoginSuccess(email);
+      onLoginSuccess(data.admin);
     } catch (error: any) {
       console.error('Login failed:', error);
 
@@ -80,16 +78,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="EMAIL OR USERNAME"
-          type="text"
-          placeholder="Enter your email address"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          leftIcon={<Mail className="w-4 h-4" />}
-          requiredBadge
-        />
+           label="EMAIL OR USERNAME"
+           type="text"
+           placeholder="Enter your email"
+           value={email}
+           onChange={(e) => setEmail(e.target.value)}
+           leftIcon={<Mail className="w-4 h-4" />}
+           requiredBadge
+       />
 
         <div className="relative">
           <div className="flex items-center justify-between mb-1">

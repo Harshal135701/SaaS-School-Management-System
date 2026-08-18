@@ -6,7 +6,7 @@ const SystemAdmin = require("./SystemAdmin");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const Contract = require("./Contract");
-const Plan = require("./plan");
+const Plan = require("./Plan");
 const Feature = require("./Feature");
 
 // Plan ↔ Feature
@@ -23,6 +23,17 @@ Feature.belongsToMany(Plan, {
   otherKey: "planId",
   as: "plans",
 });
+
+Franchise.belongsTo(Plan, {
+  foreignKey: "planId",
+  as: "plan",
+});
+
+Plan.hasMany(Franchise, {
+  foreignKey: "planId",
+  as: "franchises",
+});
+
 
 module.exports = {
   sequelize,

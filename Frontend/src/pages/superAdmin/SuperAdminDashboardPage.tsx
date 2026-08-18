@@ -1,22 +1,23 @@
-import React, { useState } from 'react';
+import React, { useEffect, useState } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
+import api from '../../services/api';
+
 import {
-  mockFranchises,
   mockRevenueTrends,
   mockRoyaltyPaymentStatusData,
   mockFranchiseGrowthData,
   mockPlanDistributionData,
   mockContractOverviewData
 } from '../../data/superAdminMockData';
-import type { Franchise } from '../../types/superAdmin';
+
 import {
   Building2,
   CheckCircle2,
-  GraduationCap,
-  IndianRupee,
-  FileCheck2,
+  XCircle,
+  Users,
   Search,
   Filter,
   PlusCircle,
@@ -29,6 +30,7 @@ import {
   Globe,
   UserPlus
 } from 'lucide-react';
+
 import {
   AreaChart,
   Area,
@@ -45,6 +47,47 @@ import {
   Legend
 } from 'recharts';
 
+/* =========================================================
+   TYPES
+========================================================= */
+
+interface Franchise {
+  id: string;
+  name: string;
+  code: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
+  status?: string;
+
+  plan?: {
+    name?: string;
+  } | string | null;
+
+  admin?: {
+    name?: string;
+    email?: string;
+  } | null;
+
+  adminName?: string;
+  adminEmail?: string;
+
+  contracts?: Array<{
+    status?: string;
+  }>;
+
+  monthlyRoyalties?: Array<{
+    status?: string;
+    royaltyAmount?: number | string;
+    amount?: number | string;
+  }>;
+
+  contractStatus?: string;
+  royaltyStatus?: string;
+  monthlyRoyalty?: number;
+}
+
 interface SuperAdminDashboardPageProps {
   onNavigate: (path: string) => void;
   onOpenAddSchoolModal: () => void;
@@ -53,543 +96,1633 @@ interface SuperAdminDashboardPageProps {
   franchiseList?: Franchise[];
 }
 
-export const SuperAdminDashboardPage: React.FC<SuperAdminDashboardPageProps> = ({
+/* =========================================================
+   COMPONENT
+========================================================= */
+
+export const SuperAdminDashboardPage: React.FC<
+  SuperAdminDashboardPageProps
+> = ({
   onNavigate,
   onOpenAddSchoolModal,
   onOpenAddAdminModal,
   onEditFranchise,
   franchiseList
 }) => {
-  const [timeRange, setTimeRange] = useState<'6 Months' | '12 Months' | 'This Year'>('6 Months');
+  /* =======================================================
+     STATE
+  ======================================================= */
+
+  const [timeRange, setTimeRange] = useState<
+    '6 Months' | '12 Months' | 'This Year'
+  >('6 Months');
+
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('All');
-  const [localFranchises, setLocalFranchises] = useState<Franchise[]>(franchiseList || mockFranchises);
-  const [deleteConfirmId, setDeleteConfirmId] = useState<string | null>(null);
 
-  const franchises = franchiseList || localFranchises;
+  const [localFranchises, setLocalFranchises] = useState<Franchise[]>(
+    franchiseList || []
+  );
 
-  const todayDateString = new Date().toLocaleDateString('en-US', {
-    weekday: 'long',
-    month: 'long',
-    day: 'numeric',
-    year: 'numeric'
+  const [deleteConfirmId, setDeleteConfirmId] =
+    useState<string | null>(null);
+
+  const [loading, setLoading] = useState(true);
+
+  const [dashboardData, setDashboardData] = useState({
+    totalFranchises: 0,
+    activeFranchises: 0,
+    inactiveFranchises: 0,
+    totalFranchiseAdmins: 0
   });
 
-  const filteredFranchises = franchises.filter(f => {
-    const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPlan = planFilter === 'All' || f.plan === planFilter;
-    return matchesSearch && matchesPlan;
+  /* =======================================================
+     FETCH DASHBOARD DATA
+  ======================================================= */
+
+  useEffect(() => {
+    const fetchDashboard = async () => {
+      try {
+        const [dashboardResponse, franchisesResponse] =
+          await Promise.all([
+            api.get('/system-admin/dashboard'),
+            api.get('/system-admin/franchises')
+          ]);
+
+        if (dashboardResponse.data?.success) {
+          setDashboardData(
+            dashboardResponse.data.data
+          );
+        }
+
+        if (franchisesResponse.data?.success) {
+          setLocalFranchises(
+            franchisesResponse.data.data || []
+          );
+        }
+      } catch (error) {
+        console.error(
+          'Failed to fetch dashboard data:',
+          error
+        );
+
+        /*
+         * If franchiseList was supplied by the parent,
+         * keep using it as a fallback.
+         */
+        if (franchiseList) {
+          setLocalFranchises(franchiseList);
+        }
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchDashboard();
+  }, [franchiseList]);
+
+  /* =======================================================
+     FRANCHISE DATA
+  ======================================================= */
+
+  const franchises =
+    franchiseList && franchiseList.length > 0
+      ? franchiseList
+      : localFranchises;
+
+  /* =======================================================
+     DATE
+  ======================================================= */
+
+  const todayDateString = new Date().toLocaleDateString(
+    'en-US',
+    {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }
+  );
+
+  /* =======================================================
+     SEARCH + FILTER
+  ======================================================= */
+
+  const filteredFranchises = franchises.filter((f) => {
+    const query =
+      searchQuery.toLowerCase();
+
+    const matchesSearch =
+      f.name
+        ?.toLowerCase()
+        .includes(query) ||
+      f.code
+        ?.toLowerCase()
+        .includes(query) ||
+      f.city
+        ?.toLowerCase()
+        .includes(query) ||
+      f.state
+        ?.toLowerCase()
+        .includes(query);
+
+    const planName =
+      typeof f.plan === 'string'
+        ? f.plan
+        : f.plan?.name;
+
+    const matchesPlan =
+      planFilter === 'All' ||
+      planName
+        ?.toLowerCase()
+        .includes(
+          planFilter.toLowerCase()
+        );
+
+    return (
+      matchesSearch &&
+      matchesPlan
+    );
   });
 
-  const handleDelete = (id: string) => {
-    setLocalFranchises(prev => prev.filter(f => f.id !== id));
-    setDeleteConfirmId(null);
+  /* =======================================================
+     DELETE
+  ======================================================= */
+
+  const handleDelete = async (
+    id: string
+  ) => {
+    try {
+      /*
+       * Delete API can be enabled here when the backend
+       * delete endpoint is confirmed.
+       *
+       * Example:
+       * await api.delete(`/system-admin/franchises/${id}`);
+       */
+
+      setLocalFranchises((prev) =>
+        prev.filter(
+          (franchise) =>
+            franchise.id !== id
+        )
+      );
+
+      setDeleteConfirmId(null);
+    } catch (error) {
+      console.error(
+        'Failed to delete franchise:',
+        error
+      );
+    }
   };
 
-  const activeFranchisesCount = franchises.filter(f => f.status === 'Active').length;
-  const inactiveFranchisesCount = franchises.filter(f => f.status === 'Inactive').length;
+  /* =======================================================
+     KPI DATA
+  ======================================================= */
 
-  // 4 Core clean KPI cards (uncluttered & high impact)
-  const coreKpis = [
+  const activeFranchisesCount =
+    dashboardData.activeFranchises ||
+    franchises.filter(
+      (f) =>
+        f.status === 'ACTIVE' ||
+        f.status === 'Active'
+    ).length;
+
+  const inactiveFranchisesCount =
+    dashboardData.inactiveFranchises ||
+    franchises.filter(
+      (f) =>
+        f.status === 'INACTIVE' ||
+        f.status === 'Inactive'
+    ).length;
+
+  const totalFranchisesCount =
+    dashboardData.totalFranchises ||
+    franchises.length;
+
+  const kpiData = [
     {
       title: 'TOTAL FRANCHISES',
-      value: `${franchises.length}`,
-      subtext: `${activeFranchisesCount} Active · ${inactiveFranchisesCount} Inactive`,
-      change: '+12.5%',
-      isPositive: true,
+      value: totalFranchisesCount,
+      subtext: 'across all regions',
       icon: Building2,
       color: 'blue'
     },
     {
-      title: 'MONTHLY ROYALTY',
-      value: '₹8,45,000',
-      subtext: '₹1,25,000 pending grace',
-      change: '+8.5%',
-      isPositive: true,
-      icon: IndianRupee,
+      title: 'ACTIVE FRANCHISES',
+      value: activeFranchisesCount,
+      subtext: 'operational schools',
+      icon: CheckCircle2,
       color: 'emerald'
     },
     {
-      title: 'NETWORK STUDENTS & STAFF',
-      value: '18,450',
-      subtext: '1,240 active educators',
-      change: '+14.2%',
-      isPositive: true,
-      icon: GraduationCap,
-      color: 'purple'
+      title: 'INACTIVE FRANCHISES',
+      value: inactiveFranchisesCount,
+      subtext: 'needs follow-up',
+      icon: XCircle,
+      color: 'rose'
     },
     {
-      title: 'ACTIVE CONTRACTS',
-      value: '21 / 24',
-      subtext: '3 renewals due in 60d',
-      change: '87.5%',
-      isPositive: true,
-      icon: FileCheck2,
+      title: 'FRANCHISE ADMINS',
+      value:
+        dashboardData.totalFranchiseAdmins,
+      subtext: 'registered admins',
+      icon: Users,
       color: 'indigo'
     }
   ];
 
+  /* =======================================================
+     PLAN NAME HELPER
+  ======================================================= */
+
+  const getPlanName = (
+    franchise: Franchise
+  ) => {
+    if (
+      typeof franchise.plan ===
+      'string'
+    ) {
+      return franchise.plan;
+    }
+
+    return (
+      franchise.plan?.name ||
+      'No Plan'
+    );
+  };
+
+  /* =======================================================
+     ADMIN HELPER
+  ======================================================= */
+
+  const getAdminName = (
+    franchise: Franchise
+  ) => {
+    return (
+      franchise.admin?.name ||
+      franchise.adminName ||
+      'Not Assigned'
+    );
+  };
+
+  const getAdminEmail = (
+    franchise: Franchise
+  ) => {
+    return (
+      franchise.admin?.email ||
+      franchise.adminEmail ||
+      'No email'
+    );
+  };
+
+  /* =======================================================
+     CONTRACT HELPER
+  ======================================================= */
+
+  const getContractStatus = (
+    franchise: Franchise
+  ) => {
+    return (
+      franchise.contracts?.[0]
+        ?.status ||
+      franchise.contractStatus ||
+      'No Contract'
+    );
+  };
+
+  /* =======================================================
+     ROYALTY HELPER
+  ======================================================= */
+
+  const getRoyalty = (
+    franchise: Franchise
+  ) => {
+    const royalty =
+      franchise.monthlyRoyalties?.[0];
+
+    if (royalty) {
+      return {
+        status:
+          royalty.status ||
+          'PENDING',
+        amount:
+          Number(
+            royalty.royaltyAmount ??
+              royalty.amount ??
+              0
+          )
+      };
+    }
+
+    return {
+      status:
+        franchise.royaltyStatus ||
+        'No Royalty',
+      amount:
+        Number(
+          franchise.monthlyRoyalty ||
+            0
+        )
+    };
+  };
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
+
   return (
     <div className="space-y-8">
 
-      {/* ── 1. HERO BANNER ── */}
-      <div className="relative w-full rounded-3xl overflow-hidden hero-gradient p-6 md:p-8 text-white shadow-xl shadow-blue-600/15 flex flex-col md:flex-row items-center justify-between gap-6">
+      {/* ===================================================
+          HERO BANNER
+      =================================================== */}
+
+      <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 p-6 md:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
+
         <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none transform translate-x-12 -translate-y-12" />
 
-        <div className="relative z-10 max-w-2xl space-y-3">
+        <div className="relative z-10 max-w-3xl space-y-3">
+
           <div className="flex flex-wrap items-center gap-2 text-xs">
+
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md font-semibold text-white/90 border border-white/20">
+
               <Calendar className="w-3.5 h-3.5 text-blue-200" />
+
               {todayDateString}
+
             </span>
+
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/20 backdrop-blur-md font-semibold text-emerald-200 border border-emerald-300/30">
+
               <CheckCircle2 className="w-3.5 h-3.5" />
+
               SaaS Multi-Tenant Live
+
             </span>
+
           </div>
 
           <div>
+
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
               Super Admin Dashboard 🛡️
             </h1>
+
             <p className="text-xs md:text-sm font-medium text-blue-100/90 mt-1 max-w-xl leading-relaxed">
-              Real-time platform overview across <strong className="text-white font-bold">{franchises.length} franchise schools</strong>, royalty collections, and contract agreements.
+              Real-time platform overview across{' '}
+              <strong className="text-white font-bold">
+                {totalFranchisesCount}{' '}
+                franchise schools
+              </strong>
+              , royalty collections, and
+              contract agreements.
             </p>
+
           </div>
 
           <div className="flex flex-wrap items-center gap-3 pt-1">
+
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
+
               <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
-              Revenue up <strong className="text-white font-bold">+8.5%</strong> this month
+
+              Platform Performance
+
             </span>
+
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
+
               <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              {activeFranchisesCount} Operational Schools
+
+              {activeFranchisesCount}{' '}
+              Operational Schools
+
             </span>
+
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
+
               <Globe className="w-3.5 h-3.5 text-blue-300" />
+
               Centralized Control
+
             </span>
+
           </div>
+
         </div>
 
         <div className="relative z-10 flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
+
           <Button
             variant="primary"
             size="md"
-            onClick={onOpenAddSchoolModal}
-            leftIcon={<PlusCircle className="w-4 h-4" />}
+            onClick={
+              onOpenAddSchoolModal
+            }
+            leftIcon={
+              <PlusCircle className="w-4 h-4" />
+            }
             className="bg-white text-blue-700 hover:bg-blue-50 border-white shadow-lg font-bold"
           >
             Add Franchise School
           </Button>
+
           <Button
             variant="secondary"
             size="md"
-            onClick={onOpenAddAdminModal}
-            leftIcon={<UserPlus className="w-4 h-4" />}
+            onClick={
+              onOpenAddAdminModal
+            }
+            leftIcon={
+              <UserPlus className="w-4 h-4" />
+            }
             className="bg-white/15 hover:bg-white/25 text-white border-white/30 font-bold"
           >
             Add Franchise Admin
           </Button>
+
         </div>
+
       </div>
 
-      {/* ── 2. PRIMARY ANALYTICS ROW (GRAPHS AT START) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-        {/* Revenue Trend Area Chart */}
-        <Card hoverLift className="lg:col-span-2 p-6 border-slate-200/80">
-          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Royalty Revenue Trend</h3>
-              <p className="text-xs text-slate-500 font-medium mt-0.5">Monthly collected royalty vs total invoiced billings</p>
-            </div>
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
-              {(['6 Months', '12 Months', 'This Year'] as const).map((t) => (
-                <button
-                  key={t}
-                  onClick={() => setTimeRange(t)}
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    timeRange === t ? 'bg-white text-slate-900 shadow-xs' : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {t}
-                </button>
-              ))}
-            </div>
-          </div>
-          <div className="h-64 w-full">
-            <ResponsiveContainer width="100%" height="100%">
-              <AreaChart data={mockRevenueTrends[timeRange]}>
-                <defs>
-                  <linearGradient id="colorRevenue" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#2563eb" stopOpacity={0.35}/>
-                    <stop offset="95%" stopColor="#2563eb" stopOpacity={0}/>
-                  </linearGradient>
-                  <linearGradient id="colorCollected" x1="0" y1="0" x2="0" y2="1">
-                    <stop offset="5%" stopColor="#10b981" stopOpacity={0.35}/>
-                    <stop offset="95%" stopColor="#10b981" stopOpacity={0}/>
-                  </linearGradient>
-                </defs>
-                <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 12, fill: '#64748b' }} />
-                <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11, fill: '#64748b' }} tickFormatter={(v) => `₹${(v/100000).toFixed(1)}L`} />
-                <Tooltip formatter={(value: any) => [`₹${Number(value).toLocaleString('en-IN')}`, '']} contentStyle={{ borderRadius: '12px', borderColor: '#e2e8f0', boxShadow: '0 10px 15px -3px rgba(0,0,0,0.1)' }} />
-                <Legend iconType="circle" />
-                <Area type="monotone" dataKey="revenue" name="Total Invoiced" stroke="#2563eb" strokeWidth={2.5} fillOpacity={1} fill="url(#colorRevenue)" />
-                <Area type="monotone" dataKey="collected" name="Collected Royalty" stroke="#10b981" strokeWidth={2.5} fillOpacity={1} fill="url(#colorCollected)" />
-              </AreaChart>
-            </ResponsiveContainer>
-          </div>
-        </Card>
+      {/* ===================================================
+          KPI CARDS
+      =================================================== */}
 
-        {/* Royalty Payment Status Donut */}
-        <Card hoverLift className="p-6 border-slate-200/80 flex flex-col justify-between">
-          <div>
-            <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Royalty Payment Status</h3>
-            <p className="text-xs text-slate-500 font-medium mt-0.5">Current month collection compliance</p>
-          </div>
-          <div className="h-48 my-2">
-            <ResponsiveContainer width="100%" height="100%">
-              <PieChart>
-                <Pie data={mockRoyaltyPaymentStatusData} cx="50%" cy="50%" innerRadius={52} outerRadius={76} paddingAngle={4} dataKey="value">
-                  {mockRoyaltyPaymentStatusData.map((entry, index) => (
-                    <Cell key={`cell-${index}`} fill={entry.color} />
-                  ))}
-                </Pie>
-                <Tooltip formatter={(val: any) => [`${val}%`, 'Percentage']} />
-              </PieChart>
-            </ResponsiveContainer>
-          </div>
-          <div className="space-y-2 pt-2 border-t border-slate-100">
-            {mockRoyaltyPaymentStatusData.map((item) => (
-              <div key={item.name} className="flex items-center justify-between text-xs font-semibold">
-                <div className="flex items-center gap-2">
-                  <span className="w-2.5 h-2.5 rounded-full" style={{ backgroundColor: item.color }} />
-                  <span className="text-slate-700">{item.name}</span>
-                </div>
-                <div className="flex items-center gap-2">
-                  <span className="text-slate-500">{item.amount}</span>
-                  <span className="font-extrabold text-slate-900">({item.value}%)</span>
-                </div>
-              </div>
-            ))}
-          </div>
-        </Card>
-      </div>
-
-      {/* ── 3. CLEAN 4 CORE KPI METRICS ── */}
       <div>
+
         <div className="flex items-center justify-between mb-4">
+
           <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-2">
+
             <TrendingUp className="w-4 h-4 text-blue-600" />
+
             Key SaaS Platform Performance
+
           </h2>
-          <span className="text-xs font-semibold text-slate-400">Live Metric Stream</span>
+
+          <span className="text-xs font-semibold text-slate-400">
+            {loading
+              ? 'Loading...'
+              : 'Live Data'}
+          </span>
+
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-          {coreKpis.map((kpi, idx) => {
-            const Icon = kpi.icon;
-            return (
-              <Card key={idx} hoverLift className="p-5 flex flex-col justify-between border-slate-200/80">
-                <div className="flex items-center justify-between mb-3">
-                  <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 truncate pr-1">
-                    {kpi.title}
-                  </span>
-                  <div className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${
-                    kpi.color === 'emerald' ? 'bg-emerald-500' :
-                    kpi.color === 'purple' ? 'bg-purple-500' :
-                    kpi.color === 'indigo' ? 'bg-indigo-500' :
-                    'bg-blue-500'
-                  }`}>
-                    <Icon className="w-4 h-4" />
-                  </div>
-                </div>
 
-                <div>
-                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                    {kpi.value}
-                  </div>
-                  <div className="flex items-center justify-between mt-2 pt-2 border-t border-slate-100">
-                    <span className="text-xs font-medium text-slate-500 truncate">{kpi.subtext}</span>
-                    <span className={`text-[10px] font-extrabold px-1.5 py-0.5 rounded-md shrink-0 ${
-                      kpi.isPositive ? 'bg-emerald-50 text-emerald-700 border border-emerald-200/60' : 'bg-rose-50 text-rose-700 border border-rose-200/60'
-                    }`}>
-                      {kpi.change}
+          {kpiData.map(
+            (kpi, index) => {
+
+              const Icon =
+                kpi.icon;
+
+              return (
+                <Card
+                  key={index}
+                  hover
+                  className="p-5 flex flex-col justify-between border-slate-200/80"
+                >
+
+                  <div className="flex items-center justify-between mb-3">
+
+                    <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500 truncate pr-1">
+                      {kpi.title}
                     </span>
+
+                    <div
+                      className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${
+                        kpi.color ===
+                        'emerald'
+                          ? 'bg-emerald-500'
+                          : kpi.color ===
+                            'rose'
+                          ? 'bg-rose-500'
+                          : kpi.color ===
+                            'indigo'
+                          ? 'bg-indigo-500'
+                          : 'bg-blue-500'
+                      }`}
+                    >
+                      <Icon className="w-4 h-4" />
+                    </div>
+
                   </div>
-                </div>
-              </Card>
-            );
-          })}
+
+                  <div>
+
+                    <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
+                      {kpi.value}
+                    </div>
+
+                    <div className="mt-2 pt-2 border-t border-slate-100">
+
+                      <span className="text-xs font-medium text-slate-500">
+                        {kpi.subtext}
+                      </span>
+
+                    </div>
+
+                  </div>
+
+                </Card>
+              );
+            }
+          )}
+
         </div>
+
       </div>
 
-      {/* ── 4. SECONDARY INSIGHTS (SPACIOUS 2-COLUMN) ── */}
-      <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-        {/* Franchise Growth & Plans */}
-        <Card hoverLift className="p-6 border-slate-200/80 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Franchise Growth & Subscriptions</h3>
-              <span className="text-xs font-bold text-blue-600 bg-blue-50 px-2.5 py-0.5 rounded-full">
-                {franchises.length} Total Schools
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mb-4">Cumulative franchise expansion and tier distribution</p>
+      {/* ===================================================
+          MAIN CHARTS
+      =================================================== */}
 
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockFranchiseGrowthData}>
-                  <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                  <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <Tooltip formatter={(val: any) => [`${val} Active Schools`, 'Active']} />
-                  <Bar dataKey="count" fill="#2563eb" radius={[6, 6, 0, 0]} />
-                </BarChart>
-              </ResponsiveContainer>
+      <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+
+        {/* ROYALTY REVENUE */}
+
+        <Card className="lg:col-span-2 p-6 border-slate-200/80">
+
+          <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4 mb-6">
+
+            <div>
+
+              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+                Royalty Revenue Trend
+              </h3>
+
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Monthly collected vs total
+                billed royalty revenue
+              </p>
+
             </div>
+
+            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl">
+
+              {(
+                [
+                  '6 Months',
+                  '12 Months',
+                  'This Year'
+                ] as const
+              ).map(
+                (range) => (
+
+                  <button
+                    key={range}
+                    onClick={() =>
+                      setTimeRange(
+                        range
+                      )
+                    }
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      timeRange ===
+                      range
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {range}
+                  </button>
+
+                )
+              )}
+
+            </div>
+
           </div>
 
-          <div className="grid grid-cols-3 gap-3 text-center pt-4 border-t border-slate-100 mt-2">
-            {mockPlanDistributionData.map(p => (
-              <div key={p.name} className="p-2.5 rounded-xl bg-slate-50 border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-500 block uppercase">{p.name} Plan</span>
-                <span className="text-sm font-extrabold text-slate-900">{p.value} schools</span>
-              </div>
-            ))}
-          </div>
-        </Card>
+          <div className="h-64 w-full">
 
-        {/* Contract & Agreement Overview */}
-        <Card hoverLift className="p-6 border-slate-200/80 flex flex-col justify-between">
-          <div>
-            <div className="flex items-center justify-between mb-2">
-              <h3 className="text-base font-extrabold text-slate-900 tracking-tight">Contract Status & Renewals</h3>
-              <span className="text-xs font-bold text-emerald-700 bg-emerald-50 px-2.5 py-0.5 rounded-full">
-                87.5% Active Rate
-              </span>
-            </div>
-            <p className="text-xs text-slate-500 font-medium mb-4">Active contracts, upcoming renewals and expired agreements</p>
-
-            <div className="h-44">
-              <ResponsiveContainer width="100%" height="100%">
-                <BarChart data={mockContractOverviewData} layout="vertical">
-                  <CartesianGrid strokeDasharray="3 3" horizontal={false} stroke="#f1f5f9" />
-                  <XAxis type="number" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                  <YAxis type="category" dataKey="category" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} width={90} />
-                  <Tooltip />
-                  <Bar dataKey="count" radius={[0, 6, 6, 0]}>
-                    {mockContractOverviewData.map((entry, index) => (
-                      <Cell key={`cell-${index}`} fill={entry.color} />
-                    ))}
-                  </Bar>
-                </BarChart>
-              </ResponsiveContainer>
-            </div>
-          </div>
-
-          <div className="flex items-center justify-between p-3 bg-blue-50/70 rounded-xl border border-blue-100 text-xs font-semibold text-blue-900 mt-2">
-            <div className="flex items-center gap-2">
-              <Sparkles className="w-4 h-4 text-blue-600 shrink-0" />
-              <span>3 Franchise contracts up for renewal within the next 60 days</span>
-            </div>
-            <button
-              onClick={() => onNavigate('/super-admin/contracts')}
-              className="text-xs font-bold text-blue-700 hover:text-blue-900 underline shrink-0 cursor-pointer"
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
             >
-              View Contracts
-            </button>
+
+              <AreaChart
+                data={
+                  mockRevenueTrends[
+                    timeRange
+                  ]
+                }
+              >
+
+                <defs>
+
+                  <linearGradient
+                    id="colorRevenue"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor="#2563eb"
+                      stopOpacity={0.35}
+                    />
+
+                    <stop
+                      offset="95%"
+                      stopColor="#2563eb"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+
+                  <linearGradient
+                    id="colorCollected"
+                    x1="0"
+                    y1="0"
+                    x2="0"
+                    y2="1"
+                  >
+                    <stop
+                      offset="5%"
+                      stopColor="#10b981"
+                      stopOpacity={0.35}
+                    />
+
+                    <stop
+                      offset="95%"
+                      stopColor="#10b981"
+                      stopOpacity={0}
+                    />
+                  </linearGradient>
+
+                </defs>
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#f1f5f9"
+                />
+
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{
+                    fontSize: 12,
+                    fill: '#64748b'
+                  }}
+                />
+
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{
+                    fontSize: 11,
+                    fill: '#64748b'
+                  }}
+                  tickFormatter={(value) =>
+                    `₹${(
+                      value / 100000
+                    ).toFixed(1)}L`
+                  }
+                />
+
+                <Tooltip
+                  formatter={(
+                    value: any
+                  ) => [
+                    `₹${Number(
+                      value
+                    ).toLocaleString(
+                      'en-IN'
+                    )}`,
+                    ''
+                  ]}
+                />
+
+                <Legend
+                  iconType="circle"
+                />
+
+                <Area
+                  type="monotone"
+                  dataKey="revenue"
+                  name="Total Billed"
+                  stroke="#2563eb"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#colorRevenue)"
+                />
+
+                <Area
+                  type="monotone"
+                  dataKey="collected"
+                  name="Collected Royalty"
+                  stroke="#10b981"
+                  strokeWidth={2.5}
+                  fillOpacity={1}
+                  fill="url(#colorCollected)"
+                />
+
+              </AreaChart>
+
+            </ResponsiveContainer>
+
           </div>
+
         </Card>
+
+        {/* ROYALTY STATUS */}
+
+        <Card className="p-6 border-slate-200/80 flex flex-col justify-between">
+
+          <div>
+
+            <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+              Royalty Payment Status
+            </h3>
+
+            <p className="text-xs text-slate-500 font-medium mt-0.5">
+              Current month collection
+              compliance
+            </p>
+
+          </div>
+
+          <div className="h-48 my-2">
+
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
+
+              <PieChart>
+
+                <Pie
+                  data={
+                    mockRoyaltyPaymentStatusData
+                  }
+                  cx="50%"
+                  cy="50%"
+                  innerRadius={52}
+                  outerRadius={76}
+                  paddingAngle={4}
+                  dataKey="value"
+                >
+
+                  {mockRoyaltyPaymentStatusData.map(
+                    (
+                      entry,
+                      index
+                    ) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.color
+                        }
+                      />
+                    )
+                  )}
+
+                </Pie>
+
+                <Tooltip
+                  formatter={(
+                    value: any
+                  ) => [
+                    `${value}%`,
+                    'Percentage'
+                  ]}
+                />
+
+              </PieChart>
+
+            </ResponsiveContainer>
+
+          </div>
+
+          <div className="space-y-2 pt-2 border-t border-slate-100">
+
+            {mockRoyaltyPaymentStatusData.map(
+              (item) => (
+
+                <div
+                  key={item.name}
+                  className="flex items-center justify-between text-xs font-semibold"
+                >
+
+                  <div className="flex items-center gap-2">
+
+                    <span
+                      className="w-2.5 h-2.5 rounded-full"
+                      style={{
+                        backgroundColor:
+                          item.color
+                      }}
+                    />
+
+                    <span className="text-slate-700">
+                      {item.name}
+                    </span>
+
+                  </div>
+
+                  <div className="flex items-center gap-2">
+
+                    <span className="text-slate-500">
+                      {item.amount}
+                    </span>
+
+                    <span className="font-extrabold text-slate-900">
+                      ({item.value}%)
+                    </span>
+
+                  </div>
+
+                </div>
+
+              )
+            )}
+
+          </div>
+
+        </Card>
+
       </div>
 
-      {/* ── 5. FRANCHISE SCHOOLS TABLE WITH CRUD ── */}
-      <Card hoverLift className="p-6 border-slate-200/80">
+      {/* ===================================================
+          SECONDARY CHARTS
+      =================================================== */}
+
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+
+        {/* PLAN DISTRIBUTION */}
+
+        <Card className="p-6 border-slate-200/80">
+
+          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+            Subscription Plan Distribution
+          </h3>
+
+          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">
+            Breakdown by subscription
+            tiers
+          </p>
+
+          <div className="h-48">
+
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
+
+              <PieChart>
+
+                <Pie
+                  data={
+                    mockPlanDistributionData
+                  }
+                  cx="50%"
+                  cy="50%"
+                  outerRadius={70}
+                  dataKey="value"
+                >
+
+                  {mockPlanDistributionData.map(
+                    (
+                      entry,
+                      index
+                    ) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.color
+                        }
+                      />
+                    )
+                  )}
+
+                </Pie>
+
+                <Tooltip
+                  formatter={(
+                    value: any
+                  ) => [
+                    `${value} Schools`,
+                    'Count'
+                  ]}
+                />
+
+              </PieChart>
+
+            </ResponsiveContainer>
+
+          </div>
+
+          <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-slate-100">
+
+            {mockPlanDistributionData.map(
+              (plan) => (
+
+                <div
+                  key={plan.name}
+                  className="p-2 rounded-xl bg-slate-50"
+                >
+
+                  <span className="text-[10px] font-bold text-slate-500 block uppercase">
+                    {plan.name}
+                  </span>
+
+                  <span className="text-sm font-extrabold text-slate-900">
+                    {plan.value}{' '}
+                    schools
+                  </span>
+
+                </div>
+
+              )
+            )}
+
+          </div>
+
+        </Card>
+
+        {/* FRANCHISE GROWTH */}
+
+        <Card className="p-6 border-slate-200/80">
+
+          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+            Franchise Growth Rate
+          </h3>
+
+          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">
+            Cumulative active schools
+            onboarded over time
+          </p>
+
+          <div className="h-56">
+
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
+
+              <BarChart
+                data={
+                  mockFranchiseGrowthData
+                }
+              >
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  vertical={false}
+                  stroke="#f1f5f9"
+                />
+
+                <XAxis
+                  dataKey="month"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{
+                    fontSize: 11
+                  }}
+                />
+
+                <YAxis
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{
+                    fontSize: 11
+                  }}
+                />
+
+                <Tooltip />
+
+                <Bar
+                  dataKey="count"
+                  fill="#2563eb"
+                  radius={[
+                    6,
+                    6,
+                    0,
+                    0
+                  ]}
+                />
+
+              </BarChart>
+
+            </ResponsiveContainer>
+
+          </div>
+
+        </Card>
+
+        {/* CONTRACT OVERVIEW */}
+
+        <Card className="p-6 border-slate-200/80">
+
+          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
+            Contract Status Overview
+          </h3>
+
+          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">
+            Active vs expiring vs
+            expired contracts
+          </p>
+
+          <div className="h-56">
+
+            <ResponsiveContainer
+              width="100%"
+              height="100%"
+            >
+
+              <BarChart
+                data={
+                  mockContractOverviewData
+                }
+                layout="vertical"
+              >
+
+                <CartesianGrid
+                  strokeDasharray="3 3"
+                  horizontal={false}
+                  stroke="#f1f5f9"
+                />
+
+                <XAxis
+                  type="number"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{
+                    fontSize: 11
+                  }}
+                />
+
+                <YAxis
+                  type="category"
+                  dataKey="category"
+                  tickLine={false}
+                  axisLine={false}
+                  tick={{
+                    fontSize: 11
+                  }}
+                  width={90}
+                />
+
+                <Tooltip />
+
+                <Bar
+                  dataKey="count"
+                  radius={[
+                    0,
+                    6,
+                    6,
+                    0
+                  ]}
+                >
+
+                  {mockContractOverviewData.map(
+                    (
+                      entry,
+                      index
+                    ) => (
+                      <Cell
+                        key={`cell-${index}`}
+                        fill={
+                          entry.color
+                        }
+                      />
+                    )
+                  )}
+
+                </Bar>
+
+              </BarChart>
+
+            </ResponsiveContainer>
+
+          </div>
+
+        </Card>
+
+      </div>
+
+      {/* ===================================================
+          FRANCHISE TABLE
+      =================================================== */}
+
+      <Card className="p-6 border-slate-200/80">
+
         <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+
           <div>
+
             <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
               Franchise Schools Directory
             </h3>
+
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Manage all enrolled franchise schools — view credentials, edit subscription plans, or remove
+              Manage all enrolled franchise
+              schools — view, edit, or remove
             </p>
+
           </div>
 
+          {/* SEARCH + FILTER */}
+
           <div className="flex flex-wrap items-center gap-3">
+
             <div className="relative">
+
               <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+
               <input
                 type="text"
                 placeholder="Search school or city..."
-                value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                value={
+                  searchQuery
+                }
+                onChange={(event) =>
+                  setSearchQuery(
+                    event.target.value
+                  )
+                }
                 className="pl-9 pr-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 w-52 transition-all"
               />
+
             </div>
 
             <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+
               <Filter className="w-3.5 h-3.5 text-slate-500 ml-2" />
-              <span className="text-slate-500 text-[11px]">Plan:</span>
-              {(['All', 'Basic', 'Pro', 'Enterprise'] as const).map(p => (
-                <button
-                  key={p}
-                  onClick={() => setPlanFilter(p)}
-                  className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                    planFilter === p ? 'bg-white text-slate-900 shadow-xs font-bold' : 'text-slate-600'
-                  }`}
-                >
-                  {p}
-                </button>
-              ))}
+
+              <span className="text-slate-500 text-[11px]">
+                Plan:
+              </span>
+
+              {[
+                'All',
+                'Basic',
+                'Pro',
+                'Enterprise'
+              ].map(
+                (plan) => (
+
+                  <button
+                    key={plan}
+                    onClick={() =>
+                      setPlanFilter(
+                        plan
+                      )
+                    }
+                    className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                      planFilter ===
+                      plan
+                        ? 'bg-white text-slate-900 shadow-xs font-bold'
+                        : 'text-slate-600'
+                    }`}
+                  >
+                    {plan}
+                  </button>
+
+                )
+              )}
+
             </div>
 
             <Button
               variant="outline"
               size="sm"
-              onClick={() => onNavigate('/super-admin/franchises')}
+              onClick={() =>
+                onNavigate(
+                  '/super-admin/franchises'
+                )
+              }
             >
-              View All ({franchises.length})
+              View All (
+              {franchises.length}
+              )
             </Button>
 
             <Button
               variant="primary"
               size="sm"
-              leftIcon={<PlusCircle className="w-3.5 h-3.5" />}
-              onClick={onOpenAddSchoolModal}
+              leftIcon={
+                <PlusCircle className="w-3.5 h-3.5" />
+              }
+              onClick={
+                onOpenAddSchoolModal
+              }
             >
               Add School
             </Button>
+
           </div>
+
         </div>
 
-        {/* Table */}
+        {/* TABLE */}
+
         <div className="overflow-x-auto">
+
           <table className="w-full text-left text-xs font-medium border-collapse">
+
             <thead>
+
               <tr className="bg-slate-50 border-b border-slate-200/80 text-slate-500 uppercase tracking-wider font-extrabold text-[10px]">
-                <th className="p-3.5 rounded-l-xl">School Name & Code</th>
-                <th className="p-3.5">Location</th>
-                <th className="p-3.5">Plan</th>
-                <th className="p-3.5">Franchise Admin</th>
-                <th className="p-3.5">Contract</th>
-                <th className="p-3.5">Royalty</th>
-                <th className="p-3.5">Status</th>
-                <th className="p-3.5 rounded-r-xl text-right">Actions</th>
+
+                <th className="p-3.5 rounded-l-xl">
+                  School Name & Code
+                </th>
+
+                <th className="p-3.5">
+                  Location
+                </th>
+
+                <th className="p-3.5">
+                  Plan
+                </th>
+
+                <th className="p-3.5">
+                  Franchise Admin
+                </th>
+
+                <th className="p-3.5">
+                  Contract
+                </th>
+
+                <th className="p-3.5">
+                  Royalty
+                </th>
+
+                <th className="p-3.5">
+                  Status
+                </th>
+
+                <th className="p-3.5 rounded-r-xl text-right">
+                  Actions
+                </th>
+
               </tr>
+
             </thead>
+
             <tbody className="divide-y divide-slate-100">
-              {filteredFranchises.length === 0 ? (
+
+              {loading ? (
+
                 <tr>
-                  <td colSpan={8} className="p-8 text-center text-slate-400 text-sm font-semibold">
-                    No franchise schools found matching your search.
+
+                  <td
+                    colSpan={8}
+                    className="p-8 text-center text-slate-500 text-sm font-semibold"
+                  >
+                    Loading franchises...
                   </td>
+
                 </tr>
+
+              ) : filteredFranchises.length ===
+                0 ? (
+
+                <tr>
+
+                  <td
+                    colSpan={8}
+                    className="p-8 text-center text-slate-400 text-sm font-semibold"
+                  >
+                    No franchise schools found
+                    matching your search.
+                  </td>
+
+                </tr>
+
               ) : (
-                filteredFranchises.map((f) => (
-                  <tr key={f.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5">
-                      <div className="font-extrabold text-slate-900 text-sm">{f.name}</div>
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60 inline-block mt-0.5">
-                        {f.code}
-                      </span>
-                    </td>
 
-                    <td className="p-3.5">
-                      <div className="font-semibold text-slate-800">{f.city}, {f.state}</div>
-                      <span className="text-[10px] text-slate-400 block">{f.country}</span>
-                    </td>
+                filteredFranchises.map(
+                  (franchise) => {
 
-                    <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
-                        f.plan === 'Enterprise' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
-                        f.plan === 'Pro' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                        'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                      }`}>
-                        {f.plan}
-                      </span>
-                    </td>
+                    const plan =
+                      getPlanName(
+                        franchise
+                      );
 
-                    <td className="p-3.5">
-                      <div className="font-bold text-slate-900">{f.adminName || '—'}</div>
-                      <div className="text-[11px] text-slate-500 truncate max-w-[140px]">{f.adminEmail || 'No admin assigned'}</div>
-                    </td>
+                    const contract =
+                      getContractStatus(
+                        franchise
+                      );
 
-                    <td className="p-3.5">
-                      <Badge variant={f.contractStatus === 'Active' ? 'blue' : f.contractStatus === 'Expiring Soon' ? 'amber' : 'rose'} size="sm">
-                        {f.contractStatus}
-                      </Badge>
-                    </td>
+                    const royalty =
+                      getRoyalty(
+                        franchise
+                      );
 
-                    <td className="p-3.5">
-                      <Badge variant={f.royaltyStatus === 'Paid' ? 'emerald' : f.royaltyStatus === 'Pending' ? 'amber' : 'rose'} size="sm">
-                        {f.royaltyStatus} (₹{(f.monthlyRoyalty / 1000).toFixed(0)}k)
-                      </Badge>
-                    </td>
+                    const isActive =
+                      franchise.status ===
+                        'ACTIVE' ||
+                      franchise.status ===
+                        'Active';
 
-                    <td className="p-3.5">
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                        f.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${f.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        {f.status}
-                      </span>
-                    </td>
+                    return (
 
-                    <td className="p-3.5 text-right">
-                      {deleteConfirmId === f.id ? (
-                        <div className="flex items-center justify-end gap-1.5">
-                          <span className="text-[11px] font-semibold text-slate-600">Delete?</span>
-                          <button
-                            onClick={() => handleDelete(f.id)}
-                            className="px-2 py-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-lg hover:bg-rose-600 transition-colors cursor-pointer"
+                      <tr
+                        key={
+                          franchise.id
+                        }
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
+
+                        {/* SCHOOL */}
+
+                        <td className="p-3.5">
+
+                          <div className="font-extrabold text-slate-900 text-sm">
+                            {
+                              franchise.name
+                            }
+                          </div>
+
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60 inline-block mt-0.5">
+                            {
+                              franchise.code
+                            }
+                          </span>
+
+                        </td>
+
+                        {/* LOCATION */}
+
+                        <td className="p-3.5">
+
+                          <div className="font-semibold text-slate-800">
+                            {
+                              franchise.city ||
+                              '—'
+                            }
+                            {franchise.city &&
+                            franchise.state
+                              ? `, ${franchise.state}`
+                              : ''}
+                          </div>
+
+                          <span className="text-[10px] text-slate-400 block">
+                            {
+                              franchise.pincode ||
+                              franchise.country ||
+                              '—'
+                            }
+                          </span>
+
+                        </td>
+
+                        {/* PLAN */}
+
+                        <td className="p-3.5">
+
+                          <span
+                            className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
+                              plan.toUpperCase() ===
+                              'ENTERPRISE'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : plan.toUpperCase() ===
+                                  'PRO'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            }`}
                           >
-                            Yes
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(null)}
-                            className="px-2 py-1 bg-slate-200 text-slate-700 text-[10px] font-extrabold rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
-                          >
-                            No
-                          </button>
-                        </div>
-                      ) : (
-                        <div className="flex items-center justify-end gap-1">
-                          <Button
-                            variant="ghost"
+                            {plan}
+                          </span>
+
+                        </td>
+
+                        {/* ADMIN */}
+
+                        <td className="p-3.5">
+
+                          <div className="font-bold text-slate-900">
+                            {
+                              getAdminName(
+                                franchise
+                              )
+                            }
+                          </div>
+
+                          <div className="text-[11px] text-slate-500 truncate max-w-[160px]">
+                            {
+                              getAdminEmail(
+                                franchise
+                              )
+                            }
+                          </div>
+
+                        </td>
+
+                        {/* CONTRACT */}
+
+                        <td className="p-3.5">
+
+                          <Badge
+                            variant={
+                              contract ===
+                                'ACTIVE' ||
+                              contract ===
+                                'Active' ||
+                              contract ===
+                                'RENEWED' ||
+                              contract ===
+                                'Renewed'
+                                ? 'blue'
+                                : contract ===
+                                  'EXPIRING' ||
+                                  contract ===
+                                    'Expiring Soon'
+                                ? 'amber'
+                                : 'rose'
+                            }
                             size="sm"
-                            onClick={() => onNavigate(`/super-admin/franchises/${f.id}`)}
-                            leftIcon={<Eye className="w-3.5 h-3.5" />}
                           >
-                            View
-                          </Button>
-                          <button
-                            onClick={() => onEditFranchise && onEditFranchise(f)}
-                            className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
-                            title="Edit School"
+                            {
+                              contract
+                            }
+                          </Badge>
+
+                        </td>
+
+                        {/* ROYALTY */}
+
+                        <td className="p-3.5">
+
+                          {royalty.status ===
+                            'No Royalty' ? (
+
+                            <Badge
+                              variant="blue"
+                              size="sm"
+                            >
+                              No Royalty
+                            </Badge>
+
+                          ) : (
+
+                            <Badge
+                              variant={
+                                royalty.status ===
+                                'PAID'
+                                  ? 'emerald'
+                                  : royalty.status ===
+                                    'PENDING'
+                                  ? 'amber'
+                                  : 'rose'
+                              }
+                              size="sm"
+                            >
+                              {
+                                royalty.status
+                              }{' '}
+                              (
+                              ₹
+                              {royalty.amount.toLocaleString(
+                                'en-IN'
+                              )}
+                              )
+                            </Badge>
+
+                          )}
+
+                        </td>
+
+                        {/* STATUS */}
+
+                        <td className="p-3.5">
+
+                          <span
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold ${
+                              isActive
+                                ? 'text-emerald-600'
+                                : 'text-slate-400'
+                            }`}
                           >
-                            <Pencil className="w-3.5 h-3.5" />
-                          </button>
-                          <button
-                            onClick={() => setDeleteConfirmId(f.id)}
-                            className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
-                            title="Delete School"
-                          >
-                            <Trash2 className="w-3.5 h-3.5" />
-                          </button>
-                        </div>
-                      )}
-                    </td>
-                  </tr>
-                ))
+
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isActive
+                                  ? 'bg-emerald-500'
+                                  : 'bg-slate-400'
+                              }`}
+                            />
+
+                            {isActive
+                              ? 'Active'
+                              : 'Inactive'}
+
+                          </span>
+
+                        </td>
+
+                        {/* ACTIONS */}
+
+                        <td className="p-3.5 text-right">
+
+                          {deleteConfirmId ===
+                          franchise.id ? (
+
+                            <div className="flex items-center justify-end gap-1.5">
+
+                              <span className="text-[11px] font-semibold text-slate-600">
+                                Delete?
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  handleDelete(
+                                    franchise.id
+                                  )
+                                }
+                                className="px-2 py-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-lg hover:bg-rose-600 transition-colors cursor-pointer"
+                              >
+                                Yes
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirmId(
+                                    null
+                                  )
+                                }
+                                className="px-2 py-1 bg-slate-200 text-slate-700 text-[10px] font-extrabold rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                              >
+                                No
+                              </button>
+
+                            </div>
+
+                          ) : (
+
+                            <div className="flex items-center justify-end gap-1">
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  onNavigate(
+                                    `/super-admin/franchises/${franchise.id}`
+                                  )
+                                }
+                                leftIcon={
+                                  <Eye className="w-3.5 h-3.5" />
+                                }
+                              >
+                                View
+                              </Button>
+
+                              {onEditFranchise && (
+                                <button
+                                  onClick={() =>
+                                    onEditFranchise(
+                                      franchise
+                                    )
+                                  }
+                                  className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Edit School"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirmId(
+                                    franchise.id
+                                  )
+                                }
+                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete School"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+
+                            </div>
+
+                          )}
+
+                        </td>
+
+                      </tr>
+
+                    );
+                  }
+                )
+
               )}
+
             </tbody>
+
           </table>
+
         </div>
+
       </Card>
+
     </div>
   );
 };

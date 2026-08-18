@@ -27,6 +27,16 @@ const MonthlyRoyalty = sequelize.define(
       allowNull: false,
     },
 
+    planAmount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+    },
+
+    totalAmount: {
+      type: DataTypes.DECIMAL(12, 2),
+      allowNull: false,
+    }, 
+    
     baseAmount: {
       type: DataTypes.DECIMAL(12, 2),
       allowNull: false,

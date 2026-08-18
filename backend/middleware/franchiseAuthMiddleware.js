@@ -1,6 +1,6 @@
 const jwt = require("jsonwebtoken");
 
-const protect = (req, res, next) => {
+const franchiseProtect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
 
@@ -15,24 +15,19 @@ const protect = (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    // console.log("J WT DECODED:", decoded);
-
-    if (decoded.role !== "SYSTEM_ADMIN") {
+    if (decoded.role !== "FRANCHISE_ADMIN") {
       return res.status(403).json({
         success: false,
-        message: "Access denied",
+        message: "Franchise Admin access required",
       });
     }
 
-    // Attach authenticated admin to request
-    req.admin = {
+    req.user = {
       id: decoded.id,
       email: decoded.email,
       role: decoded.role,
+      franchiseId: decoded.franchiseId,
     };
-
-    // Keep user reference too
-    req.user = req.admin;
 
     next();
   } catch (error) {
@@ -43,4 +38,4 @@ const protect = (req, res, next) => {
   }
 };
 
-module.exports = protect;
+module.exports = franchiseProtect;
