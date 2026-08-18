@@ -3,6 +3,7 @@ import { Sidebar } from './Sidebar';
 import { TopHeader } from './TopHeader';
 import { StaffRegistrationModal } from '../modals/StaffRegistrationModal';
 import type { StaffRegistrationInput } from '../../types';
+import type { Franchise } from '../../types/superAdmin';
 
 interface DashboardLayoutProps {
   children: React.ReactNode;
@@ -10,6 +11,7 @@ interface DashboardLayoutProps {
   onNavigate: (path: string) => void;
   onLogout: () => void;
   onStaffRegistered?: (staffData: StaffRegistrationInput) => void;
+  franchise?: Franchise | null; // The logged-in franchise admin's school
 }
 
 export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
@@ -17,7 +19,8 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
   currentPath,
   onNavigate,
   onLogout,
-  onStaffRegistered
+  onStaffRegistered,
+  franchise
 }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [isStaffModalOpen, setIsStaffModalOpen] = useState(false);
@@ -38,6 +41,7 @@ export const DashboardLayout: React.FC<DashboardLayoutProps> = ({
         onOpenStaffModal={() => setIsStaffModalOpen(true)}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
+        franchise={franchise}
       />
 
       {/* Right Shell Main Area */}

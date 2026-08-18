@@ -3,9 +3,8 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Input } from '../../components/ui/Input';
 import { mockContracts } from '../../data/superAdminMockData';
-import type { Contract, ContractStatus } from '../../types/superAdmin';
+import type { Contract } from '../../types/superAdmin';
 import {
   FileText,
   FileCheck2,
@@ -14,10 +13,7 @@ import {
   Search,
   RefreshCw,
   Eye,
-  Calendar,
-  CheckCircle2,
-  AlertTriangle,
-  Building2
+  CheckCircle2
 } from 'lucide-react';
 
 interface ContractsPageProps {

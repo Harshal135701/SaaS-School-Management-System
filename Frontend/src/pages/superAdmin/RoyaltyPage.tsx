@@ -13,16 +13,13 @@ import {
 import type { RoyaltyRecord, RoyaltyConfig, RoyaltyStatus } from '../../types/superAdmin';
 import {
   BadgePercent,
-  IndianRupee,
   CheckCircle2,
   Clock,
   AlertTriangle,
   SlidersHorizontal,
   Download,
-  Filter,
   Search,
   FileSpreadsheet,
-  TrendingUp,
   Send,
   Calendar
 } from 'lucide-react';
@@ -62,10 +59,10 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
     onNavigate(path);
   };
 
-  const [royaltyList, setRoyaltyList] = useState<RoyaltyRecord[]>(mockRoyaltyRecords);
+  const [royaltyList, _setRoyaltyList] = useState<RoyaltyRecord[]>(mockRoyaltyRecords);
   const [configsList, setConfigsList] = useState<RoyaltyConfig[]>(mockRoyaltyConfigs);
   const [searchQuery, setSearchQuery] = useState('');
-  const [statusFilter, setStatusFilter] = useState<string>('All');
+  const [statusFilter, _setStatusFilter] = useState<string>('All');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   // Edit config modal state

@@ -1,7 +1,9 @@
 import React, { useState } from 'react';
 import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { SuperAdminTopHeader } from './SuperAdminTopHeader';
-import { AddFranchiseModal } from '../superAdmin/AddFranchiseModal';
+import { AddFranchiseSchoolModal } from '../superAdmin/AddFranchiseSchoolModal';
+import { AddFranchiseAdminModal } from '../superAdmin/AddFranchiseAdminModal';
+import { mockFranchises } from '../../data/superAdminMockData';
 import type { Franchise } from '../../types/superAdmin';
 
 interface SuperAdminLayoutProps {
@@ -10,9 +12,18 @@ interface SuperAdminLayoutProps {
   onNavigate: (path: string) => void;
   onLogout: () => void;
   onFranchiseAdded?: (newFranchise: Franchise) => void;
-  isAddFranchiseModalOpen?: boolean;
-  onOpenAddFranchiseModal?: () => void;
-  onCloseAddFranchiseModal?: () => void;
+  onFranchiseUpdated?: (franchise: Franchise) => void;
+  // School modal
+  isAddSchoolModalOpen?: boolean;
+  onOpenAddSchoolModal?: () => void;
+  onCloseAddSchoolModal?: () => void;
+  editFranchise?: Franchise | null;
+  // Admin modal
+  isAddAdminModalOpen?: boolean;
+  onOpenAddAdminModal?: () => void;
+  onCloseAddAdminModal?: () => void;
+  // Franchise list (for admin modal school selector)
+  franchises?: Franchise[];
 }
 
 export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
@@ -21,16 +32,27 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   onNavigate,
   onLogout,
   onFranchiseAdded,
-  isAddFranchiseModalOpen: externalIsOpen,
-  onOpenAddFranchiseModal: externalOnOpen,
-  onCloseAddFranchiseModal: externalOnClose
+  onFranchiseUpdated,
+  isAddSchoolModalOpen: externalSchoolOpen,
+  onOpenAddSchoolModal: externalOpenSchool,
+  onCloseAddSchoolModal: externalCloseSchool,
+  editFranchise,
+  isAddAdminModalOpen: externalAdminOpen,
+  onOpenAddAdminModal: externalOpenAdmin,
+  onCloseAddAdminModal: externalCloseAdmin,
+  franchises = mockFranchises
 }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
-  const [internalIsOpen, setInternalIsOpen] = useState(false);
+  const [internalSchoolOpen, setInternalSchoolOpen] = useState(false);
+  const [internalAdminOpen, setInternalAdminOpen] = useState(false);
 
-  const isModalOpen = externalIsOpen !== undefined ? externalIsOpen : internalIsOpen;
-  const handleOpenModal = externalOnOpen || (() => setInternalIsOpen(true));
-  const handleCloseModal = externalOnClose || (() => setInternalIsOpen(false));
+  const isSchoolModalOpen = externalSchoolOpen !== undefined ? externalSchoolOpen : internalSchoolOpen;
+  const handleOpenSchool = externalOpenSchool || (() => setInternalSchoolOpen(true));
+  const handleCloseSchool = externalCloseSchool || (() => setInternalSchoolOpen(false));
+
+  const isAdminModalOpen = externalAdminOpen !== undefined ? externalAdminOpen : internalAdminOpen;
+  const handleOpenAdmin = externalOpenAdmin || (() => setInternalAdminOpen(true));
+  const handleCloseAdmin = externalCloseAdmin || (() => setInternalAdminOpen(false));
 
   return (
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row antialiased selection:bg-blue-600 selection:text-white">
@@ -39,7 +61,8 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
         currentPath={currentPath}
         onNavigate={onNavigate}
         onLogout={onLogout}
-        onOpenAddFranchiseModal={handleOpenModal}
+        onOpenAddSchoolModal={handleOpenSchool}
+        onOpenAddAdminModal={handleOpenAdmin}
         isMobileOpen={isMobileSidebarOpen}
         onCloseMobile={() => setIsMobileSidebarOpen(false)}
       />
@@ -57,13 +80,28 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
         </main>
       </div>
 
-      {/* Add Franchise Modal */}
-      <AddFranchiseModal
-        isOpen={isModalOpen}
-        onClose={handleCloseModal}
-        onFranchiseAdded={(franchise) => {
-          if (onFranchiseAdded) onFranchiseAdded(franchise);
-          handleCloseModal();
+      {/* Add Franchise School Modal */}
+      <AddFranchiseSchoolModal
+        isOpen={isSchoolModalOpen}
+        onClose={handleCloseSchool}
+        editFranchise={editFranchise}
+        onSave={(franchise) => {
+          if (editFranchise && onFranchiseUpdated) {
+            onFranchiseUpdated(franchise);
+          } else if (onFranchiseAdded) {
+            onFranchiseAdded(franchise);
+          }
+          handleCloseSchool();
+        }}
+      />
+
+      {/* Add Franchise Admin Modal */}
+      <AddFranchiseAdminModal
+        isOpen={isAdminModalOpen}
+        onClose={handleCloseAdmin}
+        franchises={franchises}
+        onSave={() => {
+          handleCloseAdmin();
         }}
       />
     </div>

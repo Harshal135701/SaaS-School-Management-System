@@ -6,22 +6,15 @@ import { mockFranchises, mockContracts, mockRoyaltyRecords } from '../../data/su
 import {
   Building2,
   User,
-  Mail,
-  Phone,
   MapPin,
   Calendar,
   CreditCard,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
   ArrowLeft,
   FileText,
   ShieldCheck,
   GraduationCap,
   Users,
-  IndianRupee,
-  Layers,
-  ExternalLink
+  IndianRupee
 } from 'lucide-react';
 
 interface FranchiseDetailPageProps {

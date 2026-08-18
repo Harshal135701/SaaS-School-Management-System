@@ -2,26 +2,16 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
 import { mockFranchises, mockFranchiseAdmins } from '../../data/superAdminMockData';
-import type { Franchise, FranchiseAdminUser } from '../../types/superAdmin';
+import type { Franchise } from '../../types/superAdmin';
 import {
   Building2,
   Search,
-  Filter,
   PlusCircle,
   Eye,
-  Edit,
   Power,
-  ShieldCheck,
   Users,
-  CheckCircle2,
-  XCircle,
-  GraduationCap,
-  Calendar,
-  Mail,
-  Phone,
   AlertTriangle
 } from 'lucide-react';
 

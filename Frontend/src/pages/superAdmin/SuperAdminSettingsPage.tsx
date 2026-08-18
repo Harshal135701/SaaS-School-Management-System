@@ -16,11 +16,9 @@ import {
   Sliders,
   ShieldCheck,
   CheckCircle2,
-  Globe,
   Mail,
   Phone,
-  KeyRound,
-  Laptop
+  KeyRound
 } from 'lucide-react';
 
 interface SuperAdminSettingsPageProps {

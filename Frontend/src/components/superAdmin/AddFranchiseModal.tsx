@@ -23,7 +23,7 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
   const [address, setAddress] = useState('');
   const [city, setCity] = useState('');
   const [state, setState] = useState('');
-  const [country, setCountry] = useState('India');
+  const [country, _setCountry] = useState('India');
 
   // Admin Credentials Creation
   const [adminName, setAdminName] = useState('');

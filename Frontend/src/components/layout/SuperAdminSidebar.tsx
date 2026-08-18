@@ -23,17 +23,17 @@ import {
   ChevronRight, 
   ChevronUp, 
   User, 
-  Shield, 
-  Layers,
+  Shield,
   BarChart3,
-  Globe
+  UserPlus
 } from 'lucide-react';
 
 interface SuperAdminSidebarProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   onLogout: () => void;
-  onOpenAddFranchiseModal?: () => void;
+  onOpenAddSchoolModal?: () => void;
+  onOpenAddAdminModal?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
 }
@@ -42,7 +42,8 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
   currentPath,
   onNavigate,
   onLogout,
-  onOpenAddFranchiseModal,
+  onOpenAddSchoolModal,
+  onOpenAddAdminModal,
   isMobileOpen = false,
   onCloseMobile
 }) => {
@@ -61,11 +62,19 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
       items: [
         { id: 'sa_all_franchises', label: 'All Franchises', icon: Building2, path: '/super-admin/franchises' },
         { 
-          id: 'sa_add_franchise', 
-          label: 'Add Franchise', 
+          id: 'sa_add_school', 
+          label: 'Add Franchise School', 
           icon: PlusCircle, 
-          path: '#add-franchise', 
-          action: onOpenAddFranchiseModal,
+          path: '#add-school', 
+          action: onOpenAddSchoolModal,
+          badge: 'New'
+        },
+        { 
+          id: 'sa_add_admin', 
+          label: 'Add Franchise Admin', 
+          icon: UserPlus, 
+          path: '#add-admin', 
+          action: onOpenAddAdminModal,
           badge: 'New'
         },
         { id: 'sa_franchise_admins', label: 'Franchise Admins', icon: Users, path: '/super-admin/franchise-admins' }
@@ -104,11 +113,11 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
   };
 
   const sidebarContent = (
-    <div className="flex flex-col h-full bg-slate-900 text-slate-100 border-r border-slate-800 shadow-xl relative">
+    <div className="flex flex-col h-full bg-white border-r border-slate-200/80 shadow-xs relative">
       {/* Brand Header */}
-      <div className="h-20 px-5 flex items-center justify-between border-b border-slate-800 shrink-0">
+      <div className="h-20 px-5 flex items-center justify-between border-b border-slate-100 shrink-0">
         <div className="flex items-center gap-3 overflow-hidden">
-          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-500 to-indigo-500 text-white font-extrabold text-xl flex items-center justify-center shadow-lg shadow-blue-500/30 shrink-0">
+          <div className="w-10 h-10 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-600 text-white font-extrabold text-xl flex items-center justify-center shadow-md shadow-blue-500/20 shrink-0">
             S
           </div>
           {!isCollapsed && (
@@ -118,10 +127,10 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
               exit={{ opacity: 0 }}
               className="whitespace-nowrap"
             >
-              <h1 className="text-lg font-extrabold text-white leading-none tracking-tight flex items-center gap-1.5">
-                EduSphere <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-500/20 text-blue-400 font-bold border border-blue-400/30">SAAS</span>
+              <h1 className="text-lg font-extrabold text-slate-900 leading-none tracking-tight flex items-center gap-1.5">
+                EduSphere <span className="text-[9px] px-1.5 py-0.5 rounded bg-blue-100 text-blue-600 font-bold border border-blue-200/60">SAAS</span>
               </h1>
-              <span className="text-[10px] font-bold text-indigo-400 uppercase tracking-widest block mt-1">
+              <span className="text-[10px] font-bold text-indigo-600 uppercase tracking-widest block mt-1">
                 SUPER ADMIN PLATFORM
               </span>
             </motion.div>
@@ -131,7 +140,7 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
         {/* Collapse toggle button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-white hover:bg-slate-800 transition-colors shrink-0"
+          className="hidden md:flex p-1.5 rounded-lg text-slate-400 hover:text-slate-700 hover:bg-slate-100 transition-colors shrink-0"
           title={isCollapsed ? "Expand Sidebar" : "Collapse Sidebar"}
         >
           {isCollapsed ? <ChevronRight className="w-5 h-5" /> : <ChevronLeft className="w-5 h-5" />}
@@ -139,7 +148,7 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
       </div>
 
       {/* Navigation Scrollable Area */}
-      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6 scrollbar-thin scrollbar-thumb-slate-700">
+      <div className="flex-1 overflow-y-auto px-3 py-4 space-y-6">
         {menuSections.map((section) => (
           <div key={section.title} className="space-y-1">
             {!isCollapsed ? (
@@ -147,7 +156,7 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
                 {section.title}
               </h3>
             ) : (
-              <div className="h-2 border-t border-slate-800 my-2" />
+              <div className="h-2 border-t border-slate-100 my-2" />
             )}
 
             {section.items.map((item) => {
@@ -162,20 +171,20 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
                     w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 cursor-pointer
                     ${isCollapsed ? 'justify-center px-0' : ''}
                     ${isActive 
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/25 border border-blue-500/30' 
-                      : 'text-slate-300 hover:bg-slate-800/90 hover:text-white'}
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' 
+                      : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'}
                   `}
                 >
-                  <IconComponent className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400'}`} />
+                  <IconComponent className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
                   
                   {!isCollapsed && (
                     <div className="flex items-center justify-between w-full overflow-hidden">
                       <span className="truncate">{item.label}</span>
                       {item.badge && (
                         <span className={`px-1.5 py-0.5 text-[9px] font-extrabold rounded-md uppercase shrink-0 ${
-                          item.badge === 'Alert' ? 'bg-rose-500/20 text-rose-300 border border-rose-500/30' :
-                          item.badge === 'New' ? 'bg-emerald-500/20 text-emerald-300 border border-emerald-500/30' :
-                          'bg-indigo-500/20 text-indigo-300 border border-indigo-500/30'
+                          item.badge === 'Alert' ? 'bg-rose-100 text-rose-700 border border-rose-200' :
+                          item.badge === 'New' ? 'bg-emerald-100 text-emerald-700 border border-emerald-200' :
+                          'bg-indigo-100 text-indigo-700 border border-indigo-200'
                         }`}>
                           {item.badge}
                         </span>
@@ -198,13 +207,13 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
       </div>
 
       {/* USER PROFILE BOTTOM CARD */}
-      <div className="p-3 border-t border-slate-800 bg-slate-950/60 relative shrink-0">
+      <div className="p-3 border-t border-slate-100 bg-slate-50/80 relative shrink-0">
         {/* Dropup Profile Menu */}
         {showProfileMenu && (
-          <div className="absolute bottom-full left-3 right-3 mb-2 bg-slate-900 rounded-2xl shadow-2xl border border-slate-700 p-2 z-50 animate-in fade-in slide-in-from-bottom-2 text-slate-100">
-            <div className="p-3 border-b border-slate-800 bg-slate-800/40 rounded-xl mb-1">
-              <p className="text-xs font-bold text-white">{superAdminProfile.name}</p>
-              <p className="text-[11px] text-slate-400 truncate">{superAdminProfile.email}</p>
+          <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-bottom-2">
+            <div className="p-3 border-b border-slate-100 bg-slate-50/50 rounded-xl mb-1">
+              <p className="text-xs font-bold text-slate-900">{superAdminProfile.name}</p>
+              <p className="text-[11px] text-slate-500 truncate">{superAdminProfile.email}</p>
             </div>
 
             <button
@@ -212,9 +221,9 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
                 onNavigate('/super-admin/settings');
                 setShowProfileMenu(false);
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
-              <User className="w-4 h-4 text-slate-400" />
+              <User className="w-4 h-4 text-slate-500" />
               <span>Super Admin Profile</span>
             </button>
 
@@ -223,20 +232,20 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
                 onNavigate('/super-admin/settings');
                 setShowProfileMenu(false);
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-300 hover:bg-slate-800 hover:text-white rounded-xl transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             >
-              <Settings className="w-4 h-4 text-slate-400" />
+              <Settings className="w-4 h-4 text-slate-500" />
               <span>System Settings</span>
             </button>
 
-            <div className="my-1 border-t border-slate-800" />
+            <div className="my-1 border-t border-slate-100" />
 
             <button
               onClick={() => {
                 setShowProfileMenu(false);
                 onLogout();
               }}
-              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-400 hover:bg-rose-500/10 rounded-xl transition-colors cursor-pointer"
+              className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-bold text-rose-600 hover:bg-rose-50 rounded-xl transition-colors cursor-pointer"
             >
               <LogOut className="w-4 h-4" />
               <span>Logout</span>
@@ -248,7 +257,7 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
         <button
           onClick={() => setShowProfileMenu(!showProfileMenu)}
           className={`
-            w-full flex items-center gap-3 p-2 rounded-2xl bg-slate-800/80 border border-slate-700/80 hover:bg-slate-800 transition-all cursor-pointer shadow-2xs text-left
+            w-full flex items-center gap-3 p-2 rounded-2xl bg-white border border-slate-200/80 hover:bg-slate-100/70 transition-all cursor-pointer shadow-xs text-left
             ${isCollapsed ? 'justify-center p-1.5' : ''}
           `}
         >
@@ -256,12 +265,12 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
           
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
-              <div className="text-xs font-extrabold text-white truncate">
+              <div className="text-xs font-extrabold text-slate-900 truncate">
                 {superAdminProfile.name}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
-                <Shield className="w-3 h-3 text-indigo-400 shrink-0" />
-                <span className="text-[10px] font-bold text-indigo-400 tracking-wider uppercase truncate">
+                <Shield className="w-3 h-3 text-indigo-600 shrink-0" />
+                <span className="text-[10px] font-bold text-indigo-600 tracking-wider uppercase truncate">
                   SUPER ADMIN
                 </span>
               </div>
@@ -290,9 +299,9 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
         <div className="fixed inset-0 z-50 md:hidden flex">
           <div
             onClick={onCloseMobile}
-            className="fixed inset-0 bg-slate-950/70 backdrop-blur-xs"
+            className="fixed inset-0 bg-slate-900/50 backdrop-blur-xs"
           />
-          <aside className="relative w-72 h-full z-10 bg-slate-900">
+          <aside className="relative w-72 h-full z-10 bg-white">
             {sidebarContent}
           </aside>
         </div>

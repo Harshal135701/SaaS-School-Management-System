@@ -6,12 +6,6 @@ import {
   Search, 
   Bell, 
   Menu, 
-  Globe, 
-  PlusCircle, 
-  ShieldCheck, 
-  Building2, 
-  FileText, 
-  BadgePercent,
   CheckCircle2,
   AlertTriangle,
   Clock,
@@ -28,9 +22,7 @@ interface SuperAdminTopHeaderProps {
 
 export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
   onToggleMobileSidebar,
-  onLogout,
-  onNavigate,
-  onOpenAddFranchiseModal
+  onNavigate
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
