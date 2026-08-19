@@ -7,6 +7,7 @@ const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const Contract = require("./Contract");
 const Plan = require("./Plan");
+const Student = require("./Student");
 const Feature = require("./Feature");
 
 // Plan ↔ Feature
@@ -34,6 +35,16 @@ Plan.hasMany(Franchise, {
   as: "franchises",
 });
 
+Franchise.hasMany(Student, {
+  foreignKey: "franchiseId",
+  as: "students",
+});
+
+Student.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 
 module.exports = {
   sequelize,
@@ -43,6 +54,7 @@ module.exports = {
   Plan,
   Feature,
   Contract,
+  Student,
   RoyaltyConfiguration,
   MonthlyRoyalty,
 };

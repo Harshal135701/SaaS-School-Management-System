@@ -25,6 +25,8 @@ const systemSettingsRoutes = require("./routes/systemSettingsRoutes");
 const planRoutes = require("./routes/planRoutes");
 const franchiseAuthRoutes = require("./routes/franchiseAuthRoutes");
 const franchiseTestRoutes = require("./routes/franchiseTestRoutes");
+const franchiseDashboardRoutes = require("./routes/franchiseDashboardRoutes");
+const studentRoutes = require("./routes/studentRoutes");
 
 // using all apis for calling
 
@@ -37,6 +39,8 @@ app.use("/api/system-settings", systemSettingsRoutes);
 app.use("/api/plans", planRoutes);
 app.use("/api/franchise/auth", franchiseAuthRoutes);
 app.use("/api/franchise/test", franchiseTestRoutes);
+app.use("/api/franchise/dashboard", franchiseDashboardRoutes);
+app.use("/api/franchise/students", studentRoutes);
 
 // Test route
 app.get("/", (req, res) => {
