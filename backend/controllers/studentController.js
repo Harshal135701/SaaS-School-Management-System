@@ -67,7 +67,123 @@ const getStudents = async (req, res) => {
   }
 };
 
+const getStudentById = async (req, res) => {
+  try {
+    const student = await Student.findOne({
+      where: {
+        id: req.params.id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      data: student,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const updateStudent = async (req, res) => {
+  try {
+    const student = await Student.findOne({
+      where: {
+        id: req.params.id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    const {
+      name,
+      email,
+      phone,
+      dateOfBirth,
+      gender,
+      address,
+      status,
+    } = req.body;
+
+    await student.update({
+      name,
+      email,
+      phone,
+      dateOfBirth,
+      gender,
+      address,
+      status,
+    });
+
+    return res.status(200).json({
+      success: true,
+      message: "Student updated successfully",
+      data: student,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const deleteStudent = async (req, res) => {
+  try {
+    const student = await Student.findOne({
+      where: {
+        id: req.params.id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found",
+      });
+    }
+
+    await student.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: "Student deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   createStudent,
-  getStudents
+  getStudents,
+  getStudentById,
+  updateStudent,
+  deleteStudent,
 };
