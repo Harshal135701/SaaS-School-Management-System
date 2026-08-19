@@ -13,6 +13,7 @@ const Teacher = require("./Teacher");
 const Attendance = require("./Attendance");
 const Homework = require("./Homework");
 const Fee = require("./Fee");
+const Examination = require("./Examination");
 
 // Plan ↔ Feature
 Plan.belongsToMany(Feature, {
@@ -119,6 +120,16 @@ Fee.belongsTo(Student, {
   as: "student",
 });
 
+Franchise.hasMany(Examination, {
+  foreignKey: "franchiseId",
+  as: "examinations",
+});
+
+Examination.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 
 module.exports = {
   sequelize,
@@ -129,6 +140,7 @@ module.exports = {
   Feature,
   Contract,
   Student,
+  Examination,
   Homework,
   RoyaltyConfiguration,
   MonthlyRoyalty,
