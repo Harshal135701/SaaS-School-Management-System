@@ -32,6 +32,8 @@ const attendanceRoutes = require("./routes/attendanceRoutes");
 const homeworkRoutes = require("./routes/homeworkRoutes");
 const feeRoutes = require("./routes/feeRoutes");
 const examinationRoutes = require("./routes/examinationRoutes");
+const bookRoutes = require("./routes/bookRoutes");
+const bookIssueRoutes = require("./routes/bookIssueRoutes");
 
 // using all apis for calling
 
@@ -51,6 +53,8 @@ app.use("/api/franchise/attendance", attendanceRoutes);
 app.use("/api/franchise/homework", homeworkRoutes);
 app.use("/api/franchise/fees", feeRoutes);
 app.use("/api/franchise/examinations", examinationRoutes);
+app.use("/api/franchise/books", bookRoutes);
+app.use("/api/franchise/book-issues", bookIssueRoutes);
 
 // Test route
 app.get("/", (req, res) => {

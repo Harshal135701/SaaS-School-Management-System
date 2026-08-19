@@ -14,6 +14,8 @@ const Attendance = require("./Attendance");
 const Homework = require("./Homework");
 const Fee = require("./Fee");
 const Examination = require("./Examination");
+const Book = require("./Book");
+const BookIssue = require("./BookIssue");
 
 // Plan ↔ Feature
 Plan.belongsToMany(Feature, {
@@ -131,6 +133,46 @@ Examination.belongsTo(Franchise, {
 });
 
 
+Franchise.hasMany(Book, {
+  foreignKey: "franchiseId",
+  as: "books",
+});
+
+Book.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Book.hasMany(BookIssue, {
+  foreignKey: "bookId",
+  as: "issues",
+});
+
+BookIssue.belongsTo(Book, {
+  foreignKey: "bookId",
+  as: "book",
+});
+
+Student.hasMany(BookIssue, {
+  foreignKey: "studentId",
+  as: "bookIssues",
+});
+
+BookIssue.belongsTo(Student, {
+  foreignKey: "studentId",
+  as: "student",
+});
+
+Franchise.hasMany(BookIssue, {
+  foreignKey: "franchiseId",
+  as: "bookIssues",
+});
+
+BookIssue.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -139,9 +181,11 @@ module.exports = {
   Plan,
   Feature,
   Contract,
+  Book,
   Student,
   Examination,
   Homework,
+  BookIssue,
   RoyaltyConfiguration,
   MonthlyRoyalty,
   Teacher,
