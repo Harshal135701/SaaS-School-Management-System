@@ -1,6 +1,6 @@
-const { Student } = require("../models");
+const { Teacher } = require("../models");
 
-const createStudent = async (req, res) => {
+const createTeacher = async (req, res) => {
   try {
     const {
       name,
@@ -8,30 +8,36 @@ const createStudent = async (req, res) => {
       phone,
       dateOfBirth,
       gender,
+      subject,
+      qualification,
+      joiningDate,
       address,
     } = req.body;
 
     if (!name) {
       return res.status(400).json({
         success: false,
-        message: "Student name is required",
+        message: "Teacher name is required",
       });
     }
 
-    const student = await Student.create({
+    const teacher = await Teacher.create({
       franchiseId: req.user.franchiseId,
       name,
       email,
       phone,
       dateOfBirth,
       gender,
+      subject,
+      qualification,
+      joiningDate,
       address,
     });
 
     return res.status(201).json({
       success: true,
-      message: "Student created successfully",
-      data: student,
+      message: "Teacher created successfully",
+      data: teacher,
     });
   } catch (error) {
     console.error(error);
@@ -42,7 +48,8 @@ const createStudent = async (req, res) => {
     });
   }
 };
-const getStudents = async (req, res) => {
+
+const getTeachers = async (req, res) => {
   try {
     const { Op } = require("sequelize");
 
@@ -60,10 +67,11 @@ const getStudents = async (req, res) => {
         { name: { [Op.iLike]: `%${search}%` } },
         { email: { [Op.iLike]: `%${search}%` } },
         { phone: { [Op.iLike]: `%${search}%` } },
+        { subject: { [Op.iLike]: `%${search}%` } },
       ];
     }
 
-    const { count, rows } = await Student.findAndCountAll({
+    const { count, rows } = await Teacher.findAndCountAll({
       where,
       limit,
       offset,
@@ -90,25 +98,25 @@ const getStudents = async (req, res) => {
   }
 };
 
-const getStudentById = async (req, res) => {
+const getTeacherById = async (req, res) => {
   try {
-    const student = await Student.findOne({
+    const teacher = await Teacher.findOne({
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
     });
 
-    if (!student) {
+    if (!teacher) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message: "Teacher not found",
       });
     }
 
     return res.status(200).json({
       success: true,
-      data: student,
+      data: teacher,
     });
   } catch (error) {
     console.error(error);
@@ -120,19 +128,19 @@ const getStudentById = async (req, res) => {
   }
 };
 
-const updateStudent = async (req, res) => {
+const updateTeacher = async (req, res) => {
   try {
-    const student = await Student.findOne({
+    const teacher = await Teacher.findOne({
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
     });
 
-    if (!student) {
+    if (!teacher) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message: "Teacher not found",
       });
     }
 
@@ -142,24 +150,30 @@ const updateStudent = async (req, res) => {
       phone,
       dateOfBirth,
       gender,
+      subject,
+      qualification,
+      joiningDate,
       address,
       status,
     } = req.body;
 
-    await student.update({
+    await teacher.update({
       name,
       email,
       phone,
       dateOfBirth,
       gender,
+      subject,
+      qualification,
+      joiningDate,
       address,
       status,
     });
 
     return res.status(200).json({
       success: true,
-      message: "Student updated successfully",
-      data: student,
+      message: "Teacher updated successfully",
+      data: teacher,
     });
   } catch (error) {
     console.error(error);
@@ -171,27 +185,27 @@ const updateStudent = async (req, res) => {
   }
 };
 
-const deleteStudent = async (req, res) => {
+const deleteTeacher = async (req, res) => {
   try {
-    const student = await Student.findOne({
+    const teacher = await Teacher.findOne({
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
     });
 
-    if (!student) {
+    if (!teacher) {
       return res.status(404).json({
         success: false,
-        message: "Student not found",
+        message: "Teacher not found",
       });
     }
 
-    await student.destroy();
+    await teacher.destroy();
 
     return res.status(200).json({
       success: true,
-      message: "Student deleted successfully",
+      message: "Teacher deleted successfully",
     });
   } catch (error) {
     console.error(error);
@@ -204,9 +218,9 @@ const deleteStudent = async (req, res) => {
 };
 
 module.exports = {
-  createStudent,
-  getStudents,
-  getStudentById,
-  updateStudent,
-  deleteStudent,
+  createTeacher,
+  getTeachers,
+  getTeacherById,
+  updateTeacher,
+  deleteTeacher,
 };

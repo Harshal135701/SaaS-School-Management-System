@@ -27,6 +27,7 @@ const franchiseAuthRoutes = require("./routes/franchiseAuthRoutes");
 const franchiseTestRoutes = require("./routes/franchiseTestRoutes");
 const franchiseDashboardRoutes = require("./routes/franchiseDashboardRoutes");
 const studentRoutes = require("./routes/studentRoutes");
+const teacherRoutes = require("./routes/teacherRoutes");
 
 // using all apis for calling
 
@@ -41,6 +42,7 @@ app.use("/api/franchise/auth", franchiseAuthRoutes);
 app.use("/api/franchise/test", franchiseTestRoutes);
 app.use("/api/franchise/dashboard", franchiseDashboardRoutes);
 app.use("/api/franchise/students", studentRoutes);
+app.use("/api/franchise/teachers", teacherRoutes);
 
 // Test route
 app.get("/", (req, res) => {
