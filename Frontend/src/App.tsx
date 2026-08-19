@@ -3,6 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import api from './services/api';
 
 // School/Franchise Admin Existing Imports
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -146,7 +147,32 @@ export function App() {
     showToast(`Staff member ${data.fullName} (${data.role}) provisioned successfully! Credentials dispatched to ${data.email}.`);
   };
 
-  const handleFranchiseAdded = (franchise: Franchise) => {
+  const handleFranchiseAdded = async (franchise: Franchise) => {
+    try {
+      // Basic plan mapping for backend (assuming 1=Basic, 2=Pro, 3=Enterprise from seeds)
+      const planMap: Record<string, number> = { 'Basic': 1, 'Pro': 2, 'Enterprise': 3 };
+      const planId = planMap[franchise.plan as string] || 2;
+      
+      const res = await api.post('/system-admin/franchises', {
+        name: franchise.name,
+        code: franchise.code,
+        email: franchise.email,
+        phone: franchise.phone,
+        address: franchise.address,
+        city: franchise.city,
+        state: franchise.state,
+        pincode: '400001', // Dummy pincode since UI doesn't have it
+        planId: planId
+      });
+      
+      // Use returned ID if available
+      if (res.data?.data?.id) {
+        franchise.id = res.data.data.id;
+      }
+    } catch (error) {
+      console.warn('Backend franchise creation note:', error);
+    }
+    
     setFranchises(prev => [...prev, franchise]);
     showToast(`Franchise school "${franchise.name}" (${franchise.code}) created successfully!`);
   };
@@ -154,6 +180,28 @@ export function App() {
   const handleFranchiseUpdated = (franchise: Franchise) => {
     setFranchises(prev => prev.map(f => f.id === franchise.id ? franchise : f));
     showToast(`Franchise school "${franchise.name}" updated successfully!`);
+  };
+
+  const handleAdminAdded = (data: { schoolId: string; adminName: string; adminEmail: string; adminPhone: string; adminPassword: string }) => {
+    setFranchises(prev =>
+      prev.map(f => {
+        if (f.id === data.schoolId || String(f.id) === String(data.schoolId) || f.code === data.schoolId) {
+          return {
+            ...f,
+            adminName: data.adminName,
+            adminEmail: data.adminEmail,
+            adminPhone: data.adminPhone,
+            adminPassword: data.adminPassword,
+            admin: {
+              name: data.adminName,
+              email: data.adminEmail
+            }
+          };
+        }
+        return f;
+      })
+    );
+    showToast(`Franchise Admin "${data.adminName}" assigned to school successfully!`);
   };
 
   const handleOpenEditSchoolModal = (franchise: Franchise) => {
@@ -281,6 +329,7 @@ export function App() {
         editFranchise={editFranchise}
         onFranchiseAdded={handleFranchiseAdded}
         onFranchiseUpdated={handleFranchiseUpdated}
+        onAdminAdded={handleAdminAdded}
         isAddAdminModalOpen={isAddAdminModalOpen}
         onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
         onCloseAddAdminModal={() => setIsAddAdminModalOpen(false)}

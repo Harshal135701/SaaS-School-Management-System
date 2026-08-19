@@ -29,7 +29,7 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
-  const [adminPassword, setAdminPassword] = useState('Password123!');
+  const [adminPassword, setAdminPassword] = useState('');
 
   // Plan & Financials
   const [plan, setPlan] = useState<PlanType>('Pro');
@@ -187,6 +187,7 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
             <Input
               label="Admin Initial Password *"
               type="text"
+              placeholder="Enter initial password"
               value={adminPassword}
               onChange={(e) => setAdminPassword(e.target.value)}
               required

@@ -160,7 +160,7 @@ export const SuperAdminDashboardPage: React.FC<
           api.get('/system-admin/dashboard'),
           api.get('/system-admin/franchises'),
           api.get('/contracts'),
-          api.get('/monthly-royalties/report')
+          api.get('/royalties/monthly/report')
         ]);
 
         if (dashboardRes.status === 'fulfilled' && dashboardRes.value.data?.success) {

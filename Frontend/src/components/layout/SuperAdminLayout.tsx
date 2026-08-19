@@ -13,6 +13,7 @@ interface SuperAdminLayoutProps {
   onLogout: () => void;
   onFranchiseAdded?: (newFranchise: Franchise) => void;
   onFranchiseUpdated?: (franchise: Franchise) => void;
+  onAdminAdded?: (data: { schoolId: string; adminName: string; adminEmail: string; adminPhone: string; adminPassword: string }) => void;
   // School modal
   isAddSchoolModalOpen?: boolean;
   onOpenAddSchoolModal?: () => void;
@@ -33,6 +34,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   onLogout,
   onFranchiseAdded,
   onFranchiseUpdated,
+  onAdminAdded,
   isAddSchoolModalOpen: externalSchoolOpen,
   onOpenAddSchoolModal: externalOpenSchool,
   onCloseAddSchoolModal: externalCloseSchool,
@@ -100,7 +102,10 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
         isOpen={isAdminModalOpen}
         onClose={handleCloseAdmin}
         franchises={franchises}
-        onSave={() => {
+        onSave={(data) => {
+          if (data && onAdminAdded) {
+            onAdminAdded(data);
+          }
           handleCloseAdmin();
         }}
       />

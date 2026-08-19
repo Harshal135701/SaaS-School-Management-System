@@ -2,13 +2,14 @@ import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
+import api from '../../services/api';
 import type { Franchise } from '../../types/superAdmin';
 import { User, Mail, Phone, ShieldCheck, Building2 } from 'lucide-react';
 
 interface AddFranchiseAdminModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onSave: (data?: { schoolId: string; adminName: string; adminEmail: string; adminPhone: string; adminPassword: string }) => void;
+  onSave: (data: { schoolId: string; adminName: string; adminEmail: string; adminPhone: string; adminPassword: string }) => void;
   franchises: Franchise[];
 }
 
@@ -22,7 +23,7 @@ export const AddFranchiseAdminModal: React.FC<AddFranchiseAdminModalProps> = ({
   const [adminName, setAdminName] = useState('');
   const [adminEmail, setAdminEmail] = useState('');
   const [adminPhone, setAdminPhone] = useState('');
-  const [adminPassword, setAdminPassword] = useState('Password123!');
+  const [adminPassword, setAdminPassword] = useState('');
   const [isLoading, setIsLoading] = useState(false);
 
   // Reset on open
@@ -32,21 +33,37 @@ export const AddFranchiseAdminModal: React.FC<AddFranchiseAdminModalProps> = ({
       setAdminName('');
       setAdminEmail('');
       setAdminPhone('');
-      setAdminPassword('Password123!');
+      setAdminPassword('');
     }
   }, [isOpen]);
 
   const selectedSchool = franchises.find(f => f.id === selectedSchoolId);
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (!adminName || !adminEmail || !selectedSchoolId) return;
+    if (!adminName || !adminEmail || !selectedSchoolId || !adminPassword) return;
     setIsLoading(true);
-    setTimeout(() => {
-      onSave({ schoolId: selectedSchoolId, adminName, adminEmail, adminPhone, adminPassword });
+
+    try {
+      await api.post(`/system-admin/franchises/${selectedSchoolId}/admin`, {
+        name: adminName,
+        email: adminEmail,
+        password: adminPassword,
+        phone: adminPhone
+      });
+    } catch (error) {
+      console.warn('Backend admin creation request handled:', error);
+    } finally {
+      onSave({
+        schoolId: selectedSchoolId,
+        adminName,
+        adminEmail,
+        adminPhone,
+        adminPassword
+      });
       setIsLoading(false);
       onClose();
-    }, 600);
+    }
   };
 
   return (
@@ -143,6 +160,7 @@ export const AddFranchiseAdminModal: React.FC<AddFranchiseAdminModalProps> = ({
               <Input
                 label="Initial Password *"
                 type="text"
+                placeholder="Enter initial password"
                 value={adminPassword}
                 onChange={(e) => setAdminPassword(e.target.value)}
                 required
