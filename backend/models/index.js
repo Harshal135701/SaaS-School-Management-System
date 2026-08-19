@@ -12,6 +12,7 @@ const Feature = require("./Feature");
 const Teacher = require("./Teacher");
 const Attendance = require("./Attendance");
 const Homework = require("./Homework");
+const Fee = require("./Fee");
 
 // Plan ↔ Feature
 Plan.belongsToMany(Feature, {
@@ -98,6 +99,26 @@ Homework.belongsTo(Teacher, {
   as: "teacher",
 });
 
+Franchise.hasMany(Fee, {
+  foreignKey: "franchiseId",
+  as: "fees",
+});
+
+Fee.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Student.hasMany(Fee, {
+  foreignKey: "studentId",
+  as: "fees",
+});
+
+Fee.belongsTo(Student, {
+  foreignKey: "studentId",
+  as: "student",
+});
+
 
 module.exports = {
   sequelize,
@@ -112,5 +133,6 @@ module.exports = {
   RoyaltyConfiguration,
   MonthlyRoyalty,
   Teacher,
+  Fee,
   Attendance,
 };
