@@ -36,6 +36,7 @@ const bookRoutes = require("./routes/bookRoutes");
 const bookIssueRoutes = require("./routes/bookIssueRoutes");
 const timetableRoutes = require("./routes/timetableRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
+const transportRouteRoutes = require("./routes/transportRouteRoutes");
 
 // using all apis for calling
 
@@ -59,6 +60,7 @@ app.use("/api/franchise/books", bookRoutes);
 app.use("/api/franchise/book-issues", bookIssueRoutes);
 app.use("/api/franchise/timetables", timetableRoutes);
 app.use("/api/franchise/vehicles", vehicleRoutes);
+app.use("/api/franchise/transport-routes", transportRouteRoutes);
 
 // Test route
 app.get("/", (req, res) => {

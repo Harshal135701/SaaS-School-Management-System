@@ -7,6 +7,7 @@ const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const Contract = require("./Contract");
 const Plan = require("./Plan");
+const TransportRoute = require("./TransportRoute");
 const Student = require("./Student");
 const Feature = require("./Feature");
 const Teacher = require("./Teacher");
@@ -205,6 +206,26 @@ Vehicle.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Vehicle.hasMany(TransportRoute, {
+  foreignKey: "vehicleId",
+  as: "routes",
+});
+
+TransportRoute.belongsTo(Vehicle, {
+  foreignKey: "vehicleId",
+  as: "vehicle",
+});
+
+Franchise.hasMany(TransportRoute, {
+  foreignKey: "franchiseId",
+  as: "transportRoutes",
+});
+
+TransportRoute.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -213,6 +234,7 @@ module.exports = {
   Plan,
   Feature,
   Contract,
+  TransportRoute,
   Book,
   Vehicle,
   Student,
