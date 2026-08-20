@@ -1,3 +1,4 @@
+const bcrypt = require("bcryptjs");
 const { Teacher } = require("../models");
 
 const createTeacher = async (req, res) => {
@@ -7,6 +8,7 @@ const createTeacher = async (req, res) => {
       email,
       phone,
       role,
+      password,
       dateOfBirth,
       gender,
       subject,
@@ -15,18 +17,21 @@ const createTeacher = async (req, res) => {
       address,
     } = req.body;
 
-    if (!name) {
+    if (!name || !email || !password) {
       return res.status(400).json({
         success: false,
-        message: "Teacher name is required",
+        message: "Name, email and password are required",
       });
     }
+
+    const hashedPassword = await bcrypt.hash(password, 10);
 
     const teacher = await Teacher.create({
       franchiseId: req.user.franchiseId,
       name,
       email,
       phone,
+      password: hashedPassword,
       role: role || "TEACHER",
       dateOfBirth,
       gender,
@@ -159,7 +164,7 @@ const updateTeacher = async (req, res) => {
       address,
       status,
     } = req.body;
-    
+
     await teacher.update({
       name,
       email,

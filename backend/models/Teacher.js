@@ -75,6 +75,10 @@ const Teacher = sequelize.define(
       type: DataTypes.TEXT,
       allowNull: true,
     },
+    password: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
 
     status: {
       type: DataTypes.ENUM("ACTIVE", "INACTIVE"),

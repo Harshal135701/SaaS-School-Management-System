@@ -39,6 +39,7 @@ const vehicleRoutes = require("./routes/vehicleRoutes");
 const transportRouteRoutes = require("./routes/transportRouteRoutes");
 const parentAuthRoutes = require("./routes/parentAuthRoutes");
 const parentRoutes = require("./routes/parentRoutes");
+const teacherAuthRoutes = require("./routes/teacherAuthRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
@@ -47,6 +48,7 @@ app.use("/api/system-admin/royalties", royaltyRoutes);
 app.use("/api/royalties/monthly", monthlyRoyaltyRoutes);
 app.use("/api/contracts", contractRoutes);
 app.use("/api/system-settings", systemSettingsRoutes);
+
 app.use("/api/plans", planRoutes);
 app.use("/api/franchise/auth", franchiseAuthRoutes);
 app.use("/api/franchise/test", franchiseTestRoutes);
@@ -64,6 +66,7 @@ app.use("/api/franchise/vehicles", vehicleRoutes);
 app.use("/api/franchise/transport-routes", transportRouteRoutes);
 app.use("/api/parent/auth", parentAuthRoutes);
 app.use("/api/franchise/parents", parentRoutes);
+app.use("/api/teacher/auth", teacherAuthRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({
