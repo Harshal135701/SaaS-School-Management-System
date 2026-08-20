@@ -6,6 +6,7 @@ const createTeacher = async (req, res) => {
       name,
       email,
       phone,
+      role,
       dateOfBirth,
       gender,
       subject,
@@ -26,6 +27,7 @@ const createTeacher = async (req, res) => {
       name,
       email,
       phone,
+      role: role || "TEACHER",
       dateOfBirth,
       gender,
       subject,
@@ -148,6 +150,7 @@ const updateTeacher = async (req, res) => {
       name,
       email,
       phone,
+      role,
       dateOfBirth,
       gender,
       subject,
@@ -156,11 +159,12 @@ const updateTeacher = async (req, res) => {
       address,
       status,
     } = req.body;
-
+    
     await teacher.update({
       name,
       email,
       phone,
+      role,
       dateOfBirth,
       gender,
       subject,

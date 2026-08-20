@@ -40,6 +40,12 @@ const Teacher = sequelize.define(
       allowNull: true,
     },
 
+    role: {
+      type: DataTypes.ENUM("TEACHER", "HOD"),
+      allowNull: false,
+      defaultValue: "TEACHER",
+    },
+
     dateOfBirth: {
       type: DataTypes.DATEONLY,
       allowNull: true,
