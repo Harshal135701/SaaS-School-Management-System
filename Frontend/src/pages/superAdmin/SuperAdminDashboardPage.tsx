@@ -202,10 +202,7 @@ export const SuperAdminDashboardPage: React.FC<
      FRANCHISE DATA
   ======================================================= */
 
-  const franchises =
-    franchiseList && franchiseList.length > 0
-      ? franchiseList
-      : localFranchises;
+  const franchises = localFranchises;
 
   /* =======================================================
      DATE
@@ -296,35 +293,35 @@ export const SuperAdminDashboardPage: React.FC<
      KPI DATA (LIVE REAL BACKEND METRICS)
   ======================================================= */
 
-  const activeFranchisesCount =
-    dashboardData.activeFranchises ||
-    franchises.filter(
-      (f) =>
-        (f.status || '').toUpperCase() === 'ACTIVE'
-    ).length || 7;
+ const activeFranchisesCount =
+  dashboardData.activeFranchises ??
+  franchises.filter(
+    (f) =>
+      (f.status || '').toUpperCase() === 'ACTIVE'
+  ).length;
 
-  const inactiveFranchisesCount =
-    dashboardData.inactiveFranchises ||
-    franchises.filter(
-      (f) =>
-        (f.status || '').toUpperCase() === 'INACTIVE'
-    ).length || 1;
+const inactiveFranchisesCount =
+  dashboardData.inactiveFranchises ??
+  franchises.filter(
+    (f) =>
+      (f.status || '').toUpperCase() === 'INACTIVE'
+  ).length;
 
-  const totalFranchisesCount =
-    dashboardData.totalFranchises ||
-    franchises.length || 8;
+const totalFranchisesCount =
+  dashboardData.totalFranchises ??
+  franchises.length;
 
   const calculatedStudents = franchises.reduce(
     (sum, f) => sum + (Number(f.studentCount) || 0),
     0
   );
-  const totalStudentsCount = calculatedStudents > 0 ? calculatedStudents : 18450;
+ const totalStudentsCount = calculatedStudents;
 
   const calculatedTeachers = franchises.reduce(
     (sum, f) => sum + (Number(f.teacherCount) || 0),
     0
   );
-  const totalTeachersCount = calculatedTeachers > 0 ? calculatedTeachers : 1240;
+ const totalTeachersCount = calculatedTeachers;
 
   const pendingRoyaltyTotal =
     royaltySummary?.pendingAmount != null

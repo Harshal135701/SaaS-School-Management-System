@@ -70,6 +70,12 @@ export function App() {
         setUserRole('Super Admin');
         setCurrentPath('/super-admin/dashboard');
         setIsAuthenticated(true);
+        // Fetch real franchises from backend on load
+        api.get('/system-admin/franchises').then(res => {
+          if (res.data?.success && Array.isArray(res.data.data)) {
+            setFranchises(res.data.data);
+          }
+        }).catch(() => {/* keep mock data if fetch fails */});
       } else if (decoded.role === 'FRANCHISE_ADMIN') {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
@@ -91,6 +97,12 @@ export function App() {
     setUserRole('Super Admin');
     setLoggedInFranchise(null);
     setCurrentPath('/super-admin/dashboard');
+    // Fetch real franchises from backend immediately after login
+    api.get('/system-admin/franchises').then(res => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setFranchises(res.data.data);
+      }
+    }).catch(() => {/* keep mock data if fetch fails */});
 
     showToast(
       `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
@@ -268,7 +280,7 @@ export function App() {
       }
       if (currentPath.startsWith('/super-admin/franchises/')) {
         const id = currentPath.split('/super-admin/franchises/')[1];
-        return <FranchiseDetailPage franchiseId={id} onNavigate={(p) => setCurrentPath(p)} />;
+        return <FranchiseDetailPage franchiseId={id} franchiseList={franchises} onNavigate={(p) => setCurrentPath(p)} />;
       }
       if (currentPath === '/super-admin/royalty') {
         return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="overview" />;
