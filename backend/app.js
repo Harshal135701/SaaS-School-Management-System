@@ -37,7 +37,8 @@ const bookIssueRoutes = require("./routes/bookIssueRoutes");
 const timetableRoutes = require("./routes/timetableRoutes");
 const vehicleRoutes = require("./routes/vehicleRoutes");
 const transportRouteRoutes = require("./routes/transportRouteRoutes");
-
+const parentAuthRoutes = require("./routes/parentAuthRoutes");
+const parentRoutes = require("./routes/parentRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
@@ -61,7 +62,8 @@ app.use("/api/franchise/book-issues", bookIssueRoutes);
 app.use("/api/franchise/timetables", timetableRoutes);
 app.use("/api/franchise/vehicles", vehicleRoutes);
 app.use("/api/franchise/transport-routes", transportRouteRoutes);
-
+app.use("/api/parent/auth", parentAuthRoutes);
+app.use("/api/franchise/parents", parentRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({
