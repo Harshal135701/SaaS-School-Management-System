@@ -7,6 +7,7 @@ export const login = async (email: string, password: string) => {
     const { token, admin } = response.data;
     
     if (token) {
+      sessionStorage.setItem("token", token);
       localStorage.setItem("token", token);
     }
     
@@ -18,6 +19,7 @@ export const login = async (email: string, password: string) => {
       const { token, data } = frRes.data;
       
       if (token) {
+        sessionStorage.setItem("token", token);
         localStorage.setItem("token", token);
       }
       

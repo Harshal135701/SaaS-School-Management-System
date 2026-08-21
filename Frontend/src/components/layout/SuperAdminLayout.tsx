@@ -3,7 +3,6 @@ import { SuperAdminSidebar } from './SuperAdminSidebar';
 import { SuperAdminTopHeader } from './SuperAdminTopHeader';
 import { AddFranchiseSchoolModal } from '../superAdmin/AddFranchiseSchoolModal';
 import { AddFranchiseAdminModal } from '../superAdmin/AddFranchiseAdminModal';
-import { mockFranchises } from '../../data/superAdminMockData';
 import type { Franchise } from '../../types/superAdmin';
 
 interface SuperAdminLayoutProps {
@@ -42,7 +41,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   isAddAdminModalOpen: externalAdminOpen,
   onOpenAddAdminModal: externalOpenAdmin,
   onCloseAddAdminModal: externalCloseAdmin,
-  franchises = mockFranchises
+  franchises = []
 }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [internalSchoolOpen, setInternalSchoolOpen] = useState(false);

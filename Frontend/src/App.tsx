@@ -22,7 +22,6 @@ import { FranchiseDetailPage } from './pages/superAdmin/FranchiseDetailPage';
 import { RoyaltyPage } from './pages/superAdmin/RoyaltyPage';
 import { ContractsPage } from './pages/superAdmin/ContractsPage';
 import { SuperAdminSettingsPage } from './pages/superAdmin/SuperAdminSettingsPage';
-import { mockFranchises } from './data/superAdminMockData';
 import type { Franchise } from './types/superAdmin';
 
 // Super Admin email — the only hardcoded check needed
@@ -41,7 +40,7 @@ export function App() {
   const [editFranchise, setEditFranchise] = useState<Franchise | null>(null);
 
   // Shared franchise list (all schools registered in the platform)
-  const [franchises, setFranchises] = useState<Franchise[]>(mockFranchises);
+  const [franchises, setFranchises] = useState<Franchise[]>([]);
 
   // The franchise that the currently logged-in franchise admin belongs to
   const [loggedInFranchise, setLoggedInFranchise] = useState<Franchise | null>(null);
@@ -52,9 +51,14 @@ export function App() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // Check active session in the current browser tab
+    const token = sessionStorage.getItem('token');
 
     if (!token) {
+      // Clear any legacy persistent token so new sessions always start at Login page
+      localStorage.removeItem('token');
+      setIsAuthenticated(false);
+      setCurrentPath('/login');
       return;
     }
 
@@ -62,7 +66,10 @@ export function App() {
       const decoded: { role?: string; exp?: number } = jwtDecode(token);
 
       if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        sessionStorage.removeItem('token');
         localStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setCurrentPath('/login');
         return;
       }
 
@@ -81,11 +88,17 @@ export function App() {
         setCurrentPath('/admin/dashboard');
         setIsAuthenticated(true);
       } else {
+        sessionStorage.removeItem('token');
         localStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setCurrentPath('/login');
       }
     } catch (error) {
       console.error('Invalid authentication token:', error);
+      sessionStorage.removeItem('token');
       localStorage.removeItem('token');
+      setIsAuthenticated(false);
+      setCurrentPath('/login');
     }
   }, []);
 
@@ -148,6 +161,7 @@ export function App() {
 };
 
   const handleLogout = () => {
+    sessionStorage.removeItem('token');
     localStorage.removeItem('token');
     setIsAuthenticated(false);
     setLoggedInFranchise(null);
