@@ -57,16 +57,19 @@ const Franchise = sequelize.define(
 
     status: {
       type: DataTypes.ENUM("ACTIVE", "INACTIVE"),
-      defaultValue: "ACTIVE",
       allowNull: false,
+      defaultValue: "ACTIVE",
     },
+
     planId: {
       type: DataTypes.UUID,
-     allowNull: true,
+      allowNull: true,
       references: {
         model: "plans",
         key: "id",
       },
+      onUpdate: "CASCADE",
+      onDelete: "SET NULL",
     },
   },
   {

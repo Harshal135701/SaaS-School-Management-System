@@ -204,27 +204,65 @@ export function App() {
     showToast(`Franchise school "${franchise.name}" updated successfully!`);
   };
 
-  const handleAdminAdded = (data: { schoolId: string; adminName: string; adminEmail: string; adminPhone: string; adminPassword: string }) => {
+  const handleAdminAdded = async (data: {
+  schoolId: string;
+  adminName: string;
+  adminEmail: string;
+  adminPhone: string;
+  adminPassword: string;
+}) => {
+  try {
+    const response = await api.post(
+      `/system-admin/franchises/${data.schoolId}/admin`,
+      {
+        name: data.adminName,
+        email: data.adminEmail,
+        password: data.adminPassword,
+      }
+    );
+
+    if (!response.data?.success) {
+      throw new Error(response.data?.message || 'Failed to create franchise admin');
+    }
+
+    const createdAdmin = response.data.data;
+
     setFranchises(prev =>
       prev.map(f => {
-        if (f.id === data.schoolId || String(f.id) === String(data.schoolId) || f.code === data.schoolId) {
+        if (
+          String(f.id) === String(data.schoolId) ||
+          f.code === data.schoolId
+        ) {
           return {
             ...f,
-            adminName: data.adminName,
-            adminEmail: data.adminEmail,
+            adminName: createdAdmin.name,
+            adminEmail: createdAdmin.email,
             adminPhone: data.adminPhone,
-            adminPassword: data.adminPassword,
             admin: {
-              name: data.adminName,
-              email: data.adminEmail
-            }
+              id: createdAdmin.id,
+              name: createdAdmin.name,
+              email: createdAdmin.email,
+              isActive: createdAdmin.isActive,
+            },
           };
         }
+
         return f;
       })
     );
-    showToast(`Franchise Admin "${data.adminName}" assigned to school successfully!`);
-  };
+
+    showToast(
+      `Franchise Admin "${createdAdmin.name}" assigned to school successfully!`
+    );
+  } catch (error: any) {
+    console.error('Failed to create franchise admin:', error);
+
+    showToast(
+      error.response?.data?.message ||
+      'Failed to create franchise admin'
+    );
+  }
+};
 
   const handleOpenEditSchoolModal = (franchise: Franchise) => {
     setEditFranchise(franchise);
