@@ -1,16 +1,13 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import {
-  mockRoyaltyRecords,
-  mockRoyaltyConfigs,
-  mockRevenueTrends,
-  mockRoyaltyPaymentStatusData
-} from '../../data/superAdminMockData';
-import type { RoyaltyRecord, RoyaltyConfig, RoyaltyStatus } from '../../types/superAdmin';
+
+import api from '../../services/api';
+
+import type { RoyaltyStatus } from '../../types/superAdmin';
 import {
   BadgePercent,
   CheckCircle2,
@@ -24,14 +21,9 @@ import {
   Calendar
 } from 'lucide-react';
 import {
-  AreaChart,
-  Area,
   PieChart,
   Pie,
   Cell,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer
 } from 'recharts';
@@ -49,7 +41,7 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
     'overview' | 'config' | 'monthly' | 'paid' | 'pending' | 'overdue' | 'reports'
   >(subView);
 
-  React.useEffect(() => {
+  useEffect(() => {
     setActiveTab(subView);
   }, [subView]);
 
@@ -59,44 +51,133 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
     onNavigate(path);
   };
 
-  const [royaltyList, _setRoyaltyList] = useState<RoyaltyRecord[]>(mockRoyaltyRecords);
-  const [configsList, setConfigsList] = useState<RoyaltyConfig[]>(mockRoyaltyConfigs);
+  const [royaltyList, setRoyaltyList] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
   const [statusFilter, _setStatusFilter] = useState<string>('All');
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
-  // Edit config modal state
-  const [editingConfig, setEditingConfig] = useState<RoyaltyConfig | null>(null);
+  useEffect(() => {
+    const fetchRoyaltyData = async () => {
+      try {
+        setLoading(true);
+
+        const res = await api.get('/system-admin/franchises');
+
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          const franchises = res.data.data;
+
+          const records = franchises
+            .map((franchise: any) => {
+              const royalty =
+                franchise.monthlyRoyalties &&
+                franchise.monthlyRoyalties.length > 0
+                  ? franchise.monthlyRoyalties[0]
+                  : null;
+
+              if (!royalty) return null;
+
+              return {
+                id: royalty.id,
+                schoolName: franchise.name || 'Unknown School',
+                schoolCode: franchise.code || '-',
+                invoiceNumber: `ROY-${royalty.id?.slice(0, 8) || 'N/A'}`,
+                plan:
+                  typeof franchise.plan === 'object'
+                    ? franchise.plan?.name
+                    : franchise.plan || 'BASIC',
+                monthlyAmount:
+                  Number(royalty.royaltyAmount) ||
+                  Number(royalty.totalAmount) ||
+                  0,
+                dueDate: royalty.dueDate
+                  ? new Date(royalty.dueDate).toLocaleDateString('en-IN')
+                  : '-',
+                billingCycle:
+                  franchise.plan?.billingCycle || 'MONTHLY',
+                status:
+                  royalty.status === 'PAID'
+                    ? 'Paid'
+                    : royalty.status === 'OVERDUE'
+                    ? 'Overdue'
+                    : 'Pending',
+              };
+            })
+            .filter(Boolean);
+
+          setRoyaltyList(records);
+        }
+      } catch (error) {
+        console.error('Failed to fetch royalty data:', error);
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchRoyaltyData();
+  }, []);
 
   const showNotification = (msg: string) => {
     setToastMsg(msg);
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const handleSaveConfig = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!editingConfig) return;
-
-    setConfigsList(prev => prev.map(c => c.id === editingConfig.id ? editingConfig : c));
-    setEditingConfig(null);
-    showNotification(`Royalty configuration updated for ${editingConfig.plan} plan!`);
-  };
-
   // Filtered records
   const getFilteredRecords = (targetStatus?: RoyaltyStatus) => {
     return royaltyList.filter(r => {
       const matchesSearch = r.schoolName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            r.schoolCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                            r.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase());
+        r.schoolCode.toLowerCase().includes(searchQuery.toLowerCase()) ||
+        r.invoiceNumber.toLowerCase().includes(searchQuery.toLowerCase());
       const matchesStatus = targetStatus ? r.status === targetStatus : (statusFilter === 'All' || r.status === statusFilter);
       return matchesSearch && matchesStatus;
     });
   };
 
-  const totalBilled = royaltyList.reduce((acc, r) => acc + r.monthlyAmount, 0);
-  const totalPaid = royaltyList.filter(r => r.status === 'Paid').reduce((acc, r) => acc + r.monthlyAmount, 0);
-  const totalPending = royaltyList.filter(r => r.status === 'Pending').reduce((acc, r) => acc + r.monthlyAmount, 0);
-  const totalOverdue = royaltyList.filter(r => r.status === 'Overdue').reduce((acc, r) => acc + r.monthlyAmount, 0);
+  const totalBilled = royaltyList.reduce(
+    (acc, r) => acc + Number(r.monthlyAmount || 0),
+    0
+  );
+
+  const totalPaid = royaltyList
+    .filter(r => r.status === 'Paid')
+    .reduce((acc, r) => acc + Number(r.monthlyAmount || 0), 0);
+
+  const totalPending = royaltyList
+    .filter(r => r.status === 'Pending')
+    .reduce((acc, r) => acc + Number(r.monthlyAmount || 0), 0);
+
+  const totalOverdue = royaltyList
+    .filter(r => r.status === 'Overdue')
+    .reduce((acc, r) => acc + Number(r.monthlyAmount || 0), 0);
+
+  const collectionRate =
+    totalBilled > 0
+      ? Math.round((totalPaid / totalBilled) * 100)
+      : 0;
+
+  const paymentStatusData = [
+    {
+      name: 'Paid',
+      value: totalPaid,
+      percentage:
+        totalBilled > 0 ? Math.round((totalPaid / totalBilled) * 100) : 0,
+      color: '#10b981',
+    },
+    {
+      name: 'Pending',
+      value: totalPending,
+      percentage:
+        totalBilled > 0 ? Math.round((totalPending / totalBilled) * 100) : 0,
+      color: '#f59e0b',
+    },
+    {
+      name: 'Overdue',
+      value: totalOverdue,
+      percentage:
+        totalBilled > 0 ? Math.round((totalOverdue / totalBilled) * 100) : 0,
+      color: '#ef4444',
+    },
+  ].filter(item => item.value > 0);
 
   return (
     <div className="space-y-6">
@@ -147,7 +228,7 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
         <Card className="p-4 border-slate-200/80 bg-emerald-50/30">
           <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Collected</span>
           <div className="text-2xl font-extrabold text-emerald-800 mt-1">₹{totalPaid.toLocaleString('en-IN')}</div>
-          <span className="text-[11px] text-emerald-600 font-extrabold mt-1 block">Collection Rate: 72%</span>
+          <span className="text-[11px] text-emerald-600 font-extrabold mt-1 block">Collection Rate: {collectionRate}%</span>
         </Card>
 
         <Card className="p-4 border-slate-200/80 bg-amber-50/30">
@@ -180,11 +261,10 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
             <button
               key={t.id}
               onClick={() => handleTabChange(t.id)}
-              className={`pb-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${
-                isActive
-                  ? 'border-blue-600 text-blue-600'
-                  : 'border-transparent text-slate-500 hover:text-slate-800'
-              }`}
+              className={`pb-3 flex items-center gap-2 border-b-2 transition-colors whitespace-nowrap cursor-pointer ${isActive
+                ? 'border-blue-600 text-blue-600'
+                : 'border-transparent text-slate-500 hover:text-slate-800'
+                }`}
             >
               <Icon className="w-4 h-4" />
               <span>{t.label}</span>
@@ -203,20 +283,25 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
         <div className="space-y-6">
           <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
             <Card className="lg:col-span-2 p-6 border-slate-200/80">
-              <h3 className="text-base font-extrabold text-slate-900">Royalty Collection Trend</h3>
-              <p className="text-xs text-slate-500 font-medium mb-4">Historical monthly royalty performance</p>
+              <h3 className="text-base font-extrabold text-slate-900">Current Royalty Collection</h3>
+              <p className="text-xs text-slate-500 font-medium mb-4">Current monthly royalty status across all franchises</p>
 
-              <div className="h-64">
-                <ResponsiveContainer width="100%" height="100%">
-                  <AreaChart data={mockRevenueTrends['6 Months']}>
-                    <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-                    <XAxis dataKey="month" tickLine={false} axisLine={false} tick={{ fontSize: 11 }} />
-                    <YAxis tickLine={false} axisLine={false} tick={{ fontSize: 11 }} tickFormatter={(v) => `₹${v/1000}k`} />
-                    <Tooltip formatter={(val: any) => [`₹${Number(val).toLocaleString('en-IN')}`, 'Amount']} />
-                    <Area type="monotone" dataKey="revenue" name="Billed Revenue" stroke="#2563eb" fill="#dbeafe" strokeWidth={2} />
-                    <Area type="monotone" dataKey="collected" name="Collected" stroke="#10b981" fill="#d1fae5" strokeWidth={2} />
-                  </AreaChart>
-                </ResponsiveContainer>
+              <div className="h-64 flex items-center justify-center">
+                {loading ? (
+                  <p className="text-xs font-semibold text-slate-400">Loading royalty data...</p>
+                ) : (
+                  <div className="text-center">
+                    <div className="text-4xl font-extrabold text-slate-900">
+                      ₹{totalBilled.toLocaleString('en-IN')}
+                    </div>
+                    <p className="text-sm text-slate-500 mt-2">Total royalty billed for current records</p>
+                    <div className="flex justify-center gap-6 mt-6 text-xs font-bold">
+                      <span className="text-emerald-600">Paid: ₹{totalPaid.toLocaleString('en-IN')}</span>
+                      <span className="text-amber-600">Pending: ₹{totalPending.toLocaleString('en-IN')}</span>
+                      <span className="text-rose-600">Overdue: ₹{totalOverdue.toLocaleString('en-IN')}</span>
+                    </div>
+                  </div>
+                )}
               </div>
             </Card>
 
@@ -229,8 +314,8 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
               <div className="h-44">
                 <ResponsiveContainer width="100%" height="100%">
                   <PieChart>
-                    <Pie data={mockRoyaltyPaymentStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value">
-                      {mockRoyaltyPaymentStatusData.map((e, idx) => (
+                    <Pie data={paymentStatusData} cx="50%" cy="50%" innerRadius={45} outerRadius={70} dataKey="value">
+                      {paymentStatusData.map((e, idx) => (
                         <Cell key={idx} fill={e.color} />
                       ))}
                     </Pie>
@@ -240,10 +325,10 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
               </div>
 
               <div className="space-y-2 pt-2 border-t border-slate-100 text-xs">
-                {mockRoyaltyPaymentStatusData.map(item => (
+                {paymentStatusData.map(item => (
                   <div key={item.name} className="flex justify-between font-bold">
                     <span className="text-slate-600">{item.name}:</span>
-                    <span className="text-slate-900">{item.amount} ({item.value}%)</span>
+                    <span className="text-slate-900">₹{item.value.toLocaleString('en-IN')} ({item.percentage}%)</span>
                   </div>
                 ))}
               </div>
@@ -255,64 +340,14 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
       {/* TAB 2: CONFIGURATION */}
       {activeTab === 'config' && (
         <Card className="p-6 border-slate-200/80 space-y-4">
-          <div className="flex items-center justify-between">
-            <div>
-              <h3 className="text-base font-extrabold text-slate-900">SaaS Royalty Rules & Tier Pricing</h3>
-              <p className="text-xs text-slate-500 font-medium">Configure monthly royalty rates, due days, grace periods, and late fee penalties per subscription plan tier.</p>
-            </div>
+          <div>
+            <h3 className="text-base font-extrabold text-slate-900">Royalty Configuration</h3>
+            <p className="text-xs text-slate-500 mt-1">Royalty configuration will be loaded from the backend.</p>
           </div>
-
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-            {configsList.map((cfg) => (
-              <Card key={cfg.id} className="p-5 border-slate-200/80 hover:border-blue-300 transition-all flex flex-col justify-between bg-slate-50/50">
-                <div>
-                  <div className="flex items-center justify-between mb-3">
-                    <span className={`px-2.5 py-1 rounded-lg font-extrabold text-xs uppercase ${
-                      cfg.plan === 'Enterprise' ? 'bg-teal-100 text-teal-800' :
-                      cfg.plan === 'Pro' ? 'bg-blue-100 text-blue-800' :
-                      'bg-indigo-100 text-indigo-800'
-                    }`}>
-                      {cfg.plan} Plan Tier
-                    </span>
-                    <Badge variant={cfg.status === 'Active' ? 'emerald' : 'slate'}>{cfg.status}</Badge>
-                  </div>
-
-                  <div className="text-2xl font-extrabold text-slate-900 my-2">
-                    ₹{cfg.monthlyRoyalty.toLocaleString('en-IN')} <span className="text-xs text-slate-500 font-normal">/ month</span>
-                  </div>
-
-                  <div className="space-y-2 text-xs font-semibold text-slate-600 pt-3 border-t border-slate-200/80">
-                    <div className="flex justify-between">
-                      <span>Billing Cycle:</span>
-                      <strong className="text-slate-900">{cfg.billingCycle}</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Monthly Due Day:</span>
-                      <strong className="text-slate-900">{cfg.dueDay}th of month</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Grace Period:</span>
-                      <strong className="text-slate-900">{cfg.gracePeriodDays} Days</strong>
-                    </div>
-                    <div className="flex justify-between">
-                      <span>Late Fee Penalty:</span>
-                      <strong className="text-rose-600">{cfg.lateFeePercentage}% / month</strong>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="pt-4 mt-4 border-t border-slate-200/80">
-                  <Button
-                    variant="outline"
-                    size="sm"
-                    fullWidth
-                    onClick={() => setEditingConfig(cfg)}
-                  >
-                    Edit Tier Configuration
-                  </Button>
-                </div>
-              </Card>
-            ))}
+          <div className="mt-6 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+            <p className="text-xs font-semibold text-blue-800">
+              Backend royalty configuration integration is the next step.
+            </p>
           </div>
         </Card>
       )}
@@ -348,55 +383,71 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {getFilteredRecords(
-                  activeTab === 'paid' ? 'Paid' : activeTab === 'pending' ? 'Pending' : activeTab === 'overdue' ? 'Overdue' : undefined
-                ).map((r) => (
-                  <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-extrabold text-slate-900">
-                      <div>{r.schoolName}</div>
-                      <span className="text-[10px] font-bold text-blue-600">{r.schoolCode}</span>
-                    </td>
-
-                    <td className="p-3.5 font-mono text-slate-700">{r.invoiceNumber}</td>
-
-                    <td className="p-3.5 font-bold text-slate-800">{r.plan}</td>
-
-                    <td className="p-3.5 font-extrabold text-slate-900">
-                      ₹{r.monthlyAmount.toLocaleString('en-IN')}
-                    </td>
-
-                    <td className="p-3.5 text-slate-600 font-semibold">{r.dueDate}</td>
-
-                    <td className="p-3.5 text-slate-500">{r.billingCycle}</td>
-
-                    <td className="p-3.5">
-                      <Badge variant={r.status === 'Paid' ? 'emerald' : r.status === 'Pending' ? 'amber' : 'rose'}>
-                        {r.status}
-                      </Badge>
-                    </td>
-
-                    <td className="p-3.5 text-right">
-                      {r.status === 'Overdue' ? (
-                        <Button
-                          variant="danger"
-                          size="sm"
-                          onClick={() => showNotification(`Payment reminder dispatched to ${r.schoolName} admin!`)}
-                          leftIcon={<Send className="w-3 h-3" />}
-                        >
-                          Send Notice
-                        </Button>
-                      ) : (
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => showNotification(`Viewing invoice details for ${r.invoiceNumber}`)}
-                        >
-                          Invoice
-                        </Button>
-                      )}
+                {loading ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-slate-400 font-semibold text-xs">
+                      Loading royalty data records...
                     </td>
                   </tr>
-                ))}
+                ) : getFilteredRecords(
+                  activeTab === 'paid' ? 'Paid' : activeTab === 'pending' ? 'Pending' : activeTab === 'overdue' ? 'Overdue' : undefined
+                ).length === 0 ? (
+                  <tr>
+                    <td colSpan={8} className="p-6 text-center text-slate-400 font-semibold text-xs">
+                      No royalty records found.
+                    </td>
+                  </tr>
+                ) : (
+                  getFilteredRecords(
+                    activeTab === 'paid' ? 'Paid' : activeTab === 'pending' ? 'Pending' : activeTab === 'overdue' ? 'Overdue' : undefined
+                  ).map((r) => (
+                    <tr key={r.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5 font-extrabold text-slate-900">
+                        <div>{r.schoolName}</div>
+                        <span className="text-[10px] font-bold text-blue-600">{r.schoolCode}</span>
+                      </td>
+
+                      <td className="p-3.5 font-mono text-slate-700">{r.invoiceNumber}</td>
+
+                      <td className="p-3.5 font-bold text-slate-800">{r.plan}</td>
+
+                      <td className="p-3.5 font-extrabold text-slate-900">
+                        ₹{r.monthlyAmount.toLocaleString('en-IN')}
+                      </td>
+
+                      <td className="p-3.5 text-slate-600 font-semibold">{r.dueDate}</td>
+
+                      <td className="p-3.5 text-slate-500">{r.billingCycle}</td>
+
+                      <td className="p-3.5">
+                        <Badge variant={r.status === 'Paid' ? 'emerald' : r.status === 'Pending' ? 'amber' : 'rose'}>
+                          {r.status}
+                        </Badge>
+                      </td>
+
+                      <td className="p-3.5 text-right">
+                        {r.status === 'Overdue' ? (
+                          <Button
+                            variant="danger"
+                            size="sm"
+                            onClick={() => showNotification(`Payment reminder dispatched to ${r.schoolName} admin!`)}
+                            leftIcon={<Send className="w-3 h-3" />}
+                          >
+                            Send Notice
+                          </Button>
+                        ) : (
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            onClick={() => showNotification(`Viewing invoice details for ${r.invoiceNumber}`)}
+                          >
+                            Invoice
+                          </Button>
+                        )}
+                      </td>
+                    </tr>
+                  ))
+                )}
               </tbody>
             </table>
           </div>
@@ -415,18 +466,20 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">Date Range</label>
               <select className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800">
-                <option>Current Quarter (Q3 2026)</option>
-                <option>Last Quarter (Q2 2026)</option>
-                <option>Full Year 2026</option>
+                <option>Current Quarter</option>
+                <option>Last Quarter</option>
+                <option>Full Year</option>
               </select>
             </div>
 
             <div>
               <label className="block text-xs font-bold text-slate-600 mb-1">School / Franchise</label>
               <select className="w-full bg-white border border-slate-200 rounded-xl p-2 text-xs font-semibold text-slate-800">
-                <option>All Schools (24)</option>
-                {mockRoyaltyRecords.map(r => (
-                  <option key={r.id}>{r.schoolName}</option>
+                <option>All Schools ({royaltyList.length})</option>
+                {royaltyList.map(r => (
+                  <option key={r.id} value={r.schoolName}>
+                    {r.schoolName}
+                  </option>
                 ))}
               </select>
             </div>
@@ -453,59 +506,6 @@ export const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
             </div>
           </div>
         </Card>
-      )}
-
-      {/* EDIT CONFIG MODAL */}
-      {editingConfig && (
-        <Modal
-          isOpen={true}
-          onClose={() => setEditingConfig(null)}
-          title={`Edit ${editingConfig.plan} Plan Royalty Config`}
-          maxWidth="md"
-        >
-          <form onSubmit={handleSaveConfig} className="space-y-4">
-            <Input
-              label="Monthly Royalty Amount (₹)"
-              type="number"
-              value={editingConfig.monthlyRoyalty.toString()}
-              onChange={(e) => setEditingConfig({ ...editingConfig, monthlyRoyalty: parseInt(e.target.value) || 0 })}
-              required
-            />
-
-            <Input
-              label="Due Day of Month"
-              type="number"
-              value={editingConfig.dueDay.toString()}
-              onChange={(e) => setEditingConfig({ ...editingConfig, dueDay: parseInt(e.target.value) || 5 })}
-              required
-            />
-
-            <Input
-              label="Grace Period (Days)"
-              type="number"
-              value={editingConfig.gracePeriodDays.toString()}
-              onChange={(e) => setEditingConfig({ ...editingConfig, gracePeriodDays: parseInt(e.target.value) || 5 })}
-              required
-            />
-
-            <Input
-              label="Late Penalty (%)"
-              type="number"
-              value={editingConfig.lateFeePercentage.toString()}
-              onChange={(e) => setEditingConfig({ ...editingConfig, lateFeePercentage: parseFloat(e.target.value) || 0 })}
-              required
-            />
-
-            <div className="flex justify-end gap-2 pt-2">
-              <Button variant="ghost" type="button" onClick={() => setEditingConfig(null)}>
-                Cancel
-              </Button>
-              <Button variant="primary" type="submit">
-                Save Configuration
-              </Button>
-            </div>
-          </form>
-        </Modal>
       )}
     </div>
   );
