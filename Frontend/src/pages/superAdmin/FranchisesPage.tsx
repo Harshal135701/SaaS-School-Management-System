@@ -62,26 +62,44 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
     const status = f.status || '';
 
     const matchesSearch = (f.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (f.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          (f.city || '').toLowerCase().includes(searchQuery.toLowerCase());
+      (f.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+      adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+      (f.city || '').toLowerCase().includes(searchQuery.toLowerCase());
     const matchesPlan = planFilter === 'All' || planName.toUpperCase() === planFilter.toUpperCase();
     const matchesStatus = statusFilter === 'All' || status.toUpperCase() === statusFilter.toUpperCase();
     return matchesSearch && matchesPlan && matchesStatus;
   });
 
-  const handleToggleStatus = () => {
+  const handleToggleStatus = async () => {
     if (!selectedFranchiseForToggle) return;
 
-    setFranchisesList(prev => prev.map(f => {
-      if (f.id === selectedFranchiseForToggle.id) {
-        const nextStatus = f.status === 'Active' ? 'Inactive' : 'Active';
-        return { ...f, status: nextStatus };
-      }
-      return f;
-    }));
+    const franchise = selectedFranchiseForToggle;
 
-    setSelectedFranchiseForToggle(null);
+    const nextStatus =
+      franchise.status === 'ACTIVE' || franchise.status === 'Active'
+        ? 'INACTIVE'
+        : 'ACTIVE';
+
+    try {
+      const res = await api.patch(
+        `/system-admin/franchises/${franchise.id}/status`,
+        { status: nextStatus }
+      );
+
+      if (res.data?.success) {
+        setFranchisesList(prev =>
+          prev.map(f =>
+            f.id === franchise.id
+              ? { ...f, status: nextStatus }
+              : f
+          )
+        );
+
+        setSelectedFranchiseForToggle(null);
+      }
+    } catch (error) {
+      console.error('Failed to update franchise status:', error);
+    }
   };
 
   const totalCount = franchisesList.length;
@@ -169,11 +187,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
       <div className="flex border-b border-slate-200 gap-6 text-sm font-extrabold">
         <button
           onClick={() => handleTabChange('all')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-            activeTab === 'all'
+          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${activeTab === 'all'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Building2 className="w-4 h-4" />
           <span>All Franchises ({totalCount})</span>
@@ -181,11 +198,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
 
         <button
           onClick={() => handleTabChange('admins')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-            activeTab === 'admins'
+          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${activeTab === 'admins'
               ? 'border-blue-600 text-blue-600'
               : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+            }`}
         >
           <Users className="w-4 h-4" />
           <span>Franchise Admins ({realAdminsList.length})</span>
@@ -276,11 +292,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                       </td>
 
                       <td className="p-3.5">
-                        <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
-                          planName.toUpperCase() === 'ENTERPRISE' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
-                          planName.toUpperCase() === 'PRO' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                          'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                        }`}>
+                        <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${planName.toUpperCase() === 'ENTERPRISE' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
+                            planName.toUpperCase() === 'PRO' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                              'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                          }`}>
                           {planName}
                         </span>
                       </td>
@@ -308,9 +323,8 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                       </td>
 
                       <td className="p-3.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                          isActive ? 'text-emerald-600' : 'text-slate-400'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${isActive ? 'text-emerald-600' : 'text-slate-400'
+                          }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -329,11 +343,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
 
                         <button
                           onClick={() => setSelectedFranchiseForToggle(f)}
-                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            isActive
+                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${isActive
                               ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
                               : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                          }`}
+                            }`}
                           title={isActive ? 'Deactivate Franchise' : 'Activate Franchise'}
                         >
                           <Power className="w-3.5 h-3.5" />
@@ -386,9 +399,8 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                       </td>
                       <td className="p-3.5 text-slate-500 text-[11px]">{admin.lastLogin}</td>
                       <td className="p-3.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                          admin.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${admin.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
+                          }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${admin.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                           {admin.status}
                         </span>

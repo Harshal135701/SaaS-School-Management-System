@@ -1,11 +1,14 @@
 const bcrypt = require("bcryptjs");
+
 const {
   Franchise,
   FranchiseAdmin,
   Plan,
   Contract,
   MonthlyRoyalty,
+  Feature,
 } = require("../models");
+
 const createFranchise = async (req, res) => {
   try {
     const {
@@ -83,6 +86,7 @@ const createFranchise = async (req, res) => {
     });
   }
 };
+
 const getFranchises = async (req, res) => {
   try {
     const franchises = await Franchise.findAll({
