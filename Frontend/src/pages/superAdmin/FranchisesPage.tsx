@@ -2,26 +2,15 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { Input } from '../../components/ui/Input';
 import { Modal } from '../../components/ui/Modal';
-import { mockFranchises, mockFranchiseAdmins } from '../../data/superAdminMockData';
-import type { Franchise, FranchiseAdminUser } from '../../types/superAdmin';
+import api from '../../services/api';
 import {
   Building2,
   Search,
-  Filter,
   PlusCircle,
   Eye,
-  Edit,
   Power,
-  ShieldCheck,
   Users,
-  CheckCircle2,
-  XCircle,
-  GraduationCap,
-  Calendar,
-  Mail,
-  Phone,
   AlertTriangle
 } from 'lucide-react';
 
@@ -47,22 +36,37 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
     onNavigate(tab === 'all' ? '/super-admin/franchises' : '/super-admin/franchise-admins');
   };
 
-  const [franchisesList, setFranchisesList] = useState<Franchise[]>(mockFranchises);
+  const [franchisesList, setFranchisesList] = useState<any[]>([]);
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('All');
   const [statusFilter, setStatusFilter] = useState<string>('All');
 
+  // Fetch real franchises from API on mount
+  useEffect(() => {
+    api.get('/system-admin/franchises').then(res => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setFranchisesList(res.data.data);
+      }
+    }).catch(err => {
+      console.error('Failed to fetch franchises:', err);
+    });
+  }, []);
+
   // Confirmation Modal state for Activate/Deactivate
-  const [selectedFranchiseForToggle, setSelectedFranchiseForToggle] = useState<Franchise | null>(null);
+  const [selectedFranchiseForToggle, setSelectedFranchiseForToggle] = useState<any | null>(null);
 
   // Filtered List
   const filteredFranchises = franchisesList.filter(f => {
-    const matchesSearch = f.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.code.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
-                          f.city.toLowerCase().includes(searchQuery.toLowerCase());
-    const matchesPlan = planFilter === 'All' || f.plan === planFilter;
-    const matchesStatus = statusFilter === 'All' || f.status === statusFilter;
+    const adminName = f.admin?.name || f.adminName || '';
+    const planName = typeof f.plan === 'object' ? (f.plan?.name || '') : (f.plan || '');
+    const status = f.status || '';
+
+    const matchesSearch = (f.name || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (f.code || '').toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          adminName.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                          (f.city || '').toLowerCase().includes(searchQuery.toLowerCase());
+    const matchesPlan = planFilter === 'All' || planName.toUpperCase() === planFilter.toUpperCase();
+    const matchesStatus = statusFilter === 'All' || status.toUpperCase() === statusFilter.toUpperCase();
     return matchesSearch && matchesPlan && matchesStatus;
   });
 
@@ -81,11 +85,26 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
   };
 
   const totalCount = franchisesList.length;
-  const activeCount = franchisesList.filter(f => f.status === 'Active').length;
+  const activeCount = franchisesList.filter(f => f.status === 'Active' || f.status === 'ACTIVE').length;
   const inactiveCount = totalCount - activeCount;
-  const basicCount = franchisesList.filter(f => f.plan === 'Basic').length;
-  const proCount = franchisesList.filter(f => f.plan === 'Pro').length;
-  const enterpriseCount = franchisesList.filter(f => f.plan === 'Enterprise').length;
+  const basicCount = franchisesList.filter(f => (typeof f.plan === 'object' ? f.plan?.name : f.plan)?.toUpperCase() === 'BASIC').length;
+  const proCount = franchisesList.filter(f => (typeof f.plan === 'object' ? f.plan?.name : f.plan)?.toUpperCase() === 'PRO').length;
+  const enterpriseCount = franchisesList.filter(f => (typeof f.plan === 'object' ? f.plan?.name : f.plan)?.toUpperCase() === 'ENTERPRISE').length;
+
+  // Extract real assigned franchise administrators from real database franchise rows
+  const realAdminsList = franchisesList
+    .filter(f => (f.admin && (f.admin.name || f.admin.email)) || f.adminName)
+    .map(f => ({
+      id: f.admin?.id || `admin-${f.id}`,
+      name: f.admin?.name || f.adminName || 'Not Assigned',
+      email: f.admin?.email || f.adminEmail || 'No email',
+      phone: f.phone || f.adminPhone || 'N/A',
+      schoolName: f.name,
+      schoolCode: f.code,
+      role: 'Franchise Admin',
+      lastLogin: f.admin?.lastLogin ? new Date(f.admin.lastLogin).toLocaleDateString() : 'Active Session',
+      status: f.admin?.isActive !== false ? 'Active' : 'Inactive'
+    }));
 
   return (
     <div className="space-y-6">
@@ -169,7 +188,7 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
           }`}
         >
           <Users className="w-4 h-4" />
-          <span>Franchise Admins ({mockFranchiseAdmins.length})</span>
+          <span>Franchise Admins ({realAdminsList.length})</span>
         </button>
       </div>
 
@@ -236,86 +255,93 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {filteredFranchises.map((f) => (
-                  <tr key={f.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5">
-                      <div className="font-extrabold text-slate-900 text-sm">{f.name}</div>
-                      <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60 inline-block mt-0.5">
-                        {f.code}
-                      </span>
-                    </td>
+                {filteredFranchises.map((f) => {
+                  const planName = typeof f.plan === 'object' && f.plan !== null ? f.plan.name : (f.plan || 'BASIC');
+                  const adminName = f.admin?.name || f.adminName || 'Not Assigned';
+                  const adminEmail = f.admin?.email || f.adminEmail || 'No email';
+                  const isActive = f.status === 'ACTIVE' || f.status === 'Active';
 
-                    <td className="p-3.5">
-                      <div className="font-semibold text-slate-800">{f.city}, {f.state}</div>
-                      <span className="text-[10px] text-slate-400 block">{f.country}</span>
-                    </td>
+                  return (
+                    <tr key={f.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5">
+                        <div className="font-extrabold text-slate-900 text-sm">{f.name}</div>
+                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60 inline-block mt-0.5">
+                          {f.code}
+                        </span>
+                      </td>
 
-                    <td className="p-3.5">
-                      <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
-                        f.plan === 'Enterprise' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
-                        f.plan === 'Pro' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
-                        'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                      }`}>
-                        {f.plan}
-                      </span>
-                    </td>
+                      <td className="p-3.5">
+                        <div className="font-semibold text-slate-800">{f.city}{f.state ? `, ${f.state}` : ''}</div>
+                        <span className="text-[10px] text-slate-400 block">{f.zipCode || f.country || ''}</span>
+                      </td>
 
-                    <td className="p-3.5">
-                      <div className="font-bold text-slate-900">{f.adminName}</div>
-                      <div className="text-[11px] text-slate-500 truncate">{f.adminEmail}</div>
-                    </td>
+                      <td className="p-3.5">
+                        <span className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
+                          planName.toUpperCase() === 'ENTERPRISE' ? 'bg-teal-50 text-teal-700 border border-teal-200' :
+                          planName.toUpperCase() === 'PRO' ? 'bg-blue-50 text-blue-700 border border-blue-200' :
+                          'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                        }`}>
+                          {planName}
+                        </span>
+                      </td>
 
-                    <td className="p-3.5">
-                      <div className="font-extrabold text-slate-900">{f.studentCount.toLocaleString()} Students</div>
-                      <div className="text-[10px] text-slate-500">{f.teacherCount} Teachers</div>
-                    </td>
+                      <td className="p-3.5">
+                        <div className="font-bold text-slate-900">{adminName}</div>
+                        <div className="text-[11px] text-slate-500 truncate">{adminEmail}</div>
+                      </td>
 
-                    <td className="p-3.5">
-                      <Badge variant={f.contractStatus === 'Active' ? 'blue' : f.contractStatus === 'Expiring Soon' ? 'amber' : 'rose'} size="sm">
-                        {f.contractStatus}
-                      </Badge>
-                    </td>
+                      <td className="p-3.5">
+                        <div className="font-extrabold text-slate-900">{(f.studentCount || 0).toLocaleString()} Students</div>
+                        <div className="text-[10px] text-slate-500">{f.teacherCount || 0} Teachers</div>
+                      </td>
 
-                    <td className="p-3.5">
-                      <Badge variant={f.royaltyStatus === 'Paid' ? 'emerald' : f.royaltyStatus === 'Pending' ? 'amber' : 'rose'} size="sm">
-                        {f.royaltyStatus}
-                      </Badge>
-                    </td>
+                      <td className="p-3.5">
+                        <Badge variant={f.contractStatus === 'Active' || f.contractStatus === 'ACTIVE' ? 'blue' : f.contractStatus === 'Expiring Soon' ? 'amber' : 'rose'} size="sm">
+                          {f.contractStatus || 'No Contract'}
+                        </Badge>
+                      </td>
 
-                    <td className="p-3.5">
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                        f.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${f.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        {f.status}
-                      </span>
-                    </td>
+                      <td className="p-3.5">
+                        <Badge variant={f.royaltyStatus === 'Paid' || f.royaltyStatus === 'PAID' ? 'emerald' : f.royaltyStatus === 'Pending' ? 'amber' : 'blue'} size="sm">
+                          {f.royaltyStatus || 'No Royalty'}
+                        </Badge>
+                      </td>
 
-                    <td className="p-3.5 text-right space-x-1">
-                      <Button
-                        variant="ghost"
-                        size="sm"
-                        onClick={() => onNavigate(`/super-admin/franchises/${f.id}`)}
-                        leftIcon={<Eye className="w-3.5 h-3.5" />}
-                        title="View Details"
-                      >
-                        View
-                      </Button>
+                      <td className="p-3.5">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
+                          isActive ? 'text-emerald-600' : 'text-slate-400'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          {isActive ? 'Active' : 'Inactive'}
+                        </span>
+                      </td>
 
-                      <button
-                        onClick={() => setSelectedFranchiseForToggle(f)}
-                        className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                          f.status === 'Active'
-                            ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                            : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                        }`}
-                        title={f.status === 'Active' ? 'Deactivate Franchise' : 'Activate Franchise'}
-                      >
-                        <Power className="w-3.5 h-3.5" />
-                      </button>
-                    </td>
-                  </tr>
-                ))}
+                      <td className="p-3.5 text-right space-x-1">
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          onClick={() => onNavigate(`/super-admin/franchises/${f.id}`)}
+                          leftIcon={<Eye className="w-3.5 h-3.5" />}
+                          title="View Details"
+                        >
+                          View
+                        </Button>
+
+                        <button
+                          onClick={() => setSelectedFranchiseForToggle(f)}
+                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
+                            isActive
+                              ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                              : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                          }`}
+                          title={isActive ? 'Deactivate Franchise' : 'Activate Franchise'}
+                        >
+                          <Power className="w-3.5 h-3.5" />
+                        </button>
+                      </td>
+                    </tr>
+                  );
+                })}
               </tbody>
             </table>
           </div>
@@ -346,28 +372,36 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                 </tr>
               </thead>
               <tbody className="divide-y divide-slate-100">
-                {mockFranchiseAdmins.map((admin) => (
-                  <tr key={admin.id} className="hover:bg-slate-50/80 transition-colors">
-                    <td className="p-3.5 font-extrabold text-slate-900">{admin.name}</td>
-                    <td className="p-3.5 font-medium text-slate-700">{admin.email}</td>
-                    <td className="p-3.5 font-medium text-slate-600">{admin.phone}</td>
-                    <td className="p-3.5 font-bold text-blue-600">{admin.schoolName}</td>
-                    <td className="p-3.5">
-                      <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-[10px] uppercase">
-                        {admin.role}
-                      </span>
-                    </td>
-                    <td className="p-3.5 text-slate-500 text-[11px]">{admin.lastLogin}</td>
-                    <td className="p-3.5">
-                      <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                        admin.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
-                      }`}>
-                        <span className={`w-1.5 h-1.5 rounded-full ${admin.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
-                        {admin.status}
-                      </span>
+                {realAdminsList.length > 0 ? (
+                  realAdminsList.map((admin) => (
+                    <tr key={admin.id} className="hover:bg-slate-50/80 transition-colors">
+                      <td className="p-3.5 font-extrabold text-slate-900">{admin.name}</td>
+                      <td className="p-3.5 font-medium text-slate-700">{admin.email}</td>
+                      <td className="p-3.5 font-medium text-slate-600">{admin.phone}</td>
+                      <td className="p-3.5 font-bold text-blue-600">{admin.schoolName}</td>
+                      <td className="p-3.5">
+                        <span className="px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold text-[10px] uppercase">
+                          {admin.role}
+                        </span>
+                      </td>
+                      <td className="p-3.5 text-slate-500 text-[11px]">{admin.lastLogin}</td>
+                      <td className="p-3.5">
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
+                          admin.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
+                        }`}>
+                          <span className={`w-1.5 h-1.5 rounded-full ${admin.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
+                          {admin.status}
+                        </span>
+                      </td>
+                    </tr>
+                  ))
+                ) : (
+                  <tr>
+                    <td colSpan={7} className="p-8 text-center text-slate-400 font-semibold text-xs">
+                      No franchise administrators found in the database.
                     </td>
                   </tr>
-                ))}
+                )}
               </tbody>
             </table>
           </div>

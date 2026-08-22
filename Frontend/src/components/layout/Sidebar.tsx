@@ -3,6 +3,7 @@ import { motion } from 'framer-motion';
 import { Tooltip } from '../ui/Tooltip';
 import { Avatar } from '../ui/Avatar';
 import { currentUser } from '../../data/mockData';
+import type { Franchise } from '../../types/superAdmin';
 import { 
   LayoutDashboard, 
   GraduationCap, 
@@ -40,6 +41,7 @@ interface SidebarProps {
   onOpenStaffModal: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+  franchise?: Franchise | null; // logged-in franchise admin's school
 }
 
 export const Sidebar: React.FC<SidebarProps> = ({
@@ -48,7 +50,8 @@ export const Sidebar: React.FC<SidebarProps> = ({
   onLogout,
   onOpenStaffModal,
   isMobileOpen = false,
-  onCloseMobile
+  onCloseMobile,
+  franchise
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -137,11 +140,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               exit={{ opacity: 0 }}
               className="whitespace-nowrap"
             >
-              <h1 className="text-lg font-extrabold text-slate-900 leading-none tracking-tight">
-                EduSphere
+              <h1 className="text-lg font-extrabold text-slate-900 leading-none tracking-tight truncate max-w-[160px]">
+                {franchise ? franchise.name : 'EduSphere'}
               </h1>
               <span className="text-[10px] font-bold text-blue-600 uppercase tracking-widest block mt-0.5">
-                SCHOOL ADMIN
+                {franchise ? `${franchise.code} · SCHOOL ADMIN` : 'SCHOOL ADMIN'}
               </span>
             </motion.div>
           )}
@@ -212,14 +215,17 @@ export const Sidebar: React.FC<SidebarProps> = ({
         ))}
       </div>
 
-      {/* LEFT BOTTOM USER PROFILE AREA - Exact match to user request */}
+      {/* LEFT BOTTOM USER PROFILE AREA */}
       <div className="p-3 border-t border-slate-100 bg-slate-50/80 relative shrink-0">
         {/* Dropup Profile Menu */}
         {showProfileMenu && (
           <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-bottom-2">
             <div className="p-3 border-b border-slate-100 bg-slate-50/50 rounded-xl mb-1">
-              <p className="text-xs font-bold text-slate-900">{currentUser.name}</p>
-              <p className="text-[11px] text-slate-500 truncate">{currentUser.email}</p>
+              <p className="text-xs font-bold text-slate-900">{franchise ? franchise.adminName : currentUser.name}</p>
+              <p className="text-[11px] text-slate-500 truncate">{franchise ? franchise.adminEmail : currentUser.email}</p>
+              {franchise && (
+                <p className="text-[10px] font-semibold text-blue-600 mt-0.5">{franchise.name}</p>
+              )}
             </div>
 
             <button
@@ -263,21 +269,21 @@ export const Sidebar: React.FC<SidebarProps> = ({
         <button
           onClick={() => setShowProfileMenu(!showProfileMenu)}
           className={`
-            w-full flex items-center gap-3 p-2 rounded-2xl bg-white border border-slate-200/80 hover:bg-slate-100/70 transition-all cursor-pointer shadow-2xs
+            w-full flex items-center gap-3 p-2 rounded-2xl bg-white border border-slate-200/80 hover:bg-slate-100/70 transition-all cursor-pointer shadow-xs text-left
             ${isCollapsed ? 'justify-center p-1.5' : ''}
           `}
         >
-          <Avatar src={currentUser.avatar} name={currentUser.name} size={isCollapsed ? 'sm' : 'md'} status="online" />
+          <Avatar src={currentUser.avatar} name={franchise ? franchise.adminName : currentUser.name} size={isCollapsed ? 'sm' : 'md'} status="online" />
           
           {!isCollapsed && (
             <div className="text-left flex-1 min-w-0">
               <div className="text-xs font-extrabold text-slate-900 truncate">
-                {currentUser.name}
+                {franchise ? franchise.adminName : currentUser.name}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
                 <span className="text-[10px] font-bold text-blue-600 tracking-wider uppercase truncate">
-                  ADMINISTRATOR
+                  {franchise ? 'FRANCHISE ADMIN' : 'ADMINISTRATOR'}
                 </span>
               </div>
             </div>

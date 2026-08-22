@@ -1,41 +1,87 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { mockFranchises, mockContracts, mockRoyaltyRecords } from '../../data/superAdminMockData';
+import { mockContracts, mockRoyaltyRecords } from '../../data/superAdminMockData';
+import api from '../../services/api';
 import {
   Building2,
   User,
-  Mail,
-  Phone,
   MapPin,
   Calendar,
   CreditCard,
-  CheckCircle2,
-  Clock,
-  AlertTriangle,
   ArrowLeft,
   FileText,
   ShieldCheck,
   GraduationCap,
   Users,
-  IndianRupee,
-  Layers,
-  ExternalLink
+  IndianRupee
 } from 'lucide-react';
 
 interface FranchiseDetailPageProps {
   franchiseId: string;
+  franchiseList?: any[];
   onNavigate: (path: string) => void;
 }
 
 export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
   franchiseId,
+  franchiseList = [],
   onNavigate
 }) => {
-  const franchise = mockFranchises.find(f => f.id === franchiseId) || mockFranchises[0];
-  const contract = mockContracts.find(c => c.schoolId === franchise.id) || mockContracts[0];
-  const royaltyRecord = mockRoyaltyRecords.find(r => r.schoolId === franchise.id) || mockRoyaltyRecords[0];
+  const [franchise, setFranchise] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const [errorMsg, setErrorMsg] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchFranchise = async () => {
+      try {
+        const response = await api.get(`/system-admin/franchises/${franchiseId}`);
+        if (response.data?.success) {
+          setFranchise(response.data.data);
+        }
+      } catch (error: any) {
+        console.error("Error fetching franchise details:", error);
+        setErrorMsg(error?.message || 'Failed to load from API');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchFranchise();
+  }, [franchiseId]);
+
+  if (loading) {
+    return <div className="p-10 text-center text-slate-500 font-medium">Loading franchise details...</div>;
+  }
+
+  // 1. Prefer live API data
+  // 2. Fall back to the franchiseList prop (real DB rows passed from App.tsx)
+  // 3. Show error — do NOT fall back to unrelated mock data
+  const listMatch = franchiseList.find((f: any) => String(f.id) === String(franchiseId));
+  const displayFranchise = franchise || listMatch;
+
+  if (!displayFranchise) {
+    return (
+      <div className="p-10 text-center space-y-2">
+        <p className="text-rose-600 font-bold">Could not load franchise details.</p>
+        <p className="text-slate-500 text-sm">Franchise ID: <code className="bg-slate-100 px-1 rounded">{franchiseId}</code></p>
+        {errorMsg && <p className="text-slate-400 text-xs">API error: {errorMsg}</p>}
+        <button onClick={() => onNavigate('/super-admin/franchises')} className="mt-4 px-4 py-2 bg-blue-600 text-white rounded-xl text-sm font-bold">← Back to All Franchises</button>
+      </div>
+    );
+  }
+  
+  // Try to safely extract plan name (backend sends object, mock sends string)
+  const planName = typeof displayFranchise.plan === 'object' && displayFranchise.plan !== null 
+    ? displayFranchise.plan.name 
+    : displayFranchise.plan || 'No Plan';
+
+  // Extract admin name (backend sends admin object, mock sends adminName string)
+  const adminName = displayFranchise.admin?.name || displayFranchise.adminName || 'Not Assigned';
+  const adminEmail = displayFranchise.admin?.email || displayFranchise.adminEmail || 'No email';
+
+  const contract = mockContracts.find(c => c.schoolId === displayFranchise.id) || mockContracts[0];
+  const royaltyRecord = mockRoyaltyRecords.find(r => r.schoolId === displayFranchise.id) || mockRoyaltyRecords[0];
 
   return (
     <div className="space-y-6">
@@ -51,8 +97,8 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
         </Button>
 
         <div className="flex items-center gap-2">
-          <Badge variant={franchise.status === 'Active' ? 'emerald' : 'slate'}>
-            Status: {franchise.status}
+          <Badge variant={displayFranchise.status === 'ACTIVE' || displayFranchise.status === 'Active' ? 'emerald' : 'slate'}>
+            Status: {displayFranchise.status}
           </Badge>
           <Button
             variant="outline"
@@ -68,21 +114,21 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 border border-slate-800">
         <div className="flex items-start gap-4">
           <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md text-white font-extrabold text-2xl flex items-center justify-center border border-white/20 shrink-0">
-            {franchise.name.substring(0, 2).toUpperCase()}
+            {displayFranchise.name.substring(0, 2).toUpperCase()}
           </div>
           <div>
             <div className="flex items-center gap-2">
               <span className="px-2 py-0.5 rounded bg-blue-500/20 text-blue-300 font-extrabold text-xs border border-blue-400/30">
-                {franchise.code}
+                {displayFranchise.code}
               </span>
-              <span className="text-xs font-semibold text-slate-300">• Onboarded on {franchise.joinedDate}</span>
+              <span className="text-xs font-semibold text-slate-300">• Onboarded on {displayFranchise.joinedDate || (displayFranchise.createdAt ? new Date(displayFranchise.createdAt).toISOString().split('T')[0] : 'N/A')}</span>
             </div>
             <h1 className="text-2xl md:text-3xl font-extrabold text-white tracking-tight mt-1">
-              {franchise.name}
+              {displayFranchise.name}
             </h1>
             <p className="text-xs md:text-sm text-slate-300 font-medium flex items-center gap-2 mt-1">
               <MapPin className="w-3.5 h-3.5 text-blue-400" />
-              {franchise.address}, {franchise.city}, {franchise.state}, {franchise.country}
+              {displayFranchise.address}, {displayFranchise.city}, {displayFranchise.state || 'Maharashtra'}
             </p>
           </div>
         </div>
@@ -90,11 +136,11 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
         <div className="flex flex-row md:flex-col items-start md:items-end justify-between gap-2 border-t md:border-t-0 md:border-l border-white/10 pt-4 md:pt-0 md:pl-6">
           <div className="text-left md:text-right">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Subscription Plan</span>
-            <span className="text-lg font-extrabold text-white">{franchise.plan} Tier</span>
+            <span className="text-lg font-extrabold text-white">{planName} Tier</span>
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monthly Royalty</span>
-            <span className="text-xl font-extrabold text-emerald-400">₹{franchise.monthlyRoyalty.toLocaleString('en-IN')}/mo</span>
+            <span className="text-xl font-extrabold text-emerald-400">₹{(displayFranchise.monthlyRoyalty || 45000).toLocaleString('en-IN')}/mo</span>
           </div>
         </div>
       </div>
@@ -106,7 +152,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase">Total Students</span>
             <GraduationCap className="w-4 h-4 text-blue-600" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{franchise.studentCount.toLocaleString()}</div>
+          <div className="text-2xl font-extrabold text-slate-900">{(displayFranchise.studentCount || 0).toLocaleString()}</div>
           <span className="text-[11px] text-slate-500 mt-1 block">Active student profiles</span>
         </Card>
 
@@ -115,7 +161,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase">Teachers & Staff</span>
             <Users className="w-4 h-4 text-purple-600" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{franchise.teacherCount}</div>
+          <div className="text-2xl font-extrabold text-slate-900">{displayFranchise.teacherCount || 0}</div>
           <span className="text-[11px] text-slate-500 mt-1 block">Provisioned accounts</span>
         </Card>
 
@@ -133,9 +179,9 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase">Royalty Status</span>
             <CreditCard className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-xl font-extrabold text-slate-900">{franchise.royaltyStatus}</div>
+          <div className="text-xl font-extrabold text-slate-900">{displayFranchise.royaltyStatus || 'Paid'}</div>
           <span className={`text-[11px] font-bold mt-1 block ${
-            franchise.royaltyStatus === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
+            (displayFranchise.royaltyStatus || 'Paid') === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
           }`}>
             August billing cleared
           </span>
@@ -155,23 +201,23 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Admin Full Name:</span>
-                <span className="font-extrabold text-slate-900">{franchise.adminName}</span>
+                <span className="font-extrabold text-slate-900">{adminName}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Login Email / Username:</span>
-                <span className="font-bold text-blue-600">{franchise.adminEmail}</span>
+                <span className="font-bold text-blue-600">{adminEmail}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Contact Phone:</span>
-                <span className="font-bold text-slate-800">{franchise.adminPhone}</span>
+                <span className="font-bold text-slate-800">{displayFranchise.phone || displayFranchise.adminPhone || 'N/A'}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Initial Assigned Password:</span>
                 <span className="font-mono bg-slate-100 px-2 py-0.5 rounded font-bold text-slate-800">
-                  {franchise.adminPassword || 'Password123!'}
+                  {displayFranchise.adminPassword || 'Confidential'}
                 </span>
               </div>
 
@@ -198,22 +244,22 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Official Email:</span>
-                <span className="font-bold text-slate-800">{franchise.email}</span>
+                <span className="font-bold text-slate-800">{displayFranchise.email}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Campus Phone:</span>
-                <span className="font-bold text-slate-800">{franchise.phone}</span>
+                <span className="font-bold text-slate-800">{displayFranchise.phone}</span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Campus Address:</span>
-                <span className="font-bold text-slate-800">{franchise.address}</span>
+                <span className="font-bold text-slate-800">{displayFranchise.address}</span>
               </div>
 
               <div className="flex items-center justify-between py-1">
                 <span className="font-semibold text-slate-500">City / State:</span>
-                <span className="font-bold text-slate-800">{franchise.city}, {franchise.state}</span>
+                <span className="font-bold text-slate-800">{displayFranchise.city}, {displayFranchise.state}</span>
               </div>
             </div>
           </Card>
@@ -281,13 +327,13 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-500 uppercase block">Monthly Amount</span>
-                <span className="text-lg font-extrabold text-slate-900">₹{franchise.monthlyRoyalty.toLocaleString('en-IN')}</span>
+                <span className="text-lg font-extrabold text-slate-900">₹{(displayFranchise.monthlyRoyalty || 45000).toLocaleString('en-IN')}</span>
               </div>
 
               <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
                 <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Collected</span>
                 <span className="text-lg font-extrabold text-emerald-800">
-                  ₹{(franchise.monthlyRoyalty * 12).toLocaleString('en-IN')}
+                  ₹{((displayFranchise.monthlyRoyalty || 45000) * 12).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>

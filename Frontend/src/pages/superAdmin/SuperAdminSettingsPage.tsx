@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Card } from '../../components/ui/Card';
-import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Avatar } from '../../components/ui/Avatar';
@@ -16,11 +15,9 @@ import {
   Sliders,
   ShieldCheck,
   CheckCircle2,
-  Globe,
   Mail,
   Phone,
-  KeyRound,
-  Laptop
+  KeyRound
 } from 'lucide-react';
 
 interface SuperAdminSettingsPageProps {
@@ -47,6 +44,41 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
   // System Settings State
   const [settings, setSettings] = useState<SuperAdminSettings>(mockSuperAdminSettings);
 
+  // Theme sync on mount
+  React.useEffect(() => {
+    const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
+    if (storedTheme) {
+      setSettings(prev => ({ ...prev, themeMode: storedTheme }));
+      if (storedTheme === 'dark') {
+        document.documentElement.classList.add('dark');
+      } else if (storedTheme === 'light') {
+        document.documentElement.classList.remove('dark');
+      }
+    }
+  }, []);
+
+  const handleThemeChange = (themeId: 'light' | 'dark' | 'system') => {
+    setSettings(prev => ({ ...prev, themeMode: themeId }));
+    if (themeId === 'dark') {
+      document.documentElement.classList.add('dark');
+      localStorage.setItem('theme', 'dark');
+      showToast('Theme updated to Dark Mode 🌙');
+    } else if (themeId === 'light') {
+      document.documentElement.classList.remove('dark');
+      localStorage.setItem('theme', 'light');
+      showToast('Theme updated to Light Mode ☀️');
+    } else {
+      const prefersDark = window.matchMedia('(prefers-color-scheme: dark)').matches;
+      if (prefersDark) {
+        document.documentElement.classList.add('dark');
+      } else {
+        document.documentElement.classList.remove('dark');
+      }
+      localStorage.setItem('theme', 'system');
+      showToast('Theme set to System Default 💻');
+    }
+  };
+
   const [toastMsg, setToastMsg] = useState<string | null>(null);
 
   const showToast = (msg: string) => {
@@ -62,10 +94,10 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
   const handleSavePassword = (e: React.FormEvent) => {
     e.preventDefault();
     if (newPassword !== confirmPassword) {
-      showToast('New passwords do not match!');
+      showToast('Passwords do not match!');
       return;
     }
-    showToast('Super Admin password changed successfully!');
+    showToast('Admin password changed successfully!');
     setCurrentPassword('');
     setNewPassword('');
     setConfirmPassword('');
@@ -73,7 +105,7 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
 
   const handleSaveSystem = (e: React.FormEvent) => {
     e.preventDefault();
-    showToast('Global SaaS System Configurations saved successfully!');
+    showToast('System defaults saved successfully!');
   };
 
   return (
@@ -90,51 +122,54 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
 
       {/* Header */}
       <div>
-        <div className="flex items-center gap-2">
-          <Badge variant="indigo" size="sm">SYSTEM ADMINISTRATION</Badge>
-          <span className="text-xs font-semibold text-slate-500">Platform Settings & Security</span>
-        </div>
-        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight mt-1">
+        <h1 className="text-2xl font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+          <Sliders className="w-6 h-6 text-blue-600" />
           Super Admin System Settings
         </h1>
-        <p className="text-xs text-slate-500 font-medium">
-          Manage platform parameters, administrator security credentials, display themes, accessibility options, and global SaaS defaults.
+        <p className="text-xs text-slate-500 font-medium mt-0.5">
+          Configure platform branding, security protocols, system appearance, and administrator profiles
         </p>
       </div>
 
-      {/* Settings Layout */}
-      <div className="flex flex-col md:flex-row items-start gap-8">
-        
-        {/* Vertical Navigation Sidebar */}
-        <div className="w-full md:w-64 shrink-0 flex flex-col gap-1">
+      {/* Settings Layout: Vertical Sidebar + Content Panel */}
+      <div className="flex flex-col md:flex-row items-start gap-6">
+        {/* Vertical Tabs Sidebar */}
+        <div className="w-full md:w-64 shrink-0 flex flex-col gap-1.5 bg-white p-2.5 rounded-2xl border border-slate-200/80 shadow-xs">
           {[
-            { id: 'profile', label: 'Profile', icon: User },
-            { id: 'security', label: 'Password & Security', icon: Lock },
-            { id: 'appearance', label: 'Theme & Appearance', icon: Sun },
-            { id: 'accessibility', label: 'Accessibility', icon: Eye },
-            { id: 'system', label: 'Basic System Config', icon: Sliders }
-          ].map(t => {
-            const Icon = t.icon;
-            const isActive = activeTab === t.id;
+            { id: 'profile', label: 'My Profile', icon: User, desc: 'Personal & contact info' },
+            { id: 'security', label: 'Security & 2FA', icon: Lock, desc: 'Password & auth' },
+            { id: 'appearance', label: 'Theme & Appearance', icon: Sun, desc: 'Light, dark & system' },
+            { id: 'accessibility', label: 'Accessibility', icon: Eye, desc: 'Display & motion' },
+            { id: 'system', label: 'System Defaults', icon: Sliders, desc: 'Platform configurations' }
+          ].map((tab) => {
+            const Icon = tab.icon;
+            const isActive = activeTab === tab.id;
             return (
               <button
-                key={t.id}
-                onClick={() => setActiveTab(t.id as any)}
-                className={`p-3 flex items-center gap-3 rounded-xl transition-all cursor-pointer text-xs font-extrabold ${
+                key={tab.id}
+                onClick={() => setActiveTab(tab.id as any)}
+                className={`flex items-center gap-3 px-3.5 py-3 rounded-xl text-left transition-all cursor-pointer ${
                   isActive
-                    ? 'bg-blue-50 text-blue-700'
-                    : 'text-slate-500 hover:bg-slate-50 hover:text-slate-800'
+                    ? 'bg-blue-600 text-white shadow-md shadow-blue-500/20'
+                    : 'text-slate-600 hover:text-slate-900 hover:bg-slate-100/80'
                 }`}
               >
-                <Icon className="w-4 h-4" />
-                <span>{t.label}</span>
+                <div className={`p-2 rounded-lg shrink-0 ${isActive ? 'bg-white/20 text-white' : 'bg-slate-100 text-slate-600'}`}>
+                  <Icon className="w-4 h-4" />
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="text-xs font-extrabold truncate">{tab.label}</div>
+                  <div className={`text-[10px] truncate ${isActive ? 'text-blue-100' : 'text-slate-400'}`}>
+                    {tab.desc}
+                  </div>
+                </div>
               </button>
             );
           })}
         </div>
 
         {/* Content Area */}
-        <div className="flex-1 w-full max-w-4xl">
+        <div className="flex-1 w-full min-w-0 space-y-6">
 
       {/* TAB 1: PROFILE */}
       {activeTab === 'profile' && (
@@ -274,10 +309,7 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
               return (
                 <div
                   key={theme.id}
-                  onClick={() => {
-                    setSettings({ ...settings, themeMode: theme.id as any });
-                    showToast(`Theme updated to ${theme.label}`);
-                  }}
+                  onClick={() => handleThemeChange(theme.id as any)}
                   className={`p-4 rounded-2xl border-2 cursor-pointer transition-all ${
                     isSelected ? 'border-blue-600 bg-blue-50/50 shadow-md' : 'border-slate-200 bg-slate-50/50 hover:bg-slate-100'
                   }`}

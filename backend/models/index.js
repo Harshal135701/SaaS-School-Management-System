@@ -353,6 +353,7 @@ module.exports = {
   Conversation,
   BookIssue,
   Message,
+  BookIssue,
   RoyaltyConfiguration,
   MonthlyRoyalty,
   Timetable,

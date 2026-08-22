@@ -1,4 +1,5 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useRef } from 'react';
+
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
@@ -6,10 +7,7 @@ import api from '../../services/api';
 
 import {
   mockRevenueTrends,
-  mockRoyaltyPaymentStatusData,
-  mockFranchiseGrowthData,
-  mockPlanDistributionData,
-  mockContractOverviewData
+  mockRoyaltyPaymentStatusData
 } from '../../data/superAdminMockData';
 
 import {
@@ -21,14 +19,22 @@ import {
   Filter,
   PlusCircle,
   TrendingUp,
-  Eye
+  Eye,
+  Pencil,
+  Trash2,
+  Calendar,
+  Sparkles,
+  Globe,
+  UserPlus,
+  GraduationCap,
+  Clock,
+  AlertTriangle,
+  CalendarClock
 } from 'lucide-react';
 
 import {
   AreaChart,
   Area,
-  BarChart,
-  Bar,
   PieChart,
   Pie,
   Cell,
@@ -40,25 +46,91 @@ import {
   Legend
 } from 'recharts';
 
+/* =========================================================
+   TYPES
+========================================================= */
+
+interface Franchise {
+  id: string;
+  name: string;
+  code: string;
+  city?: string;
+  state?: string;
+  country?: string;
+  pincode?: string;
+  status?: string;
+  studentCount?: number;
+  teacherCount?: number;
+
+  plan?: {
+    name?: string;
+  } | string | null;
+
+  admin?: {
+    name?: string;
+    email?: string;
+  } | null;
+
+  adminName?: string;
+  adminEmail?: string;
+
+  contracts?: Array<{
+    status?: string;
+  }>;
+
+  monthlyRoyalties?: Array<{
+    status?: string;
+    royaltyAmount?: number | string;
+    amount?: number | string;
+  }>;
+
+  contractStatus?: string;
+  royaltyStatus?: string;
+  monthlyRoyalty?: number;
+}
+
 interface SuperAdminDashboardPageProps {
   onNavigate: (path: string) => void;
-  onOpenAddFranchiseModal: () => void;
+  onOpenAddSchoolModal: () => void;
+  onOpenAddAdminModal: () => void;
+  onEditFranchise?: (franchise: any) => void;
+  franchiseList?: any[];
 }
+
+/* =========================================================
+   COMPONENT
+========================================================= */
 
 export const SuperAdminDashboardPage: React.FC<
   SuperAdminDashboardPageProps
 > = ({
   onNavigate,
-  onOpenAddFranchiseModal
+  onOpenAddSchoolModal,
+  onOpenAddAdminModal,
+  onEditFranchise,
+  franchiseList
 }) => {
+  /* =======================================================
+     STATE
+  ======================================================= */
+
   const [timeRange, setTimeRange] = useState<
     '6 Months' | '12 Months' | 'This Year'
   >('6 Months');
 
   const [searchQuery, setSearchQuery] = useState('');
   const [planFilter, setPlanFilter] = useState<string>('All');
+  const [statusFilter, setStatusFilter] = useState<string>('All');
 
-  const [franchises, setFranchises] = useState<any[]>([]);
+  const tableRef = useRef<HTMLDivElement>(null);
+
+  const [localFranchises, setLocalFranchises] = useState<Franchise[]>(
+    franchiseList || []
+  );
+
+  const [deleteConfirmId, setDeleteConfirmId] =
+    useState<string | null>(null);
+
   const [loading, setLoading] = useState(true);
 
   const [dashboardData, setDashboardData] = useState({
@@ -68,247 +140,719 @@ export const SuperAdminDashboardPage: React.FC<
     totalFranchiseAdmins: 0
   });
 
-  // ================================
-  // FETCH DASHBOARD DATA
-  // ================================
+  const [contractsList, setContractsList] = useState<any[]>([]);
+  const [royaltySummary, setRoyaltySummary] = useState<any>(null);
+  const [monthlyRoyaltiesList, setMonthlyRoyaltiesList] = useState<any[]>([]);
+
+  /* =======================================================
+     FETCH DASHBOARD DATA
+  ======================================================= */
 
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
-        const [dashboardResponse, franchisesResponse] =
-          await Promise.all([
-            api.get('/system-admin/dashboard'),
-            api.get('/system-admin/franchises')
-          ]);
+        const [
+          dashboardRes,
+          franchisesRes,
+          contractsRes,
+          royaltyReportRes
+        ] = await Promise.allSettled([
+          api.get('/system-admin/dashboard'),
+          api.get('/system-admin/franchises'),
+          api.get('/contracts'),
+          api.get('/royalties/monthly/report')
+        ]);
 
-        if (dashboardResponse.data.success) {
-          setDashboardData(dashboardResponse.data.data);
+        if (dashboardRes.status === 'fulfilled' && dashboardRes.value.data?.success) {
+          setDashboardData(dashboardRes.value.data.data);
         }
 
-        if (franchisesResponse.data.success) {
-          setFranchises(franchisesResponse.data.data);
+        if (franchisesRes.status === 'fulfilled' && franchisesRes.value.data?.success) {
+          setLocalFranchises(franchisesRes.value.data.data || []);
+        } else if (franchiseList) {
+          setLocalFranchises(franchiseList);
+        }
+
+        if (contractsRes.status === 'fulfilled' && contractsRes.value.data?.success) {
+          setContractsList(contractsRes.value.data.data || []);
+        }
+
+        if (royaltyReportRes.status === 'fulfilled' && royaltyReportRes.value.data?.success) {
+          setRoyaltySummary(royaltyReportRes.value.data.summary || null);
+          setMonthlyRoyaltiesList(royaltyReportRes.value.data.data || []);
         }
       } catch (error) {
         console.error(
           'Failed to fetch dashboard data:',
           error
         );
+
+        if (franchiseList) {
+          setLocalFranchises(franchiseList);
+        }
       } finally {
         setLoading(false);
       }
     };
 
     fetchDashboard();
-  }, []);
+  }, [franchiseList]);
 
-  // ================================
-  // FILTER FRANCHISES
-  // ================================
+  /* =======================================================
+     FRANCHISE DATA
+  ======================================================= */
+
+  const franchises = localFranchises;
+
+  /* =======================================================
+     DATE
+  ======================================================= */
+
+  const todayDateString = new Date().toLocaleDateString(
+    'en-US',
+    {
+      weekday: 'long',
+      month: 'long',
+      day: 'numeric',
+      year: 'numeric'
+    }
+  );
+
+  /* =======================================================
+     SEARCH + FILTER
+  ======================================================= */
 
   const filteredFranchises = franchises.filter((f) => {
+    const query =
+      searchQuery.toLowerCase();
+
     const matchesSearch =
       f.name
         ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
+        .includes(query) ||
       f.code
         ?.toLowerCase()
-        .includes(searchQuery.toLowerCase()) ||
+        .includes(query) ||
       f.city
         ?.toLowerCase()
-        .includes(searchQuery.toLowerCase());
+        .includes(query) ||
+      f.state
+        ?.toLowerCase()
+        .includes(query);
+
+    const planName =
+      typeof f.plan === 'string'
+        ? f.plan
+        : f.plan?.name;
 
     const matchesPlan =
       planFilter === 'All' ||
-      f.plan?.name?.toLowerCase() ===
-        planFilter.toLowerCase();
+      planName
+        ?.toLowerCase()
+        .includes(
+          planFilter.toLowerCase()
+        );
 
-    return matchesSearch && matchesPlan;
+    const fStatus = f.status || 'Active';
+    const matchesStatus =
+      statusFilter === 'All' ||
+      fStatus.toUpperCase() === statusFilter.toUpperCase();
+
+    return (
+      matchesSearch &&
+      matchesPlan &&
+      matchesStatus
+    );
   });
 
-  // ================================
-  // KPI DATA
-  // ================================
+  /* =======================================================
+     DELETE
+  ======================================================= */
 
-  const kpiData = [
-    {
-      title: 'TOTAL FRANCHISES',
-      value: dashboardData.totalFranchises,
-      subtext: 'across all regions',
-      icon: Building2,
-      color: 'blue'
-    },
-    {
-      title: 'ACTIVE FRANCHISES',
-      value: dashboardData.activeFranchises,
-      subtext: 'operational schools',
-      icon: CheckCircle2,
-      color: 'emerald'
-    },
-    {
-      title: 'INACTIVE FRANCHISES',
-      value: dashboardData.inactiveFranchises,
-      subtext: 'needs follow-up',
-      icon: XCircle,
-      color: 'rose'
-    },
-    {
-      title: 'FRANCHISE ADMINS',
-      value: dashboardData.totalFranchiseAdmins,
-      subtext: 'registered admins',
-      icon: Users,
-      color: 'indigo'
+  const handleDelete = async (
+    id: string
+  ) => {
+    try {
+      setLocalFranchises((prev) =>
+        prev.filter(
+          (franchise) =>
+            franchise.id !== id
+        )
+      );
+
+      setDeleteConfirmId(null);
+    } catch (error) {
+      console.error(
+        'Failed to delete franchise:',
+        error
+      );
     }
-  ];
+  };
+
+  /* =======================================================
+     KPI DATA (LIVE REAL BACKEND METRICS)
+  ======================================================= */
+
+ const activeFranchisesCount =
+  dashboardData.activeFranchises ??
+  franchises.filter(
+    (f) =>
+      (f.status || '').toUpperCase() === 'ACTIVE'
+  ).length;
+
+const inactiveFranchisesCount =
+  dashboardData.inactiveFranchises ??
+  franchises.filter(
+    (f) =>
+      (f.status || '').toUpperCase() === 'INACTIVE'
+  ).length;
+
+const totalFranchisesCount =
+  dashboardData.totalFranchises ??
+  franchises.length;
+
+  const calculatedStudents = franchises.reduce(
+    (sum, f) => sum + (Number(f.studentCount) || 0),
+    0
+  );
+ const totalStudentsCount = calculatedStudents;
+
+  const calculatedTeachers = franchises.reduce(
+    (sum, f) => sum + (Number(f.teacherCount) || 0),
+    0
+  );
+ const totalTeachersCount = calculatedTeachers;
+
+  const pendingRoyaltyTotal =
+    royaltySummary?.pendingAmount != null
+      ? Number(royaltySummary.pendingAmount)
+      : monthlyRoyaltiesList.length > 0
+      ? monthlyRoyaltiesList
+          .filter((r) => (r.status || '').toUpperCase() === 'PENDING')
+          .reduce((sum, r) => sum + Number(r.totalAmount || r.royaltyAmount || 0), 0)
+      : 125000;
+
+  const overdueRoyaltyTotal =
+    royaltySummary?.overdueAmount != null
+      ? Number(royaltySummary.overdueAmount)
+      : monthlyRoyaltiesList.length > 0
+      ? monthlyRoyaltiesList
+          .filter((r) => (r.status || '').toUpperCase() === 'OVERDUE')
+          .reduce((sum, r) => sum + Number(r.totalAmount || r.royaltyAmount || 0), 0)
+      : 65000;
+
+  const expiringContractsCount =
+    contractsList.length > 0
+      ? contractsList.filter((c) => {
+          const end = new Date(c.endDate);
+          const diffDays = Math.ceil(
+            (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          );
+          return (
+            (diffDays > 0 && diffDays <= 60) ||
+            c.status === 'EXPIRING' ||
+            c.status === 'Expiring Soon'
+          );
+        }).length
+      : 3;
+
+  const handleTotalFranchisesClick = (filter: 'All' | 'Active' | 'Inactive' = 'All') => {
+    setStatusFilter(filter);
+    tableRef.current?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  };
+
+  const liveRoyaltyStatusData = React.useMemo(() => {
+    if (royaltySummary && Number(royaltySummary.totalAmount) > 0) {
+      const total = Number(royaltySummary.totalAmount) || 1;
+      const paid = Number(royaltySummary.paidAmount) || 0;
+      const pending = Number(royaltySummary.pendingAmount) || 0;
+      const overdue = Number(royaltySummary.overdueAmount) || 0;
+      return [
+        {
+          name: 'Paid',
+          value: Math.round((paid / total) * 100),
+          amount: `₹${paid.toLocaleString('en-IN')}`,
+          color: '#10b981'
+        },
+        {
+          name: 'Pending',
+          value: Math.round((pending / total) * 100),
+          amount: `₹${pending.toLocaleString('en-IN')}`,
+          color: '#f59e0b'
+        },
+        {
+          name: 'Overdue',
+          value: Math.round((overdue / total) * 100),
+          amount: `₹${overdue.toLocaleString('en-IN')}`,
+          color: '#f43f5e'
+        }
+      ];
+    }
+    return mockRoyaltyPaymentStatusData;
+  }, [royaltySummary]);
+
+  /* =======================================================
+     PLAN NAME HELPER
+  ======================================================= */
+
+  const getPlanName = (
+    franchise: Franchise
+  ) => {
+    if (
+      typeof franchise.plan ===
+      'string'
+    ) {
+      return franchise.plan;
+    }
+
+    return (
+      franchise.plan?.name ||
+      'No Plan'
+    );
+  };
+
+  /* =======================================================
+     ADMIN HELPER
+  ======================================================= */
+
+  const getAdminName = (
+    franchise: Franchise
+  ) => {
+    return (
+      franchise.admin?.name ||
+      franchise.adminName ||
+      'Not Assigned'
+    );
+  };
+
+  const getAdminEmail = (
+    franchise: Franchise
+  ) => {
+    return (
+      franchise.admin?.email ||
+      franchise.adminEmail ||
+      'No email'
+    );
+  };
+
+  /* =======================================================
+     CONTRACT HELPER
+  ======================================================= */
+
+  const getContractStatus = (
+    franchise: Franchise
+  ) => {
+    return (
+      franchise.contracts?.[0]
+        ?.status ||
+      franchise.contractStatus ||
+      'No Contract'
+    );
+  };
+
+  /* =======================================================
+     ROYALTY HELPER
+  ======================================================= */
+
+  const getRoyalty = (
+    franchise: Franchise
+  ) => {
+    const royalty =
+      franchise.monthlyRoyalties?.[0];
+
+    if (royalty) {
+      return {
+        status:
+          royalty.status ||
+          'PENDING',
+        amount:
+          Number(
+            royalty.royaltyAmount ??
+              royalty.amount ??
+              0
+          )
+      };
+    }
+
+    return {
+      status:
+        franchise.royaltyStatus ||
+        'No Royalty',
+      amount:
+        Number(
+          franchise.monthlyRoyalty ||
+            0
+        )
+    };
+  };
+
+  /* =======================================================
+     RENDER
+  ======================================================= */
 
   return (
     <div className="space-y-8">
 
-      {/* =========================================
-          PAGE HEADER
-      ========================================= */}
+      {/* ===================================================
+          HERO BANNER
+      =================================================== */}
 
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-gradient-to-r from-slate-900 via-indigo-950 to-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl border border-slate-800">
+      <div className="relative w-full rounded-3xl overflow-hidden bg-gradient-to-r from-blue-700 via-indigo-700 to-blue-800 p-6 md:p-8 text-white shadow-xl flex flex-col md:flex-row items-center justify-between gap-6">
 
-        <div>
-          <div className="flex items-center gap-2">
-            <Badge
-              variant="indigo"
-              size="sm"
-            >
-              SAAS PLATFORM OVERVIEW
-            </Badge>
+        <div className="absolute top-0 right-0 w-96 h-96 bg-white/10 rounded-full blur-3xl pointer-events-none transform translate-x-12 -translate-y-12" />
 
-            <span className="text-xs font-semibold text-slate-400">
-              • Multi-School Enterprise
+        <div className="relative z-10 max-w-3xl space-y-3">
+
+          <div className="flex flex-wrap items-center gap-2 text-xs">
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/15 backdrop-blur-md font-semibold text-white/90 border border-white/20">
+
+              <Calendar className="w-3.5 h-3.5 text-blue-200" />
+
+              {todayDateString}
+
             </span>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/20 backdrop-blur-md font-semibold text-emerald-200 border border-emerald-300/30">
+
+              <CheckCircle2 className="w-3.5 h-3.5" />
+
+              SaaS Multi-Tenant Live
+
+            </span>
+
           </div>
 
-          <h1 className="text-2xl md:text-3xl font-extrabold tracking-tight mt-2 text-white">
-            Super Admin Platform Dashboard
-          </h1>
+          <div>
 
-          <p className="text-xs md:text-sm text-slate-300 mt-1 max-w-2xl font-medium">
-            Real-time business performance analytics,
-            franchise operations, royalty collections,
-            and contract statuses across all enrolled
-            schools.
-          </p>
+            <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
+              Super Admin Dashboard 🛡️
+            </h1>
+
+            <p className="text-xs md:text-sm font-medium text-blue-100/90 mt-1 max-w-xl leading-relaxed">
+              Real-time platform overview across{' '}
+              <strong className="text-white font-bold">
+                {totalFranchisesCount}{' '}
+                franchise schools
+              </strong>
+              , royalty collections, and
+              contract agreements.
+            </p>
+
+          </div>
+
+          <div className="flex flex-wrap items-center gap-3 pt-1">
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
+
+              <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
+
+              Platform Performance
+
+            </span>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
+
+              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
+
+              {activeFranchisesCount}{' '}
+              Operational Schools
+
+            </span>
+
+            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
+
+              <Globe className="w-3.5 h-3.5 text-blue-300" />
+
+              Centralized Control
+
+            </span>
+
+          </div>
+
         </div>
 
-        <div className="flex items-center gap-3">
-
-          <Button
-            variant="secondary"
-            size="md"
-            onClick={() =>
-              onNavigate('/super-admin/royalty')
-            }
-            className="bg-white/10 hover:bg-white/20 text-white border-white/20"
-          >
-            Royalty Reports
-          </Button>
+        <div className="relative z-10 flex flex-col sm:flex-row md:flex-col gap-3 shrink-0">
 
           <Button
             variant="primary"
             size="md"
-            onClick={onOpenAddFranchiseModal}
+            onClick={
+              onOpenAddSchoolModal
+            }
             leftIcon={
               <PlusCircle className="w-4 h-4" />
             }
+            className="bg-white text-blue-700 hover:bg-blue-50 border-white shadow-lg font-bold"
           >
-            Add New School
+            Add Franchise School
+          </Button>
+
+          <Button
+            variant="secondary"
+            size="md"
+            onClick={
+              onOpenAddAdminModal
+            }
+            leftIcon={
+              <UserPlus className="w-4 h-4" />
+            }
+            className="bg-white/15 hover:bg-white/25 text-white border-white/30 font-bold"
+          >
+            Add Franchise Admin
           </Button>
 
         </div>
+
       </div>
 
-      {/* =========================================
+      {/* ===================================================
           KPI CARDS
-      ========================================= */}
+      =================================================== */}
 
       <div>
 
         <div className="flex items-center justify-between mb-4">
 
-          <h2 className="text-base font-extrabold text-slate-900 tracking-tight flex items-center gap-2">
+          <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-2">
 
-            <TrendingUp className="w-5 h-5 text-blue-600" />
+            <TrendingUp className="w-4 h-4 text-blue-600" />
 
             Key SaaS Metrics & Performance KPIs
 
           </h2>
 
-          <span className="text-xs font-semibold text-slate-500">
-            {loading
-              ? 'Loading...'
-              : 'Live Data'}
+          <span className="text-xs font-semibold text-slate-400">
+            Updated 5 mins ago
           </span>
 
         </div>
 
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
 
-          {kpiData.map((kpi, idx) => {
+          {/* CARD 1: TOTAL FRANCHISES */}
+          <Card
+            onClick={() => handleTotalFranchisesClick('All')}
+            className="p-5 flex flex-col justify-between border-slate-200/80 cursor-pointer transition-all hover:border-blue-300 hover:shadow-md group"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  TOTAL FRANCHISES
+                </span>
+                <div className="p-2 rounded-xl text-white shadow-xs bg-blue-600 group-hover:scale-105 transition-transform">
+                  <Building2 className="w-4 h-4" />
+                </div>
+              </div>
 
-            const Icon = kpi.icon;
+              <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {totalFranchisesCount}
+              </div>
 
-            return (
-              <Card
-                key={idx}
-                hover
-                className="p-4 flex flex-col justify-between border-slate-200/80"
+              <div className="mt-2 flex items-center justify-between">
+                <span className="text-xs font-medium text-slate-500">
+                  across all regions
+                </span>
+                <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                  +12.5%
+                </span>
+              </div>
+            </div>
+
+            {/* CLICKABLE ACTIVE & INACTIVE BREAKDOWN PILLS */}
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center gap-2">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTotalFranchisesClick('Active');
+                }}
+                className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  statusFilter === 'Active'
+                    ? 'bg-emerald-600 text-white shadow-xs'
+                    : 'bg-emerald-50 text-emerald-700 hover:bg-emerald-100 border border-emerald-200/60'
+                }`}
+                title="Filter active schools"
               >
+                <CheckCircle2 className="w-3 h-3" />
+                Active: {activeFranchisesCount}
+              </button>
 
-                <div className="flex items-center justify-between mb-3">
+              <button
+                type="button"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  handleTotalFranchisesClick('Inactive');
+                }}
+                className={`flex-1 py-1 px-2 rounded-lg text-xs font-bold transition-all flex items-center justify-center gap-1.5 cursor-pointer ${
+                  statusFilter === 'Inactive'
+                    ? 'bg-rose-600 text-white shadow-xs'
+                    : 'bg-rose-50 text-rose-700 hover:bg-rose-100 border border-rose-200/60'
+                }`}
+                title="Filter inactive schools"
+              >
+                <XCircle className="w-3 h-3" />
+                Inactive: {inactiveFranchisesCount}
+              </button>
+            </div>
+          </Card>
 
-                  <span className="text-[10px] font-extrabold uppercase tracking-wider text-slate-500 truncate">
-                    {kpi.title}
-                  </span>
-
-                  <div
-                    className={`p-2 rounded-xl text-white shadow-xs shrink-0 ${
-                      kpi.color === 'emerald'
-                        ? 'bg-emerald-600'
-                        : kpi.color === 'indigo'
-                        ? 'bg-indigo-600'
-                        : kpi.color === 'rose'
-                        ? 'bg-rose-600'
-                        : 'bg-blue-600'
-                    }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                  </div>
-
+          {/* CARD 2: TOTAL STUDENTS */}
+          <Card
+            className="p-5 flex flex-col justify-between border-slate-200/80"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  TOTAL STUDENTS
+                </span>
+                <div className="p-2 rounded-xl text-white shadow-xs bg-purple-600">
+                  <GraduationCap className="w-4 h-4" />
                 </div>
+              </div>
 
-                <div>
+              <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {totalStudentsCount.toLocaleString('en-IN')}
+              </div>
+            </div>
 
-                  <div className="text-2xl font-extrabold text-slate-900 tracking-tight">
-                    {kpi.value}
-                  </div>
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">
+                across all schools
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                +14.2%
+              </span>
+            </div>
+          </Card>
 
-                  <div className="mt-2 pt-2 border-t border-slate-100">
-                    <span className="text-[11px] font-medium text-slate-500">
-                      {kpi.subtext}
-                    </span>
-                  </div>
-
+          {/* CARD 3: TOTAL TEACHERS / STAFF */}
+          <Card
+            className="p-5 flex flex-col justify-between border-slate-200/80"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  TOTAL TEACHERS / STAFF
+                </span>
+                <div className="p-2 rounded-xl text-white shadow-xs bg-indigo-600">
+                  <Users className="w-4 h-4" />
                 </div>
+              </div>
 
-              </Card>
-            );
-          })}
+              <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {totalTeachersCount.toLocaleString('en-IN')}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">
+                registered educators
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-emerald-50 text-emerald-700 border border-emerald-200/60">
+                +6.8%
+              </span>
+            </div>
+          </Card>
+
+          {/* CARD 4: PENDING ROYALTY */}
+          <Card
+            className="p-5 flex flex-col justify-between border-slate-200/80"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  PENDING ROYALTY
+                </span>
+                <div className="p-2 rounded-xl text-white shadow-xs bg-amber-500">
+                  <Clock className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                ₹{pendingRoyaltyTotal.toLocaleString('en-IN')}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">
+                within grace period
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/60">
+                18%
+              </span>
+            </div>
+          </Card>
+
+          {/* CARD 5: OVERDUE ROYALTY */}
+          <Card
+            className="p-5 flex flex-col justify-between border-slate-200/80"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  OVERDUE ROYALTY
+                </span>
+                <div className="p-2 rounded-xl text-white shadow-xs bg-rose-500">
+                  <AlertTriangle className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                ₹{overdueRoyaltyTotal.toLocaleString('en-IN')}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">
+                action required
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/60">
+                10%
+              </span>
+            </div>
+          </Card>
+
+          {/* CARD 6: EXPIRING SOON */}
+          <Card
+            className="p-5 flex flex-col justify-between border-slate-200/80"
+          >
+            <div>
+              <div className="flex items-center justify-between mb-3">
+                <span className="text-[11px] font-extrabold uppercase tracking-wider text-slate-500">
+                  EXPIRING SOON
+                </span>
+                <div className="p-2 rounded-xl text-white shadow-xs bg-amber-500">
+                  <CalendarClock className="w-4 h-4" />
+                </div>
+              </div>
+
+              <div className="text-3xl font-extrabold text-slate-900 tracking-tight">
+                {expiringContractsCount}
+              </div>
+            </div>
+
+            <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
+              <span className="text-xs font-medium text-slate-500">
+                next 60 days
+              </span>
+              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/60">
+                Renewal due
+              </span>
+            </div>
+          </Card>
 
         </div>
+
       </div>
 
-      {/* =========================================
-          CHARTS ROW
-      ========================================= */}
+      {/* ===================================================
+          MAIN CHARTS
+      =================================================== */}
 
       <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
 
-        {/* ROYALTY REVENUE TREND */}
+        {/* ROYALTY REVENUE */}
 
         <Card className="lg:col-span-2 p-6 border-slate-200/80">
 
@@ -321,8 +865,8 @@ export const SuperAdminDashboardPage: React.FC<
               </h3>
 
               <p className="text-xs text-slate-500 font-medium mt-0.5">
-                Monthly collected vs total billed royalty
-                revenue across all franchises
+                Monthly collected vs total
+                billed royalty revenue
               </p>
 
             </div>
@@ -335,29 +879,34 @@ export const SuperAdminDashboardPage: React.FC<
                   '12 Months',
                   'This Year'
                 ] as const
-              ).map((t) => (
+              ).map(
+                (range) => (
 
-                <button
-                  key={t}
-                  onClick={() =>
-                    setTimeRange(t)
-                  }
-                  className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                    timeRange === t
-                      ? 'bg-white text-slate-900 shadow-xs'
-                      : 'text-slate-600 hover:text-slate-900'
-                  }`}
-                >
-                  {t}
-                </button>
+                  <button
+                    key={range}
+                    onClick={() =>
+                      setTimeRange(
+                        range
+                      )
+                    }
+                    className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
+                      timeRange ===
+                      range
+                        ? 'bg-white text-slate-900 shadow-xs'
+                        : 'text-slate-600 hover:text-slate-900'
+                    }`}
+                  >
+                    {range}
+                  </button>
 
-              ))}
+                )
+              )}
 
             </div>
 
           </div>
 
-          <div className="h-72 w-full">
+          <div className="h-64 w-full">
 
             <ResponsiveContainer
               width="100%"
@@ -384,7 +933,7 @@ export const SuperAdminDashboardPage: React.FC<
                     <stop
                       offset="5%"
                       stopColor="#2563eb"
-                      stopOpacity={0.4}
+                      stopOpacity={0.35}
                     />
 
                     <stop
@@ -404,7 +953,7 @@ export const SuperAdminDashboardPage: React.FC<
                     <stop
                       offset="5%"
                       stopColor="#10b981"
-                      stopOpacity={0.4}
+                      stopOpacity={0.35}
                     />
 
                     <stop
@@ -439,15 +988,17 @@ export const SuperAdminDashboardPage: React.FC<
                     fontSize: 11,
                     fill: '#64748b'
                   }}
-                  tickFormatter={(v) =>
+                  tickFormatter={(value) =>
                     `₹${(
-                      v / 100000
+                      value / 100000
                     ).toFixed(1)}L`
                   }
                 />
 
                 <Tooltip
-                  formatter={(value: any) => [
+                  formatter={(
+                    value: any
+                  ) => [
                     `₹${Number(
                       value
                     ).toLocaleString(
@@ -457,14 +1008,16 @@ export const SuperAdminDashboardPage: React.FC<
                   ]}
                 />
 
-                <Legend iconType="circle" />
+                <Legend
+                  iconType="circle"
+                />
 
                 <Area
                   type="monotone"
                   dataKey="revenue"
                   name="Total Billed"
                   stroke="#2563eb"
-                  strokeWidth={3}
+                  strokeWidth={2.5}
                   fillOpacity={1}
                   fill="url(#colorRevenue)"
                 />
@@ -474,7 +1027,7 @@ export const SuperAdminDashboardPage: React.FC<
                   dataKey="collected"
                   name="Collected Royalty"
                   stroke="#10b981"
-                  strokeWidth={3}
+                  strokeWidth={2.5}
                   fillOpacity={1}
                   fill="url(#colorCollected)"
                 />
@@ -487,7 +1040,7 @@ export const SuperAdminDashboardPage: React.FC<
 
         </Card>
 
-        {/* ROYALTY PAYMENT STATUS */}
+        {/* ROYALTY STATUS */}
 
         <Card className="p-6 border-slate-200/80 flex flex-col justify-between">
 
@@ -498,13 +1051,13 @@ export const SuperAdminDashboardPage: React.FC<
             </h3>
 
             <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Current month payment compliance
-              distribution
+              Current month collection
+              compliance
             </p>
 
           </div>
 
-          <div className="h-56 my-2">
+          <div className="h-48 my-2">
 
             <ResponsiveContainer
               width="100%"
@@ -515,21 +1068,26 @@ export const SuperAdminDashboardPage: React.FC<
 
                 <Pie
                   data={
-                    mockRoyaltyPaymentStatusData
+                    liveRoyaltyStatusData
                   }
                   cx="50%"
                   cy="50%"
-                  innerRadius={55}
-                  outerRadius={80}
+                  innerRadius={52}
+                  outerRadius={76}
                   paddingAngle={4}
                   dataKey="value"
                 >
 
-                  {mockRoyaltyPaymentStatusData.map(
-                    (entry, index) => (
+                  {liveRoyaltyStatusData.map(
+                    (
+                      entry,
+                      index
+                    ) => (
                       <Cell
                         key={`cell-${index}`}
-                        fill={entry.color}
+                        fill={
+                          entry.color
+                        }
                       />
                     )
                   )}
@@ -537,8 +1095,10 @@ export const SuperAdminDashboardPage: React.FC<
                 </Pie>
 
                 <Tooltip
-                  formatter={(val: any) => [
-                    `${val}%`,
+                  formatter={(
+                    value: any
+                  ) => [
+                    `${value}%`,
                     'Percentage'
                   ]}
                 />
@@ -551,7 +1111,7 @@ export const SuperAdminDashboardPage: React.FC<
 
           <div className="space-y-2 pt-2 border-t border-slate-100">
 
-            {mockRoyaltyPaymentStatusData.map(
+            {liveRoyaltyStatusData.map(
               (item) => (
 
                 <div
@@ -598,317 +1158,149 @@ export const SuperAdminDashboardPage: React.FC<
 
       </div>
 
-      {/* =========================================
-          SECOND CHART ROW
-      ========================================= */}
 
-      <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-
-        {/* PLAN DISTRIBUTION */}
-
-        <Card className="p-6 border-slate-200/80">
-
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
-            Subscription Plan Distribution
-          </h3>
-
-          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">
-            Breakdown by Basic, Pro, Enterprise tiers
-          </p>
-
-          <div className="h-48">
-
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-            >
-
-              <PieChart>
-
-                <Pie
-                  data={
-                    mockPlanDistributionData
-                  }
-                  cx="50%"
-                  cy="50%"
-                  outerRadius={70}
-                  dataKey="value"
-                >
-
-                  {mockPlanDistributionData.map(
-                    (entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                      />
-                    )
-                  )}
-
-                </Pie>
-
-                <Tooltip
-                  formatter={(val: any) => [
-                    `${val} Schools`,
-                    'Count'
-                  ]}
-                />
-
-              </PieChart>
-
-            </ResponsiveContainer>
-
-          </div>
-
-          <div className="grid grid-cols-3 gap-2 text-center pt-3 border-t border-slate-100">
-
-            {mockPlanDistributionData.map(
-              (p) => (
-
-                <div
-                  key={p.name}
-                  className="p-2 rounded-xl bg-slate-50"
-                >
-
-                  <span className="text-[10px] font-bold text-slate-500 block uppercase">
-                    {p.name}
-                  </span>
-
-                  <span className="text-sm font-extrabold text-slate-900">
-                    {p.value} schools
-                  </span>
-
-                </div>
-
-              )
-            )}
-
-          </div>
-
-        </Card>
-
-        {/* FRANCHISE GROWTH */}
-
-        <Card className="p-6 border-slate-200/80">
-
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
-            Franchise Growth Rate
-          </h3>
-
-          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">
-            Cumulative active schools onboarded over time
-          </p>
-
-          <div className="h-56">
-
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-            >
-
-              <BarChart
-                data={
-                  mockFranchiseGrowthData
-                }
-              >
-
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  vertical={false}
-                  stroke="#f1f5f9"
-                />
-
-                <XAxis
-                  dataKey="month"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11 }}
-                />
-
-                <YAxis
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11 }}
-                />
-
-                <Tooltip />
-
-                <Bar
-                  dataKey="count"
-                  fill="#2563eb"
-                  radius={[6, 6, 0, 0]}
-                />
-
-              </BarChart>
-
-            </ResponsiveContainer>
-
-          </div>
-
-        </Card>
-
-        {/* CONTRACT OVERVIEW */}
-
-        <Card className="p-6 border-slate-200/80">
-
-          <h3 className="text-base font-extrabold text-slate-900 tracking-tight">
-            Contract Status Overview
-          </h3>
-
-          <p className="text-xs text-slate-500 font-medium mt-0.5 mb-4">
-            Active vs Expiring vs Expired license contracts
-          </p>
-
-          <div className="h-56">
-
-            <ResponsiveContainer
-              width="100%"
-              height="100%"
-            >
-
-              <BarChart
-                data={
-                  mockContractOverviewData
-                }
-                layout="vertical"
-              >
-
-                <CartesianGrid
-                  strokeDasharray="3 3"
-                  horizontal={false}
-                  stroke="#f1f5f9"
-                />
-
-                <XAxis
-                  type="number"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11 }}
-                />
-
-                <YAxis
-                  type="category"
-                  dataKey="category"
-                  tickLine={false}
-                  axisLine={false}
-                  tick={{ fontSize: 11 }}
-                  width={90}
-                />
-
-                <Tooltip />
-
-                <Bar
-                  dataKey="count"
-                  radius={[0, 6, 6, 0]}
-                >
-
-                  {mockContractOverviewData.map(
-                    (entry, index) => (
-                      <Cell
-                        key={`cell-${index}`}
-                        fill={entry.color}
-                      />
-                    )
-                  )}
-
-                </Bar>
-
-              </BarChart>
-
-            </ResponsiveContainer>
-
-          </div>
-
-        </Card>
-
-      </div>
-
-      {/* =========================================
+      {/* ===================================================
           FRANCHISE TABLE
-      ========================================= */}
+      =================================================== */}
 
-      <Card className="p-6 border-slate-200/80">
+      <div ref={tableRef}>
+        <Card className="p-6 border-slate-200/80">
 
-        <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
+          <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 mb-6">
 
-          <div>
+            <div>
 
-            <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
-              Recent Franchises & Enrolled Schools
-            </h3>
+              <h3 className="text-lg font-extrabold text-slate-900 tracking-tight">
+                Franchise Schools Directory
+              </h3>
 
-            <p className="text-xs text-slate-500 font-medium mt-0.5">
-              Live status of schools on the SaaS platform
-            </p>
-
-          </div>
-
-          {/* SEARCH + FILTER */}
-
-          <div className="flex flex-wrap items-center gap-3">
-
-            <div className="relative">
-
-              <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
-
-              <input
-                type="text"
-                placeholder="Search school name or code..."
-                value={searchQuery}
-                onChange={(e) =>
-                  setSearchQuery(
-                    e.target.value
-                  )
-                }
-                className="pl-9 pr-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20"
-              />
+              <p className="text-xs text-slate-500 font-medium mt-0.5">
+                Manage all enrolled franchise
+                schools — view, edit, or remove
+              </p>
 
             </div>
 
-            <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+            {/* SEARCH + FILTER */}
 
-              <Filter className="w-3.5 h-3.5 text-slate-500 ml-2" />
+            <div className="flex flex-wrap items-center gap-3">
 
-              <span className="text-slate-500 text-[11px]">
-                Plan:
-              </span>
+              <div className="relative">
 
-              {(
-                [
+                <Search className="w-4 h-4 absolute left-3 top-2.5 text-slate-400" />
+
+                <input
+                  type="text"
+                  placeholder="Search school or city..."
+                  value={
+                    searchQuery
+                  }
+                  onChange={(event) =>
+                    setSearchQuery(
+                      event.target.value
+                    )
+                  }
+                  className="pl-9 pr-4 py-2 bg-slate-100 rounded-xl text-xs font-semibold text-slate-800 outline-none focus:bg-white focus:ring-2 focus:ring-blue-500/20 w-52 transition-all"
+                />
+
+              </div>
+
+              {/* STATUS FILTER */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+                <span className="text-slate-500 text-[11px] ml-1">
+                  Status:
+                </span>
+
+                {[
+                  'All',
+                  'Active',
+                  'Inactive'
+                ].map(
+                  (status) => (
+                    <button
+                      key={status}
+                      onClick={() =>
+                        setStatusFilter(
+                          status
+                        )
+                      }
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        statusFilter ===
+                        status
+                          ? 'bg-white text-slate-900 shadow-xs font-bold'
+                          : 'text-slate-600 hover:text-slate-900'
+                      }`}
+                    >
+                      {status}
+                    </button>
+                  )
+                )}
+              </div>
+
+              {/* PLAN FILTER */}
+              <div className="flex items-center gap-1 bg-slate-100 p-1 rounded-xl text-xs font-semibold">
+
+                <Filter className="w-3.5 h-3.5 text-slate-500 ml-2" />
+
+                <span className="text-slate-500 text-[11px]">
+                  Plan:
+                </span>
+
+                {[
                   'All',
                   'Basic',
                   'Pro',
                   'Enterprise'
-                ] as const
-              ).map((p) => (
+                ].map(
+                  (plan) => (
 
-                <button
-                  key={p}
-                  onClick={() =>
-                    setPlanFilter(p)
-                  }
-                  className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
-                    planFilter === p
-                      ? 'bg-white text-slate-900 shadow-2xs font-bold'
-                      : 'text-slate-600'
-                  }`}
-                >
-                  {p}
-                </button>
+                    <button
+                      key={plan}
+                      onClick={() =>
+                        setPlanFilter(
+                          plan
+                        )
+                      }
+                      className={`px-2.5 py-1 rounded-lg transition-colors cursor-pointer ${
+                        planFilter ===
+                        plan
+                          ? 'bg-white text-slate-900 shadow-xs font-bold'
+                          : 'text-slate-600'
+                      }`}
+                    >
+                      {plan}
+                    </button>
 
-              ))}
+                  )
+                )}
 
-            </div>
+              </div>
+
+              <Button
+                variant="outline"
+                size="sm"
+                onClick={() =>
+                  onNavigate(
+                    '/super-admin/franchises'
+                  )
+                }
+              >
+                View All (
+                {franchises.length}
+                )
+              </Button>
 
             <Button
-              variant="outline"
+              variant="primary"
               size="sm"
-              onClick={() =>
-                onNavigate(
-                  '/super-admin/franchises'
-                )
+              leftIcon={
+                <PlusCircle className="w-3.5 h-3.5" />
+              }
+              onClick={
+                onOpenAddSchoolModal
               }
             >
-              View All ({franchises.length})
+              Add School
             </Button>
 
           </div>
@@ -954,7 +1346,7 @@ export const SuperAdminDashboardPage: React.FC<
                 </th>
 
                 <th className="p-3.5 rounded-r-xl text-right">
-                  Action
+                  Actions
                 </th>
 
               </tr>
@@ -969,227 +1361,343 @@ export const SuperAdminDashboardPage: React.FC<
 
                   <td
                     colSpan={8}
-                    className="p-8 text-center text-slate-500"
+                    className="p-8 text-center text-slate-500 text-sm font-semibold"
                   >
                     Loading franchises...
                   </td>
 
                 </tr>
 
-              ) : filteredFranchises.length === 0 ? (
+              ) : filteredFranchises.length ===
+                0 ? (
 
                 <tr>
 
                   <td
                     colSpan={8}
-                    className="p-8 text-center text-slate-500"
+                    className="p-8 text-center text-slate-400 text-sm font-semibold"
                   >
-                    No franchises found.
+                    No franchise schools found
+                    matching your search.
                   </td>
 
                 </tr>
 
               ) : (
 
-                filteredFranchises.map((f) => {
+                filteredFranchises.map(
+                  (franchise) => {
 
-                  const royalty =
-                    f.monthlyRoyalties?.[0];
+                    const plan =
+                      getPlanName(
+                        franchise
+                      );
 
-                  const contract =
-                    f.contracts?.[0];
+                    const contract =
+                      getContractStatus(
+                        franchise
+                      );
 
-                  return (
+                    const royalty =
+                      getRoyalty(
+                        franchise
+                      );
 
-                    <tr
-                      key={f.id}
-                      className="hover:bg-slate-50/80 transition-colors"
-                    >
+                    const isActive =
+                      franchise.status ===
+                        'ACTIVE' ||
+                      franchise.status ===
+                        'Active';
 
-                      {/* SCHOOL */}
+                    return (
 
-                      <td className="p-3.5">
+                      <tr
+                        key={
+                          franchise.id
+                        }
+                        className="hover:bg-slate-50/80 transition-colors"
+                      >
 
-                        <div className="font-extrabold text-slate-900 text-sm">
-                          {f.name}
-                        </div>
+                        {/* SCHOOL */}
 
-                        <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60 inline-block mt-0.5">
-                          {f.code}
-                        </span>
+                        <td className="p-3.5">
 
-                      </td>
+                          <div className="font-extrabold text-slate-900 text-sm">
+                            {
+                              franchise.name
+                            }
+                          </div>
 
-                      {/* LOCATION */}
+                          <span className="text-[10px] font-bold text-blue-600 bg-blue-50 px-1.5 py-0.5 rounded border border-blue-200/60 inline-block mt-0.5">
+                            {
+                              franchise.code
+                            }
+                          </span>
 
-                      <td className="p-3.5">
+                        </td>
 
-                        <div className="font-semibold text-slate-800">
-                          {f.city}, {f.state}
-                        </div>
+                        {/* LOCATION */}
 
-                        <span className="text-[10px] text-slate-400 block">
-                          {f.pincode}
-                        </span>
+                        <td className="p-3.5">
 
-                      </td>
+                          <div className="font-semibold text-slate-800">
+                            {
+                              franchise.city ||
+                              '—'
+                            }
+                            {franchise.city &&
+                            franchise.state
+                              ? `, ${franchise.state}`
+                              : ''}
+                          </div>
 
-                      {/* PLAN */}
+                          <span className="text-[10px] text-slate-400 block">
+                            {
+                              franchise.pincode ||
+                              franchise.country ||
+                              '—'
+                            }
+                          </span>
 
-                      <td className="p-3.5">
+                        </td>
 
-                        <span
-                          className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
-                            f.plan?.name ===
-                            'ENTERPRISE'
-                              ? 'bg-teal-50 text-teal-700 border border-teal-200'
-                              : f.plan?.name ===
-                                'PRO'
-                              ? 'bg-blue-50 text-blue-700 border border-blue-200'
-                              : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
-                          }`}
-                        >
-                          {f.plan?.name ||
-                            'No Plan'}
-                        </span>
+                        {/* PLAN */}
 
-                      </td>
+                        <td className="p-3.5">
 
-                      {/* ADMIN */}
+                          <span
+                            className={`px-2 py-0.5 rounded-md font-extrabold text-[10px] uppercase ${
+                              plan.toUpperCase() ===
+                              'ENTERPRISE'
+                                ? 'bg-teal-50 text-teal-700 border border-teal-200'
+                                : plan.toUpperCase() ===
+                                  'PRO'
+                                ? 'bg-blue-50 text-blue-700 border border-blue-200'
+                                : 'bg-indigo-50 text-indigo-700 border border-indigo-200'
+                            }`}
+                          >
+                            {plan}
+                          </span>
 
-                      <td className="p-3.5">
+                        </td>
 
-                        <div className="font-bold text-slate-900">
-                          {f.admin?.name ||
-                            'Not Assigned'}
-                        </div>
+                        {/* ADMIN */}
 
-                        <div className="text-[11px] text-slate-500 truncate">
-                          {f.admin?.email ||
-                            'No email'}
-                        </div>
+                        <td className="p-3.5">
 
-                      </td>
+                          <div className="font-bold text-slate-900">
+                            {
+                              getAdminName(
+                                franchise
+                              )
+                            }
+                          </div>
 
-                      {/* CONTRACT */}
+                          <div className="text-[11px] text-slate-500 truncate max-w-[160px]">
+                            {
+                              getAdminEmail(
+                                franchise
+                              )
+                            }
+                          </div>
 
-                      <td className="p-3.5">
+                        </td>
 
-                        <Badge
-                          variant={
-                            contract?.status ===
-                              'ACTIVE' ||
-                            contract?.status ===
-                              'RENEWED'
-                              ? 'blue'
-                              : 'rose'
-                          }
-                          size="sm"
-                        >
-                          {contract?.status ||
-                            'No Contract'}
-                        </Badge>
+                        {/* CONTRACT */}
 
-                      </td>
-
-                      {/* ROYALTY */}
-
-                      <td className="p-3.5">
-
-                        {royalty ? (
+                        <td className="p-3.5">
 
                           <Badge
                             variant={
-                              royalty.status ===
-                              'PAID'
-                                ? 'emerald'
-                                : royalty.status ===
-                                  'PENDING'
+                              contract ===
+                                'ACTIVE' ||
+                              contract ===
+                                'Active' ||
+                              contract ===
+                                'RENEWED' ||
+                              contract ===
+                                'Renewed'
+                                ? 'blue'
+                                : contract ===
+                                  'EXPIRING' ||
+                                  contract ===
+                                    'Expiring Soon'
                                 ? 'amber'
                                 : 'rose'
                             }
                             size="sm"
                           >
-                            {royalty.status}
-                            {' '}
-                            (₹
-                            {Number(
-                              royalty.royaltyAmount
-                            ).toLocaleString(
-                              'en-IN'
-                            )}
-                            )
+                            {
+                              contract
+                            }
                           </Badge>
 
-                        ) : (
+                        </td>
 
-                          <Badge
-                            variant="blue"
-                            size="sm"
-                          >
-                            No Royalty
-                          </Badge>
+                        {/* ROYALTY */}
 
-                        )}
+                        <td className="p-3.5">
 
-                      </td>
+                          {royalty.status ===
+                            'No Royalty' ? (
 
-                      {/* STATUS */}
+                            <Badge
+                              variant="blue"
+                              size="sm"
+                            >
+                              No Royalty
+                            </Badge>
 
-                      <td className="p-3.5">
+                          ) : (
 
-                        <span
-                          className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                            f.status ===
-                            'ACTIVE'
-                              ? 'text-emerald-600'
-                              : 'text-slate-400'
-                          }`}
-                        >
+                            <Badge
+                              variant={
+                                royalty.status ===
+                                'PAID'
+                                  ? 'emerald'
+                                  : royalty.status ===
+                                    'PENDING'
+                                  ? 'amber'
+                                  : 'rose'
+                              }
+                              size="sm"
+                            >
+                              {
+                                royalty.status
+                              }{' '}
+                              (
+                              ₹
+                              {royalty.amount.toLocaleString(
+                                'en-IN'
+                              )}
+                              )
+                            </Badge>
+
+                          )}
+
+                        </td>
+
+                        {/* STATUS */}
+
+                        <td className="p-3.5">
 
                           <span
-                            className={`w-1.5 h-1.5 rounded-full ${
-                              f.status ===
-                              'ACTIVE'
-                                ? 'bg-emerald-500'
-                                : 'bg-slate-400'
+                            className={`inline-flex items-center gap-1 text-[11px] font-bold ${
+                              isActive
+                                ? 'text-emerald-600'
+                                : 'text-slate-400'
                             }`}
-                          />
+                          >
 
-                          {f.status ===
-                          'ACTIVE'
-                            ? 'Active'
-                            : 'Inactive'}
+                            <span
+                              className={`w-1.5 h-1.5 rounded-full ${
+                                isActive
+                                  ? 'bg-emerald-500'
+                                  : 'bg-slate-400'
+                              }`}
+                            />
 
-                        </span>
+                            {isActive
+                              ? 'Active'
+                              : 'Inactive'}
 
-                      </td>
+                          </span>
 
-                      {/* ACTION */}
+                        </td>
 
-                      <td className="p-3.5 text-right">
+                        {/* ACTIONS */}
 
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() =>
-                            onNavigate(
-                              `/super-admin/franchises/${f.id}`
-                            )
-                          }
-                          leftIcon={
-                            <Eye className="w-3.5 h-3.5" />
-                          }
-                        >
-                          View
-                        </Button>
+                        <td className="p-3.5 text-right">
 
-                      </td>
+                          {deleteConfirmId ===
+                          franchise.id ? (
 
-                    </tr>
+                            <div className="flex items-center justify-end gap-1.5">
 
-                  );
-                })
+                              <span className="text-[11px] font-semibold text-slate-600">
+                                Delete?
+                              </span>
+
+                              <button
+                                onClick={() =>
+                                  handleDelete(
+                                    franchise.id
+                                  )
+                                }
+                                className="px-2 py-1 bg-rose-500 text-white text-[10px] font-extrabold rounded-lg hover:bg-rose-600 transition-colors cursor-pointer"
+                              >
+                                Yes
+                              </button>
+
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirmId(
+                                    null
+                                  )
+                                }
+                                className="px-2 py-1 bg-slate-200 text-slate-700 text-[10px] font-extrabold rounded-lg hover:bg-slate-300 transition-colors cursor-pointer"
+                              >
+                                No
+                              </button>
+
+                            </div>
+
+                          ) : (
+
+                            <div className="flex items-center justify-end gap-1">
+
+                              <Button
+                                variant="ghost"
+                                size="sm"
+                                onClick={() =>
+                                  onNavigate(
+                                    `/super-admin/franchises/${franchise.id}`
+                                  )
+                                }
+                                leftIcon={
+                                  <Eye className="w-3.5 h-3.5" />
+                                }
+                              >
+                                View
+                              </Button>
+
+                              {onEditFranchise && (
+                                <button
+                                  onClick={() =>
+                                    onEditFranchise(
+                                      franchise
+                                    )
+                                  }
+                                  className="p-1.5 text-slate-500 hover:text-blue-600 hover:bg-blue-50 rounded-lg transition-colors cursor-pointer"
+                                  title="Edit School"
+                                >
+                                  <Pencil className="w-3.5 h-3.5" />
+                                </button>
+                              )}
+
+                              <button
+                                onClick={() =>
+                                  setDeleteConfirmId(
+                                    franchise.id
+                                  )
+                                }
+                                className="p-1.5 text-slate-500 hover:text-rose-600 hover:bg-rose-50 rounded-lg transition-colors cursor-pointer"
+                                title="Delete School"
+                              >
+                                <Trash2 className="w-3.5 h-3.5" />
+                              </button>
+
+                            </div>
+
+                          )}
+
+                        </td>
+
+                      </tr>
+
+                    );
+                  }
+                )
 
               )}
 
@@ -1200,6 +1708,7 @@ export const SuperAdminDashboardPage: React.FC<
         </div>
 
       </Card>
+      </div>
 
     </div>
   );

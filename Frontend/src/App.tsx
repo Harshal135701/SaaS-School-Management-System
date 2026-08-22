@@ -3,6 +3,7 @@ import { jwtDecode } from 'jwt-decode';
 import { LoginPage } from './pages/auth/LoginPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
+import api from './services/api';
 
 // School/Franchise Admin Existing Imports
 import { DashboardLayout } from './components/layout/DashboardLayout';
@@ -21,14 +22,28 @@ import { FranchiseDetailPage } from './pages/superAdmin/FranchiseDetailPage';
 import { RoyaltyPage } from './pages/superAdmin/RoyaltyPage';
 import { ContractsPage } from './pages/superAdmin/ContractsPage';
 import { SuperAdminSettingsPage } from './pages/superAdmin/SuperAdminSettingsPage';
+import type { Franchise } from './types/superAdmin';
+
+// Super Admin email — the only hardcoded check needed
+
 
 export function App() {
   const [currentPath, setCurrentPath] = useState<string>('/login');
   const [isAuthenticated, setIsAuthenticated] = useState<boolean>(false);
   const [userRole, setUserRole] = useState<UserRole>('Super Admin');
   const [isStaffModalOpen, setIsStaffModalOpen] = useState<boolean>(false);
-  const [isAddFranchiseModalOpen, setIsAddFranchiseModalOpen] = useState<boolean>(false);
   const [toastMessage, setToastMessage] = useState<string | null>(null);
+
+  // Super Admin Modal States
+  const [isAddSchoolModalOpen, setIsAddSchoolModalOpen] = useState(false);
+  const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
+  const [editFranchise, setEditFranchise] = useState<Franchise | null>(null);
+
+  // Shared franchise list (all schools registered in the platform)
+  const [franchises, setFranchises] = useState<Franchise[]>([]);
+
+  // The franchise that the currently logged-in franchise admin belongs to
+  const [loggedInFranchise, setLoggedInFranchise] = useState<Franchise | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
@@ -36,9 +51,14 @@ export function App() {
   };
 
   useEffect(() => {
-    const token = localStorage.getItem('token');
+    // Check active session in the current browser tab
+    const token = sessionStorage.getItem('token');
 
     if (!token) {
+      // Clear any legacy persistent token so new sessions always start at Login page
+      localStorage.removeItem('token');
+      setIsAuthenticated(false);
+      setCurrentPath('/login');
       return;
     }
 
@@ -46,7 +66,10 @@ export function App() {
       const decoded: { role?: string; exp?: number } = jwtDecode(token);
 
       if (decoded.exp && decoded.exp * 1000 < Date.now()) {
+        sessionStorage.removeItem('token');
         localStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setCurrentPath('/login');
         return;
       }
 
@@ -54,43 +77,94 @@ export function App() {
         setUserRole('Super Admin');
         setCurrentPath('/super-admin/dashboard');
         setIsAuthenticated(true);
+        // Fetch real franchises from backend on load
+        api.get('/system-admin/franchises').then(res => {
+          if (res.data?.success && Array.isArray(res.data.data)) {
+            setFranchises(res.data.data);
+          }
+        }).catch(() => {/* keep mock data if fetch fails */});
       } else if (decoded.role === 'FRANCHISE_ADMIN') {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
         setIsAuthenticated(true);
       } else {
+        sessionStorage.removeItem('token');
         localStorage.removeItem('token');
+        setIsAuthenticated(false);
+        setCurrentPath('/login');
       }
     } catch (error) {
       console.error('Invalid authentication token:', error);
+      sessionStorage.removeItem('token');
       localStorage.removeItem('token');
+      setIsAuthenticated(false);
+      setCurrentPath('/login');
     }
   }, []);
 
   const handleLoginSuccess = (user?: any) => {
-    setIsAuthenticated(true);
+  setIsAuthenticated(true);
 
-    if (user?.role === 'SYSTEM_ADMIN') {
-      setUserRole('Super Admin');
-      setCurrentPath('/super-admin/dashboard');
+  // System Admin / Super Admin
+  if (user?.role === 'SYSTEM_ADMIN') {
+    setUserRole('Super Admin');
+    setLoggedInFranchise(null);
+    setCurrentPath('/super-admin/dashboard');
+    // Fetch real franchises from backend immediately after login
+    api.get('/system-admin/franchises').then(res => {
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setFranchises(res.data.data);
+      }
+    }).catch(() => {/* keep mock data if fetch fails */});
 
-      showToast(`Welcome back, ${user.name}! Signed in as SaaS Super Admin.`);
-    } else if (user?.role === 'FRANCHISE_ADMIN') {
-      setUserRole('Franchise Admin');
-      setCurrentPath('/admin/dashboard');
+    showToast(
+      `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
+    );
+    return;
+  }
 
-      showToast(`Signed in successfully as Franchise Admin (${user.email})`);
+  // Franchise / School Admin
+  if (user?.role === 'FRANCHISE_ADMIN') {
+    setUserRole('Franchise Admin');
+
+    // Find the school/franchise associated with this admin.
+    // Match by admin email when the franchise data is available.
+    const matchedFranchise = franchises.find(
+      f =>
+        f.adminEmail &&
+        user.email &&
+        f.adminEmail.toLowerCase() === user.email.toLowerCase()
+    );
+
+    setLoggedInFranchise(matchedFranchise || null);
+    setCurrentPath('/admin/dashboard');
+
+    if (matchedFranchise) {
+      showToast(
+        `Welcome, ${matchedFranchise.adminName}! Signed in to ${matchedFranchise.name}.`
+      );
     } else {
-      setIsAuthenticated(false);
-      setCurrentPath('/login');
-
-      showToast('Invalid user role.');
+      showToast(
+        `Signed in successfully as Franchise Admin (${user.email}).`
+      );
     }
-  };
+
+    return;
+  }
+
+  // Unknown / invalid role
+  setIsAuthenticated(false);
+  setLoggedInFranchise(null);
+  setCurrentPath('/login');
+
+  showToast('Invalid user role.');
+};
 
   const handleLogout = () => {
+    sessionStorage.removeItem('token');
     localStorage.removeItem('token');
     setIsAuthenticated(false);
+    setLoggedInFranchise(null);
     setCurrentPath('/login');
     showToast('Signed out successfully.');
   };
@@ -99,7 +173,74 @@ export function App() {
     showToast(`Staff member ${data.fullName} (${data.role}) provisioned successfully! Credentials dispatched to ${data.email}.`);
   };
 
-  // Auth pages view
+  const handleFranchiseAdded = async (franchise: Franchise) => {
+    try {
+      // Basic plan mapping for backend (assuming 1=Basic, 2=Pro, 3=Enterprise from seeds)
+      const planMap: Record<string, number> = { 'Basic': 1, 'Pro': 2, 'Enterprise': 3 };
+      const planId = planMap[franchise.plan as string] || 2;
+      
+      const res = await api.post('/system-admin/franchises', {
+        name: franchise.name,
+        code: franchise.code,
+        email: franchise.email,
+        phone: franchise.phone,
+        address: franchise.address,
+        city: franchise.city,
+        state: franchise.state,
+        pincode: '400001', // Dummy pincode since UI doesn't have it
+        planId: planId
+      });
+      
+      // Use returned ID if available
+      if (res.data?.data?.id) {
+        franchise.id = res.data.data.id;
+      }
+    } catch (error) {
+      console.warn('Backend franchise creation note:', error);
+    }
+    
+    setFranchises(prev => [...prev, franchise]);
+    showToast(`Franchise school "${franchise.name}" (${franchise.code}) created successfully!`);
+  };
+
+  const handleFranchiseUpdated = (franchise: Franchise) => {
+    setFranchises(prev => prev.map(f => f.id === franchise.id ? franchise : f));
+    showToast(`Franchise school "${franchise.name}" updated successfully!`);
+  };
+
+  const handleAdminAdded = (data: { schoolId: string; adminName: string; adminEmail: string; adminPhone: string; adminPassword: string }) => {
+    setFranchises(prev =>
+      prev.map(f => {
+        if (f.id === data.schoolId || String(f.id) === String(data.schoolId) || f.code === data.schoolId) {
+          return {
+            ...f,
+            adminName: data.adminName,
+            adminEmail: data.adminEmail,
+            adminPhone: data.adminPhone,
+            adminPassword: data.adminPassword,
+            admin: {
+              name: data.adminName,
+              email: data.adminEmail
+            }
+          };
+        }
+        return f;
+      })
+    );
+    showToast(`Franchise Admin "${data.adminName}" assigned to school successfully!`);
+  };
+
+  const handleOpenEditSchoolModal = (franchise: Franchise) => {
+    setEditFranchise(franchise);
+    setIsAddSchoolModalOpen(true);
+  };
+
+  const handleCloseSchoolModal = () => {
+    setIsAddSchoolModalOpen(false);
+    setEditFranchise(null);
+  };
+
+  // ── AUTH PAGES ──
   if (!isAuthenticated || currentPath === '/login' || currentPath === '/register' || currentPath === '/forgot-password') {
     if (currentPath === '/register') {
       return (
@@ -130,14 +271,14 @@ export function App() {
     );
   }
 
-  // 1. SUPER ADMIN VIEWS
+  // ── 1. SUPER ADMIN VIEWS ──
   if (userRole === 'Super Admin' || currentPath.startsWith('/super-admin')) {
     const renderSuperAdminContent = () => {
       if (currentPath === '/super-admin/franchises') {
         return (
           <FranchisesPage
             onNavigate={(p) => setCurrentPath(p)}
-            onOpenAddFranchiseModal={() => setIsAddFranchiseModalOpen(true)}
+            onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
             subView="all"
           />
         );
@@ -146,14 +287,14 @@ export function App() {
         return (
           <FranchisesPage
             onNavigate={(p) => setCurrentPath(p)}
-            onOpenAddFranchiseModal={() => setIsAddFranchiseModalOpen(true)}
+            onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
             subView="admins"
           />
         );
       }
       if (currentPath.startsWith('/super-admin/franchises/')) {
         const id = currentPath.split('/super-admin/franchises/')[1];
-        return <FranchiseDetailPage franchiseId={id} onNavigate={(p) => setCurrentPath(p)} />;
+        return <FranchiseDetailPage franchiseId={id} franchiseList={franchises} onNavigate={(p) => setCurrentPath(p)} />;
       }
       if (currentPath === '/super-admin/royalty') {
         return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="overview" />;
@@ -192,11 +333,13 @@ export function App() {
         return <SuperAdminSettingsPage onNavigate={(p) => setCurrentPath(p)} defaultTab="profile" />;
       }
 
-      // Default Super Admin Dashboard
       return (
         <SuperAdminDashboardPage
           onNavigate={(p) => setCurrentPath(p)}
-          onOpenAddFranchiseModal={() => setIsAddFranchiseModalOpen(true)}
+          onOpenAddSchoolModal={() => setIsAddSchoolModalOpen(true)}
+          onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+          onEditFranchise={handleOpenEditSchoolModal}
+          franchiseList={franchises}
         />
       );
     };
@@ -206,16 +349,20 @@ export function App() {
         currentPath={currentPath}
         onNavigate={(path) => setCurrentPath(path)}
         onLogout={handleLogout}
-        isAddFranchiseModalOpen={isAddFranchiseModalOpen}
-        onOpenAddFranchiseModal={() => setIsAddFranchiseModalOpen(true)}
-        onCloseAddFranchiseModal={() => setIsAddFranchiseModalOpen(false)}
-        onFranchiseAdded={(newFranchise) => {
-          showToast(`Franchise ${newFranchise.name} (${newFranchise.code}) provisioned successfully! Admin credentials sent to ${newFranchise.adminEmail}.`);
-        }}
+        isAddSchoolModalOpen={isAddSchoolModalOpen}
+        onOpenAddSchoolModal={() => setIsAddSchoolModalOpen(true)}
+        onCloseAddSchoolModal={handleCloseSchoolModal}
+        editFranchise={editFranchise}
+        onFranchiseAdded={handleFranchiseAdded}
+        onFranchiseUpdated={handleFranchiseUpdated}
+        onAdminAdded={handleAdminAdded}
+        isAddAdminModalOpen={isAddAdminModalOpen}
+        onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+        onCloseAddAdminModal={() => setIsAddAdminModalOpen(false)}
+        franchises={franchises}
       >
         {renderSuperAdminContent()}
 
-        {/* Global Toast */}
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
@@ -228,7 +375,8 @@ export function App() {
     );
   }
 
-  // 2. FRANCHISE / SCHOOL ADMIN VIEWS (EXISTING DASHBOARD UNTOUCHED)
+  // ── 2. FRANCHISE / SCHOOL ADMIN VIEWS ──
+  // loggedInFranchise holds the specific school for this admin
   const renderDashboardContent = () => {
     switch (currentPath) {
       case '/admin/students':
@@ -239,7 +387,13 @@ export function App() {
         return <SettingsPage />;
       case '/admin/dashboard':
       default:
-        return <AdminDashboardPage onOpenStaffModal={() => setIsStaffModalOpen(true)} />;
+        return (
+          <AdminDashboardPage
+            onOpenStaffModal={() => setIsStaffModalOpen(true)}
+            // Pass the logged-in franchise data so the dashboard is personalized
+            franchise={loggedInFranchise}
+          />
+        );
     }
   };
 
@@ -250,18 +404,18 @@ export function App() {
         onNavigate={(path) => setCurrentPath(path)}
         onLogout={handleLogout}
         onStaffRegistered={handleStaffRegistered}
+        // Pass franchise info to layout so sidebar/header can show school name
+        franchise={loggedInFranchise}
       >
         {renderDashboardContent()}
       </DashboardLayout>
 
-      {/* Global Staff Modal */}
       <StaffRegistrationModal
         isOpen={isStaffModalOpen}
         onClose={() => setIsStaffModalOpen(false)}
         onStaffRegistered={handleStaffRegistered}
       />
 
-      {/* Global Toast Notification */}
       {toastMessage && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
           <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">

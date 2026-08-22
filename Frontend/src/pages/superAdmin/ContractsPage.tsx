@@ -3,7 +3,6 @@ import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
 import { Modal } from '../../components/ui/Modal';
-import { Input } from '../../components/ui/Input';
 import api from '../../services/api';
 import type { Contract, ContractStatus } from '../../types/superAdmin';
 import {
@@ -14,12 +13,8 @@ import {
   Search,
   RefreshCw,
   Eye,
-  Calendar,
-  CheckCircle2,
-  AlertTriangle,
-  Building2
+  CheckCircle2
 } from 'lucide-react';
-
 interface ContractsPageProps {
   onNavigate: (path: string) => void;
   subView?: 'all' | 'active' | 'expiring' | 'expired';
@@ -42,7 +37,7 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
   };
 
   const [contractsList, setContractsList] = useState<Contract[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   React.useEffect(() => {

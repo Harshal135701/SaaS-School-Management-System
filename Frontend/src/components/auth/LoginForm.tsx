@@ -18,7 +18,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
-  const [rememberMe, setRememberMe] = useState(true);
+  const [rememberMe, setRememberMe] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState('');
 
@@ -78,16 +78,16 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       )}
 
       {/* Form */}
-      <form onSubmit={handleSubmit} className="space-y-4">
+       <form onSubmit={handleSubmit} className="space-y-4">
         <Input
-          label="EMAIL OR USERNAME"
-          type="text"
-          placeholder="Enter your email"
-          value={email}
-          onChange={(e) => setEmail(e.target.value)}
-          leftIcon={<Mail className="w-4 h-4" />}
-          requiredBadge
-        />
+           label="EMAIL OR USERNAME"
+           type="text"
+           placeholder="Enter your email"
+           value={email}
+           onChange={(e) => setEmail(e.target.value)}
+           leftIcon={<Mail className="w-4 h-4" />}
+           requiredBadge
+       />
 
         <div className="relative">
           <div className="flex items-center justify-between mb-1">
@@ -160,7 +160,7 @@ export const LoginForm: React.FC<LoginFormProps> = ({
         {/* Google SSO Mock Button */}
         <button
           type="button"
-          onClick={onLoginSuccess}
+          onClick={() => onLoginSuccess()}
           className="w-full flex items-center justify-center gap-2 px-4 py-2.5 rounded-xl border border-slate-200 bg-white hover:bg-slate-50 text-xs font-bold text-slate-700 transition-colors shadow-2xs cursor-pointer"
         >
           <svg className="w-4 h-4" viewBox="0 0 24 24">

@@ -5,13 +5,15 @@ interface CardProps {
   className?: string;
   hoverLift?: boolean;
   padding?: 'none' | 'sm' | 'md' | 'lg';
+  onClick?: (e: React.MouseEvent) => void;
 }
 
 export const Card: React.FC<CardProps> = ({
   children,
   className = '',
   hoverLift = true,
-  padding = 'md'
+  padding = 'md',
+  onClick
 }) => {
   const paddingStyles = {
     none: 'p-0',
@@ -22,6 +24,7 @@ export const Card: React.FC<CardProps> = ({
 
   return (
     <div
+      onClick={onClick}
       className={`
         bg-white rounded-2xl border border-slate-100/80 subtle-shadow
         ${hoverLift ? 'hover-lift' : ''}
