@@ -1,9 +1,10 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import type { Franchise, PlanType } from '../../types/superAdmin';
 import { Building2, Mail, Phone, MapPin, Calendar, CreditCard, CheckCircle2 } from 'lucide-react';
+import api from '../../services/api';
 
 interface AddFranchiseSchoolModalProps {
   isOpen: boolean;
@@ -33,6 +34,27 @@ export const AddFranchiseSchoolModal: React.FC<AddFranchiseSchoolModalProps> = (
   const [endDate, setEndDate] = useState(editFranchise?.contractEndDate || '2028-08-16');
   const [monthlyRoyalty, setMonthlyRoyalty] = useState(String(editFranchise?.monthlyRoyalty || '45000'));
   const [isLoading, setIsLoading] = useState(false);
+  const [plansList, setPlansList] = useState<any[]>([]);
+
+  useEffect(() => {
+    const fetchPlans = async () => {
+      try {
+        const response = await api.get('/plans');
+        if (response.data && response.data.data) {
+          setPlansList(response.data.data);
+          // Set default plan if editing or first available plan
+          if (!editFranchise && response.data.data.length > 0) {
+             const defaultPlan = response.data.data.find((p: any) => p.name.toUpperCase() === 'PRO') || response.data.data[0];
+             setPlan(defaultPlan.id as PlanType);
+             setMonthlyRoyalty(String(defaultPlan.price || 45000));
+          }
+        }
+      } catch (error) {
+        console.error('Failed to fetch plans', error);
+      }
+    };
+    fetchPlans();
+  }, [editFranchise]);
 
   // Sync fields when editFranchise changes
   React.useEffect(() => {
@@ -65,12 +87,7 @@ export const AddFranchiseSchoolModal: React.FC<AddFranchiseSchoolModalProps> = (
     }
   }, [editFranchise, isOpen]);
 
-  const handlePlanChange = (p: PlanType) => {
-    setPlan(p);
-    if (p === 'Basic') setMonthlyRoyalty('25000');
-    if (p === 'Pro') setMonthlyRoyalty('45000');
-    if (p === 'Enterprise') setMonthlyRoyalty('75000');
-  };
+
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
@@ -200,26 +217,31 @@ export const AddFranchiseSchoolModal: React.FC<AddFranchiseSchoolModalProps> = (
               SaaS Subscription Plan
             </label>
             <div className="grid grid-cols-3 gap-3">
-              {(['Basic', 'Pro', 'Enterprise'] as PlanType[]).map((p) => (
+              {plansList.length > 0 ? plansList.map((p) => (
                 <button
-                  key={p}
+                  key={p.id}
                   type="button"
-                  onClick={() => handlePlanChange(p)}
+                  onClick={() => {
+                    setPlan(p.id as PlanType);
+                    setMonthlyRoyalty(String(p.price || 45000));
+                  }}
                   className={`relative p-3 rounded-xl border-2 text-center transition-all cursor-pointer ${
-                    plan === p
+                    plan === p.id
                       ? 'border-blue-500 bg-blue-50 shadow-sm'
                       : 'border-slate-200 bg-white hover:border-blue-300'
                   }`}
                 >
-                  {plan === p && (
+                  {plan === p.id && (
                     <CheckCircle2 className="w-3.5 h-3.5 text-blue-600 absolute top-2 right-2" />
                   )}
-                  <div className={`text-xs font-extrabold ${plan === p ? 'text-blue-700' : 'text-slate-700'}`}>{p}</div>
-                  <div className={`text-[10px] font-semibold mt-0.5 ${plan === p ? 'text-blue-500' : 'text-slate-500'}`}>
-                    {p === 'Basic' ? '₹25,000/mo' : p === 'Pro' ? '₹45,000/mo' : '₹75,000/mo'}
+                  <div className={`text-xs font-extrabold ${plan === p.id ? 'text-blue-700' : 'text-slate-700'}`}>{p.name}</div>
+                  <div className={`text-[10px] font-semibold mt-0.5 ${plan === p.id ? 'text-blue-500' : 'text-slate-500'}`}>
+                    ₹{p.price}/mo
                   </div>
                 </button>
-              ))}
+              )) : (
+                <div className="col-span-3 text-xs text-slate-500 p-2">Loading plans...</div>
+              )}
             </div>
           </div>
 

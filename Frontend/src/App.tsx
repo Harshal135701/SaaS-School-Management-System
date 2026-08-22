@@ -175,10 +175,6 @@ export function App() {
 
   const handleFranchiseAdded = async (franchise: Franchise) => {
     try {
-      // Basic plan mapping for backend (assuming 1=Basic, 2=Pro, 3=Enterprise from seeds)
-      const planMap: Record<string, number> = { 'Basic': 1, 'Pro': 2, 'Enterprise': 3 };
-      const planId = planMap[franchise.plan as string] || 2;
-      
       const res = await api.post('/system-admin/franchises', {
         name: franchise.name,
         code: franchise.code,
@@ -188,7 +184,7 @@ export function App() {
         city: franchise.city,
         state: franchise.state,
         pincode: '400001', // Dummy pincode since UI doesn't have it
-        planId: planId
+        planId: franchise.plan // The UI now sets the real UUID here
       });
       
       // Use returned ID if available

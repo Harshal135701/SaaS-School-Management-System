@@ -330,7 +330,7 @@ const totalFranchisesCount =
       ? monthlyRoyaltiesList
           .filter((r) => (r.status || '').toUpperCase() === 'PENDING')
           .reduce((sum, r) => sum + Number(r.totalAmount || r.royaltyAmount || 0), 0)
-      : 125000;
+      : 0;
 
   const overdueRoyaltyTotal =
     royaltySummary?.overdueAmount != null
@@ -339,7 +339,7 @@ const totalFranchisesCount =
       ? monthlyRoyaltiesList
           .filter((r) => (r.status || '').toUpperCase() === 'OVERDUE')
           .reduce((sum, r) => sum + Number(r.totalAmount || r.royaltyAmount || 0), 0)
-      : 65000;
+      : 0;
 
   const expiringContractsCount =
     contractsList.length > 0
@@ -354,7 +354,17 @@ const totalFranchisesCount =
             c.status === 'Expiring Soon'
           );
         }).length
-      : 3;
+      : franchises.flatMap(f => f.contracts || []).filter((c: any) => {
+          const end = new Date(c.endDate);
+          const diffDays = Math.ceil(
+            (end.getTime() - Date.now()) / (1000 * 60 * 60 * 24)
+          );
+          return (
+            (diffDays > 0 && diffDays <= 60) ||
+            c.status === 'EXPIRING' ||
+            c.status === 'Expiring Soon'
+          );
+        }).length;
 
   const handleTotalFranchisesClick = (filter: 'All' | 'Active' | 'Inactive' = 'All') => {
     setStatusFilter(filter);
@@ -615,17 +625,14 @@ const totalFranchisesCount =
         <div className="flex items-center justify-between mb-4">
 
           <h2 className="text-sm font-extrabold uppercase tracking-wider text-slate-500 flex items-center gap-2">
-
             <TrendingUp className="w-4 h-4 text-blue-600" />
-
             Key SaaS Metrics & Performance KPIs
-
           </h2>
 
-          <span className="text-xs font-semibold text-slate-400">
-            Updated 5 mins ago
+          <span className="text-xs font-bold text-emerald-600 bg-emerald-50 px-2.5 py-1 rounded-full border border-emerald-200/60 flex items-center gap-1.5">
+            <span className="w-1.5 h-1.5 rounded-full bg-emerald-500 animate-pulse" />
+            Live Sync
           </span>
-
         </div>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-5">
@@ -776,10 +783,14 @@ const totalFranchisesCount =
 
             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500">
-                within grace period
+                {pendingRoyaltyTotal > 0 ? 'within grace period' : 'all accounts clear'}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-amber-50 text-amber-700 border border-amber-200/60">
-                18%
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                pendingRoyaltyTotal > 0
+                  ? 'bg-amber-50 text-amber-700 border border-amber-200/60'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+              }`}>
+                {pendingRoyaltyTotal > 0 ? 'Pending' : 'Cleared'}
               </span>
             </div>
           </Card>
@@ -805,10 +816,14 @@ const totalFranchisesCount =
 
             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500">
-                action required
+                {overdueRoyaltyTotal > 0 ? 'action required' : 'zero overdue'}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/60">
-                10%
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                overdueRoyaltyTotal > 0
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+              }`}>
+                {overdueRoyaltyTotal > 0 ? 'Overdue' : 'All Clear'}
               </span>
             </div>
           </Card>
@@ -834,10 +849,14 @@ const totalFranchisesCount =
 
             <div className="mt-3 pt-3 border-t border-slate-100 flex items-center justify-between">
               <span className="text-xs font-medium text-slate-500">
-                next 60 days
+                {expiringContractsCount > 0 ? 'next 60 days' : 'no expiring contracts'}
               </span>
-              <span className="px-2 py-0.5 rounded-full text-[10px] font-extrabold bg-rose-50 text-rose-700 border border-rose-200/60">
-                Renewal due
+              <span className={`px-2 py-0.5 rounded-full text-[10px] font-extrabold ${
+                expiringContractsCount > 0
+                  ? 'bg-rose-50 text-rose-700 border border-rose-200/60'
+                  : 'bg-emerald-50 text-emerald-700 border border-emerald-200/60'
+              }`}>
+                {expiringContractsCount > 0 ? 'Renewal due' : 'All Active'}
               </span>
             </div>
           </Card>

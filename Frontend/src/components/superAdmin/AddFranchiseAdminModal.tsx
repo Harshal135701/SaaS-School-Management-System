@@ -113,7 +113,9 @@ export const AddFranchiseAdminModal: React.FC<AddFranchiseAdminModalProps> = ({
               </div>
               <div>
                 <p className="text-xs font-extrabold text-slate-900">{selectedSchool.name}</p>
-                <p className="text-[11px] text-slate-500">{selectedSchool.city}, {selectedSchool.state} · {selectedSchool.plan} Plan</p>
+                <p className="text-[11px] text-slate-500">
+                  {selectedSchool.city}, {selectedSchool.state} · {typeof selectedSchool.plan === 'object' && selectedSchool.plan !== null ? (selectedSchool.plan as any).name : selectedSchool.plan} Plan
+                </p>
               </div>
             </div>
           )}
