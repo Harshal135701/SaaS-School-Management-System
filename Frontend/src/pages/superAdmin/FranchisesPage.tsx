@@ -73,30 +73,26 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
   const handleToggleStatus = async () => {
     if (!selectedFranchiseForToggle) return;
 
-    const franchise = selectedFranchiseForToggle;
-
-    const nextStatus =
-      franchise.status === 'ACTIVE' || franchise.status === 'Active'
-        ? 'INACTIVE'
-        : 'ACTIVE';
-
     try {
-      const res = await api.patch(
-        `/system-admin/franchises/${franchise.id}/status`,
-        { status: nextStatus }
+      const currentStatus = selectedFranchiseForToggle.status;
+      const nextStatus = currentStatus === 'ACTIVE' ? 'INACTIVE' : 'ACTIVE';
+
+      await api.patch(
+        `/system-admin/franchises/${selectedFranchiseForToggle.id}/status`,
+        {
+          status: nextStatus,
+        }
       );
 
-      if (res.data?.success) {
-        setFranchisesList(prev =>
-          prev.map(f =>
-            f.id === franchise.id
-              ? { ...f, status: nextStatus }
-              : f
-          )
-        );
+      setFranchisesList(prev =>
+        prev.map(f =>
+          f.id === selectedFranchiseForToggle.id
+            ? { ...f, status: nextStatus }
+            : f
+        )
+      );
 
-        setSelectedFranchiseForToggle(null);
-      }
+      setSelectedFranchiseForToggle(null);
     } catch (error) {
       console.error('Failed to update franchise status:', error);
     }
@@ -116,11 +112,11 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
       id: f.admin?.id || `admin-${f.id}`,
       name: f.admin?.name || f.adminName || 'Not Assigned',
       email: f.admin?.email || f.adminEmail || 'No email',
-      phone: f.phone || f.adminPhone || 'N/A',
+      phone: 'N/A',
       schoolName: f.name,
       schoolCode: f.code,
       role: 'Franchise Admin',
-      lastLogin: f.admin?.lastLogin ? new Date(f.admin.lastLogin).toLocaleDateString() : 'Active Session',
+      lastLogin: 'N/A',
       status: f.admin?.isActive !== false ? 'Active' : 'Inactive'
     }));
 
@@ -187,11 +183,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
       <div className="flex border-b border-slate-200 gap-6 text-sm font-extrabold">
         <button
           onClick={() => handleTabChange('all')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-            activeTab === 'all'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${activeTab === 'all'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           <Building2 className="w-4 h-4" />
           <span>All Franchises ({totalCount})</span>
@@ -199,11 +194,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
 
         <button
           onClick={() => handleTabChange('admins')}
-          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${
-            activeTab === 'admins'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-800'
-          }`}
+          className={`pb-3 flex items-center gap-2 border-b-2 transition-colors cursor-pointer ${activeTab === 'admins'
+            ? 'border-blue-600 text-blue-600'
+            : 'border-transparent text-slate-500 hover:text-slate-800'
+            }`}
         >
           <Users className="w-4 h-4" />
           <span>Franchise Admins ({realAdminsList.length})</span>
@@ -274,6 +268,11 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
               </thead>
               <tbody className="divide-y divide-slate-100">
                 {filteredFranchises.map((f) => {
+                  const latestContract = f.contracts?.[0];
+                  const latestRoyalty = f.monthlyRoyalties?.[0];
+                  const contractStatus = latestContract?.status || 'No Contract';
+                  const royaltyStatus = latestRoyalty?.status || 'No Royalty';
+
                   const planName = typeof f.plan === 'object' && f.plan !== null ? f.plan.name : (f.plan || 'BASIC');
                   const adminName = f.admin?.name || f.adminName || 'Not Assigned';
                   const adminEmail = f.admin?.email || f.adminEmail || 'No email';
@@ -290,7 +289,7 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
 
                       <td className="p-3.5">
                         <div className="font-semibold text-slate-800">{f.city}{f.state ? `, ${f.state}` : ''}</div>
-                        <span className="text-[10px] text-slate-400 block">{f.zipCode || f.country || ''}</span>
+                        <span className="text-[10px] text-slate-400 block">{f.pincode || ''}</span>
                       </td>
 
                       {/* Integrated Plan Select Dropdown */}
@@ -317,13 +316,13 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                                   prev.map(franchise =>
                                     franchise.id === f.id
                                       ? {
-                                          ...franchise,
-                                          plan: {
-                                            ...franchise.plan,
-                                            name: newPlanName,
-                                          },
-                                          planId: planIds[newPlanName],
-                                        }
+                                        ...franchise,
+                                        plan: {
+                                          ...franchise.plan,
+                                          name: newPlanName,
+                                        },
+                                        planId: planIds[newPlanName],
+                                      }
                                       : franchise
                                   )
                                 );
@@ -351,21 +350,32 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                       </td>
 
                       <td className="p-3.5">
-                        <Badge variant={f.contractStatus === 'Active' || f.contractStatus === 'ACTIVE' ? 'blue' : f.contractStatus === 'Expiring Soon' ? 'amber' : 'rose'} size="sm">
-                          {f.contractStatus || 'No Contract'}
+                        <Badge
+                          variant={contractStatus === 'ACTIVE' ? 'blue' : 'rose'}
+                          size="sm"
+                        >
+                          {contractStatus}
                         </Badge>
                       </td>
 
                       <td className="p-3.5">
-                        <Badge variant={f.royaltyStatus === 'Paid' || f.royaltyStatus === 'PAID' ? 'emerald' : f.royaltyStatus === 'Pending' ? 'amber' : 'blue'} size="sm">
-                          {f.royaltyStatus || 'No Royalty'}
+                        <Badge
+                          variant={
+                            royaltyStatus === 'PAID'
+                              ? 'emerald'
+                              : royaltyStatus === 'PENDING'
+                                ? 'amber'
+                                : 'rose'
+                          }
+                          size="sm"
+                        >
+                          {royaltyStatus}
                         </Badge>
                       </td>
 
                       <td className="p-3.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                          isActive ? 'text-emerald-600' : 'text-slate-400'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${isActive ? 'text-emerald-600' : 'text-slate-400'
+                          }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${isActive ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                           {isActive ? 'Active' : 'Inactive'}
                         </span>
@@ -384,11 +394,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
 
                         <button
                           onClick={() => setSelectedFranchiseForToggle(f)}
-                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${
-                            isActive
-                              ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
-                              : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
-                          }`}
+                          className={`p-1.5 rounded-lg border transition-colors cursor-pointer ${isActive
+                            ? 'bg-rose-50 text-rose-600 border-rose-200 hover:bg-rose-100'
+                            : 'bg-emerald-50 text-emerald-600 border-emerald-200 hover:bg-emerald-100'
+                            }`}
                           title={isActive ? 'Deactivate Franchise' : 'Activate Franchise'}
                         >
                           <Power className="w-3.5 h-3.5" />
@@ -441,9 +450,8 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                       </td>
                       <td className="p-3.5 text-slate-500 text-[11px]">{admin.lastLogin}</td>
                       <td className="p-3.5">
-                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${
-                          admin.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
-                        }`}>
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-bold ${admin.status === 'Active' ? 'text-emerald-600' : 'text-slate-400'
+                          }`}>
                           <span className={`w-1.5 h-1.5 rounded-full ${admin.status === 'Active' ? 'bg-emerald-500' : 'bg-slate-400'}`} />
                           {admin.status}
                         </span>
@@ -475,8 +483,8 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
             <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 flex items-start gap-3">
               <AlertTriangle className="w-5 h-5 text-amber-600 shrink-0 mt-0.5" />
               <p className="text-xs font-semibold text-amber-900 leading-relaxed">
-                Are you sure you want to {selectedFranchiseForToggle.status === 'Active' ? 'deactivate' : 'activate'} <strong>{selectedFranchiseForToggle.name}</strong>?
-                {selectedFranchiseForToggle.status === 'Active' && ' This will temporarily suspend access for their Franchise Admin and staff.'}
+                Are you sure you want to {selectedFranchiseForToggle.status === 'ACTIVE' ? 'deactivate' : 'activate'} <strong>{selectedFranchiseForToggle.name}</strong>?
+                {selectedFranchiseForToggle.status === 'ACTIVE' && ' This will temporarily suspend access for their Franchise Admin and staff.'}
               </p>
             </div>
 

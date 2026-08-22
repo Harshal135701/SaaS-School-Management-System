@@ -1,4 +1,5 @@
 const bcrypt = require("bcryptjs");
+const { sequelize } = require("../config/database");
 
 const {
   Franchise,
@@ -6,7 +7,8 @@ const {
   Plan,
   Contract,
   MonthlyRoyalty,
-  Feature,
+  Student,
+  Teacher,
 } = require("../models");
 
 const createFranchise = async (req, res) => {
@@ -96,11 +98,13 @@ const getFranchises = async (req, res) => {
           as: "admin",
           attributes: ["id", "name", "email", "isActive"],
         },
+
         {
           model: Plan,
           as: "plan",
           attributes: ["id", "name", "price", "billingCycle"],
         },
+
         {
           model: Contract,
           as: "contracts",
@@ -113,6 +117,7 @@ const getFranchises = async (req, res) => {
             "status",
           ],
         },
+
         {
           model: MonthlyRoyalty,
           as: "monthlyRoyalties",
@@ -128,7 +133,43 @@ const getFranchises = async (req, res) => {
           limit: 1,
           order: [["billingMonth", "DESC"]],
         },
+
+        {
+          model: Student,
+          as: "students",
+          attributes: [],
+          required: false,
+        },
+
+        {
+          model: Teacher,
+          as: "teachers",
+          attributes: [],
+          required: false,
+        },
       ],
+
+      attributes: {
+        include: [
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM students AS students
+              WHERE students."franchiseId" = "Franchise"."id"
+            )`),
+            "studentCount",
+          ],
+          [
+            sequelize.literal(`(
+              SELECT COUNT(*)
+              FROM teachers AS teachers
+              WHERE teachers."franchiseId" = "Franchise"."id"
+            )`),
+            "teacherCount",
+          ],
+        ],
+      },
+
       order: [["createdAt", "DESC"]],
     });
 
