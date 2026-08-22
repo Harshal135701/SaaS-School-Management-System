@@ -39,6 +39,8 @@ export function App() {
   const [isAddAdminModalOpen, setIsAddAdminModalOpen] = useState(false);
   const [editFranchise, setEditFranchise] = useState<Franchise | null>(null);
 
+  const [currentUser, setCurrentUser] = useState<any>(null);
+
   // Shared franchise list (all schools registered in the platform)
   const [franchises, setFranchises] = useState<Franchise[]>([]);
 
@@ -128,6 +130,18 @@ export function App() {
         return;
       }
 
+        let storedUser = null;
+        try {
+          const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+          if (userStr) {
+            storedUser = JSON.parse(userStr);
+          }
+        } catch (e) {}
+
+        if (storedUser) {
+          setCurrentUser(storedUser);
+        }
+
       if (decoded.role === 'SYSTEM_ADMIN') {
         setUserRole('Super Admin');
         setCurrentPath('/super-admin/dashboard');
@@ -142,15 +156,6 @@ export function App() {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
         setIsAuthenticated(true);
-        
-        let storedUser = null;
-        try {
-          const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
-          if (userStr) {
-            storedUser = JSON.parse(userStr);
-          }
-        } catch (e) {}
-
         loadFranchiseDashboard(storedUser);
       } else {
         sessionStorage.removeItem('token');
@@ -174,6 +179,7 @@ export function App() {
  const handleLoginSuccess = async (user?: any) => {
   console.log('USER RECEIVED IN APP:', user);
   setIsAuthenticated(true);
+  if (user) setCurrentUser(user);
 
   // System Admin / Super Admin
   if (user?.role === 'SYSTEM_ADMIN') {
@@ -429,6 +435,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
           <FranchisesPage
             onNavigate={(p) => setCurrentPath(p)}
             onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
+            onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
             subView="all"
           />
         );
@@ -438,6 +445,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
           <FranchisesPage
             onNavigate={(p) => setCurrentPath(p)}
             onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
+            onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
             subView="admins"
           />
         );
@@ -496,6 +504,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
 
     return (
       <SuperAdminLayout
+        user={currentUser}
         currentPath={currentPath}
         onNavigate={(path) => setCurrentPath(path)}
         onLogout={handleLogout}

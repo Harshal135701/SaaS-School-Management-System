@@ -2,7 +2,6 @@ import React, { useState } from 'react';
 import { motion } from 'framer-motion';
 import { Tooltip } from '../ui/Tooltip';
 import { Avatar } from '../ui/Avatar';
-import { superAdminProfile } from '../../data/superAdminMockData';
 import { 
   LayoutDashboard, 
   Building2, 
@@ -36,6 +35,7 @@ interface SuperAdminSidebarProps {
   onOpenAddAdminModal?: () => void;
   isMobileOpen?: boolean;
   onCloseMobile?: () => void;
+  user?: any;
 }
 
 export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
@@ -45,7 +45,8 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
   onOpenAddSchoolModal,
   onOpenAddAdminModal,
   isMobileOpen = false,
-  onCloseMobile
+  onCloseMobile,
+  user
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
@@ -212,8 +213,8 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
         {showProfileMenu && (
           <div className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50 animate-in fade-in slide-in-from-bottom-2">
             <div className="p-3 border-b border-slate-100 bg-slate-50/50 rounded-xl mb-1">
-              <p className="text-xs font-bold text-slate-900">{superAdminProfile.name}</p>
-              <p className="text-[11px] text-slate-500 truncate">{superAdminProfile.email}</p>
+              <p className="text-xs font-bold text-slate-900">{user?.name || 'Super Admin'}</p>
+              <p className="text-[11px] text-slate-500 truncate">{user?.email || 'admin@edusphere.edu'}</p>
             </div>
 
             <button
@@ -261,12 +262,12 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
             ${isCollapsed ? 'justify-center p-1.5' : ''}
           `}
         >
-          <Avatar src={superAdminProfile.avatar} name={superAdminProfile.name} size={isCollapsed ? 'sm' : 'md'} status="online" />
+          <Avatar name={user?.name || 'Super Admin'} size={isCollapsed ? 'sm' : 'md'} status="online" />
           
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <div className="text-xs font-extrabold text-slate-900 truncate">
-                {superAdminProfile.name}
+                {user?.name || 'Super Admin'}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
                 <Shield className="w-3 h-3 text-indigo-600 shrink-0" />
