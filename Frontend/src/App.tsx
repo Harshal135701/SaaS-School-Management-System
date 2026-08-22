@@ -49,6 +49,58 @@ export function App() {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+  const loadFranchiseDashboard = async (user?: any) => {
+  try {
+    const res = await api.get('/franchise/dashboard/');
+
+    if (res.data?.success && res.data?.data?.franchise) {
+      const backendFranchise = res.data.data.franchise;
+
+      const franchise: Franchise = {
+        id: backendFranchise.id,
+        code: backendFranchise.code,
+        name: backendFranchise.name,
+        email: backendFranchise.email,
+        phone: backendFranchise.phone,
+        address: backendFranchise.address || '',
+        city: backendFranchise.city,
+        state: backendFranchise.state,
+        country: backendFranchise.country || 'India',
+
+        plan: 'Basic',
+
+        adminName: user?.name || 'Admin',
+        adminEmail: user?.email || '',
+        adminPhone: user?.phone || '',
+
+        studentCount: 0,
+        teacherCount: 0,
+
+        contractStatus: 'Active',
+        royaltyStatus: 'Pending',
+        status: 'Active',
+
+        joinedDate: '',
+        contractStartDate: '',
+        contractEndDate: '',
+
+        monthlyRoyalty: 0,
+      };
+
+      setLoggedInFranchise(franchise);
+
+      return franchise;
+    }
+
+    setLoggedInFranchise(null);
+    return null;
+
+  } catch (error) {
+    console.error('Failed to fetch franchise dashboard:', error);
+    setLoggedInFranchise(null);
+    return null;
+  }
+};
 
   useEffect(() => {
     // Check active session in the current browser tab
@@ -57,6 +109,7 @@ export function App() {
     if (!token) {
       // Clear any legacy persistent token so new sessions always start at Login page
       localStorage.removeItem('token');
+      localStorage.removeItem('user');
       setIsAuthenticated(false);
       setCurrentPath('/login');
       return;
@@ -68,6 +121,8 @@ export function App() {
       if (decoded.exp && decoded.exp * 1000 < Date.now()) {
         sessionStorage.removeItem('token');
         localStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        localStorage.removeItem('user');
         setIsAuthenticated(false);
         setCurrentPath('/login');
         return;
@@ -87,9 +142,21 @@ export function App() {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
         setIsAuthenticated(true);
+        
+        let storedUser = null;
+        try {
+          const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+          if (userStr) {
+            storedUser = JSON.parse(userStr);
+          }
+        } catch (e) {}
+
+        loadFranchiseDashboard(storedUser);
       } else {
         sessionStorage.removeItem('token');
         localStorage.removeItem('token');
+        sessionStorage.removeItem('user');
+        localStorage.removeItem('user');
         setIsAuthenticated(false);
         setCurrentPath('/login');
       }
@@ -97,12 +164,15 @@ export function App() {
       console.error('Invalid authentication token:', error);
       sessionStorage.removeItem('token');
       localStorage.removeItem('token');
+      sessionStorage.removeItem('user');
+      localStorage.removeItem('user');
       setIsAuthenticated(false);
       setCurrentPath('/login');
     }
   }, []);
 
-  const handleLoginSuccess = (user?: any) => {
+ const handleLoginSuccess = async (user?: any) => {
+  console.log('USER RECEIVED IN APP:', user);
   setIsAuthenticated(true);
 
   // System Admin / Super Admin
@@ -124,33 +194,77 @@ export function App() {
   }
 
   // Franchise / School Admin
-  if (user?.role === 'FRANCHISE_ADMIN') {
-    setUserRole('Franchise Admin');
+if (user?.role === 'FRANCHISE_ADMIN') {
+    console.log('FRANCHISE ADMIN USER:', user);
+  setUserRole('Franchise Admin');
 
-    // Find the school/franchise associated with this admin.
-    // Match by admin email when the franchise data is available.
-    const matchedFranchise = franchises.find(
-      f =>
-        f.adminEmail &&
-        user.email &&
-        f.adminEmail.toLowerCase() === user.email.toLowerCase()
-    );
+  try {
+    // Fetch the actual school/franchise belonging to
+    // the currently logged-in Franchise Admin.
+    const res = await api.get('/franchise/dashboard/');
 
-    setLoggedInFranchise(matchedFranchise || null);
-    setCurrentPath('/admin/dashboard');
+    if (res.data?.success && res.data?.data?.franchise) {
+      const backendFranchise = res.data.data.franchise;
 
-    if (matchedFranchise) {
+      const franchise: Franchise = {
+        id: backendFranchise.id,
+        code: backendFranchise.code,
+        name: backendFranchise.name,
+        email: backendFranchise.email,
+        phone: backendFranchise.phone,
+        address: backendFranchise.address || '',
+        city: backendFranchise.city,
+        state: backendFranchise.state,
+        country: backendFranchise.country || 'India',
+
+        plan: 'Basic',
+
+        adminName: user.name || 'Admin',
+        adminEmail: user.email || '',
+        adminPhone: user.phone || '',
+
+        studentCount: 0,
+        teacherCount: 0,
+
+        contractStatus: 'Active',
+        royaltyStatus: 'Pending',
+        status: 'Active',
+
+        joinedDate: '',
+        contractStartDate: '',
+        contractEndDate: '',
+
+        monthlyRoyalty: 0,
+      };
+      console.log('FRANCHISE CREATED FOR DASHBOARD:', franchise);
+      setLoggedInFranchise(franchise);
+
+      setCurrentPath('/admin/dashboard');
+
       showToast(
-        `Welcome, ${matchedFranchise.adminName}! Signed in to ${matchedFranchise.name}.`
+        `Welcome, ${user.name || 'Admin'}! Signed in to ${franchise.name}.`
       );
     } else {
+      setLoggedInFranchise(null);
+      setCurrentPath('/admin/dashboard');
+
       showToast(
         `Signed in successfully as Franchise Admin (${user.email}).`
       );
     }
+  } catch (error) {
+    console.error('Failed to fetch franchise dashboard:', error);
 
-    return;
+    setLoggedInFranchise(null);
+    setCurrentPath('/admin/dashboard');
+
+    showToast(
+      `Signed in successfully as Franchise Admin (${user.email}).`
+    );
   }
+
+  return;
+}
 
   // Unknown / invalid role
   setIsAuthenticated(false);
@@ -163,6 +277,8 @@ export function App() {
   const handleLogout = () => {
     sessionStorage.removeItem('token');
     localStorage.removeItem('token');
+    sessionStorage.removeItem('user');
+    localStorage.removeItem('user');
     setIsAuthenticated(false);
     setLoggedInFranchise(null);
     setCurrentPath('/login');

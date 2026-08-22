@@ -5,7 +5,7 @@ import { Badge } from '../../components/ui/Badge';
 import { BookOpen, Award, Shield } from 'lucide-react';
 
 interface LoginPageProps {
-  onLoginSuccess: (email?: string) => void;
+  onLoginSuccess: (user?: any) => void;
   onNavigateRegister: () => void;
   onNavigateForgotPassword: () => void;
 }

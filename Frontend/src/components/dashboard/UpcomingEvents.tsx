@@ -1,20 +1,8 @@
 import React from 'react';
 import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { mockEvents } from '../../data/mockData';
-import { Calendar, Clock, MapPin, ChevronRight } from 'lucide-react';
+import { Calendar, ChevronRight } from 'lucide-react';
 
 export const UpcomingEvents: React.FC = () => {
-  const getCategoryVariant = (cat: string) => {
-    switch (cat) {
-      case 'Academic': return 'blue';
-      case 'Sports': return 'emerald';
-      case 'Meeting': return 'amber';
-      case 'Cultural': return 'purple';
-      default: return 'indigo';
-    }
-  };
-
   return (
     <Card hoverLift padding="md" className="w-full h-full flex flex-col justify-between">
       <div>
@@ -34,40 +22,8 @@ export const UpcomingEvents: React.FC = () => {
           </button>
         </div>
 
-        <div className="space-y-3">
-          {mockEvents.map((evt) => (
-            <div
-              key={evt.id}
-              className="p-3 rounded-xl border border-slate-100 bg-slate-50/50 hover:bg-slate-50 transition-colors flex items-start justify-between gap-3"
-            >
-              <div className="flex items-start gap-3">
-                <div className="px-2.5 py-1.5 rounded-xl bg-white border border-slate-200 text-center shrink-0 shadow-2xs">
-                  <span className="block text-[10px] font-bold text-blue-600 uppercase tracking-wider">
-                    {evt.date.split(' ')[0]}
-                  </span>
-                  <span className="block text-base font-extrabold text-slate-900 leading-tight">
-                    {evt.date.split(' ')[1].replace(',', '')}
-                  </span>
-                </div>
-
-                <div>
-                  <h4 className="text-xs font-bold text-slate-900 line-clamp-1">{evt.title}</h4>
-                  <div className="flex items-center gap-3 text-[11px] text-slate-500 mt-1">
-                    <span className="flex items-center gap-1">
-                      <Clock className="w-3 h-3 text-slate-400" /> {evt.time}
-                    </span>
-                    <span className="flex items-center gap-1">
-                      <MapPin className="w-3 h-3 text-slate-400" /> {evt.location}
-                    </span>
-                  </div>
-                </div>
-              </div>
-
-              <Badge variant={getCategoryVariant(evt.category)} size="sm">
-                {evt.category}
-              </Badge>
-            </div>
-          ))}
+        <div className="h-40 w-full flex items-center justify-center bg-slate-50/50 rounded-xl border border-slate-100 border-dashed">
+          <p className="text-sm font-semibold text-slate-400">No upcoming events</p>
         </div>
       </div>
     </Card>
