@@ -561,6 +561,7 @@ export function App() {
           <AdminDashboardPage
             onOpenStaffModal={() => setIsStaffModalOpen(true)}
             franchise={loggedInFranchise}
+            onNavigate={(path) => setCurrentPath(path)}
           />
         );
     }
