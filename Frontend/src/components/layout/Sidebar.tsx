@@ -85,7 +85,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'STUDENT LIFE',
       items: [
         { id: 'attendance', label: 'Attendance', icon: CheckCircle2, path: '/admin/attendance' },
-        { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/exams' },
+       { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/examinations' },
         { id: 'homework', label: 'Homework', icon: ClipboardList, path: '/admin/homework' },
         { id: 'leave', label: 'Leave Management', icon: CalendarOff, path: '/admin/leaves' }
       ]
