@@ -177,8 +177,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         break;
 
       case 'add_parent':
-        // Parent page is not available yet.
-        console.log('Add Parent clicked');
+        onNavigate?.('/admin/parents');
         break;
 
       case 'create_notice':

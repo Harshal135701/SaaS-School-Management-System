@@ -1,6 +1,7 @@
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { LoginPage } from './pages/auth/LoginPage';
+import { ParentsPage } from './pages/admin/ParentsPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { AttendancePage } from './pages/admin/AttendancePage';
@@ -551,6 +552,9 @@ export function App() {
 
       case '/admin/attendance':
         return <AttendancePage />;
+
+      case '/admin/parents':
+        return <ParentsPage />;
 
       case '/admin/settings':
         return <SettingsPage />;
