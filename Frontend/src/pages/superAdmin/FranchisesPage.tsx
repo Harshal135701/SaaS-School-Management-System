@@ -17,12 +17,14 @@ import {
 interface FranchisesPageProps {
   onNavigate: (path: string) => void;
   onOpenAddFranchiseModal: () => void;
+  onOpenAddAdminModal?: () => void;
   subView?: 'all' | 'admins';
 }
 
 export const FranchisesPage: React.FC<FranchisesPageProps> = ({
   onNavigate,
   onOpenAddFranchiseModal,
+  onOpenAddAdminModal,
   subView = 'all'
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'admins'>(subView);
@@ -139,10 +141,10 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
 
         <Button
           variant="primary"
-          onClick={onOpenAddFranchiseModal}
+          onClick={activeTab === 'admins' ? onOpenAddAdminModal : onOpenAddFranchiseModal}
           leftIcon={<PlusCircle className="w-4 h-4" />}
         >
-          Add Franchise School
+          {activeTab === 'admins' ? 'Add Franchise Admin' : 'Add Franchise School'}
         </Button>
       </div>
 

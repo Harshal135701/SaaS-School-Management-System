@@ -1,15 +1,34 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { GraduationCap, Search, Filter, Plus, Eye, Edit, Trash2 } from 'lucide-react';
+import api from '../../services/api';
 
 export const StudentsPage: React.FC = () => {
-  const studentsMock = [
-    { id: 'STU1001', name: 'Ananya Kumar', grade: '10th', section: 'A', parent: 'Ramesh Kumar', roll: '1001', status: 'Active', feeStatus: 'Paid' },
-    { id: 'STU1002', name: 'Rohan Deshmukh', grade: '5th', section: 'C', parent: 'Meera Deshmukh', roll: '5012', status: 'Active', feeStatus: 'Pending' },
-    { id: 'STU1003', name: 'Aarav Patel', grade: '12th', section: 'B', parent: 'Sanjay Patel', roll: '1204', status: 'Active', feeStatus: 'Paid' },
-    { id: 'STU1004', name: 'Diya Sharma', grade: '8th', section: 'A', parent: 'Alok Sharma', roll: '8023', status: 'Active', feeStatus: 'Overdue' }
-  ];
+  const [students, setStudents] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    const fetchStudents = async () => {
+      try {
+        setLoading(true);
+        setError(null);
+        const res = await api.get('/franchise/students');
+        if (res.data?.success) {
+          setStudents(res.data.data);
+        } else {
+          setError('Failed to fetch students.');
+        }
+      } catch (err) {
+        console.error('Error fetching students:', err);
+        setError('Failed to load students. Please try again later.');
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchStudents();
+  }, []);
 
   return (
     <div className="space-y-6">
@@ -48,45 +67,67 @@ export const StudentsPage: React.FC = () => {
           </div>
         </div>
 
-        {/* Table */}
-        <div className="overflow-x-auto">
-          <table className="w-full text-left text-xs">
-            <thead>
-              <tr className="border-b border-slate-100 text-slate-400 font-extrabold uppercase tracking-wider bg-slate-50/50">
-                <th className="p-3">Student ID</th>
-                <th className="p-3">Student Name</th>
-                <th className="p-3">Grade & Sec</th>
-                <th className="p-3">Parent Name</th>
-                <th className="p-3">Status</th>
-                <th className="p-3">Fee Status</th>
-                <th className="p-3 text-right">Actions</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
-              {studentsMock.map((s) => (
-                <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
-                  <td className="p-3 font-bold text-blue-700">{s.id}</td>
-                  <td className="p-3 font-bold text-slate-900">{s.name}</td>
-                  <td className="p-3">{s.grade} - {s.section}</td>
-                  <td className="p-3">{s.parent}</td>
-                  <td className="p-3">
-                    <Badge variant="green" size="sm">{s.status}</Badge>
-                  </td>
-                  <td className="p-3">
-                    <Badge variant={s.feeStatus === 'Paid' ? 'blue' : s.feeStatus === 'Pending' ? 'amber' : 'rose'} size="sm">
-                      {s.feeStatus}
-                    </Badge>
-                  </td>
-                  <td className="p-3 text-right space-x-1">
-                    <button className="p-1 text-slate-400 hover:text-blue-600 rounded"><Eye className="w-4 h-4" /></button>
-                    <button className="p-1 text-slate-400 hover:text-amber-600 rounded"><Edit className="w-4 h-4" /></button>
-                    <button className="p-1 text-slate-400 hover:text-rose-600 rounded"><Trash2 className="w-4 h-4" /></button>
-                  </td>
+        {loading ? (
+          <div className="flex items-center justify-center h-48 border-2 border-dashed border-slate-200 rounded-xl">
+            <div className="text-center space-y-3">
+              <div className="w-6 h-6 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto"></div>
+              <p className="text-xs font-bold text-slate-500">Loading students...</p>
+            </div>
+          </div>
+        ) : error ? (
+          <div className="p-4 bg-rose-50 text-rose-700 rounded-xl border border-rose-100 font-bold text-center text-sm">
+            {error}
+          </div>
+        ) : students.length === 0 ? (
+          <div className="flex items-center justify-center h-48 border-2 border-dashed border-slate-200 rounded-xl">
+            <p className="text-sm font-semibold text-slate-400">No students found</p>
+          </div>
+        ) : (
+          /* Table */
+          <div className="overflow-x-auto">
+            <table className="w-full text-left text-xs">
+              <thead>
+                <tr className="border-b border-slate-100 text-slate-400 font-extrabold uppercase tracking-wider bg-slate-50/50">
+                  <th className="p-3">Student ID</th>
+                  <th className="p-3">Student Name</th>
+                  <th className="p-3">Grade & Sec</th>
+                  <th className="p-3">Parent Name</th>
+                  <th className="p-3">Status</th>
+                  <th className="p-3">Fee Status</th>
+                  <th className="p-3 text-right">Actions</th>
                 </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
+              </thead>
+              <tbody className="divide-y divide-slate-100 font-medium text-slate-700">
+                {students.map((s) => (
+                  <tr key={s.id} className="hover:bg-slate-50/80 transition-colors">
+                    <td className="p-3 font-bold text-blue-700">
+                      {/* Using first 8 chars of UUID if it's a UUID, otherwise ID */}
+                      {s.id.length > 8 ? s.id.substring(0, 8).toUpperCase() : s.id}
+                    </td>
+                    <td className="p-3 font-bold text-slate-900">{s.name}</td>
+                    <td className="p-3">—</td>
+                    <td className="p-3">—</td>
+                    <td className="p-3">
+                      <Badge variant={s.status === 'ACTIVE' || s.status === 'Active' ? 'green' : 'slate'} size="sm">
+                        {s.status || 'Active'}
+                      </Badge>
+                    </td>
+                    <td className="p-3">
+                      <Badge variant="slate" size="sm">
+                        —
+                      </Badge>
+                    </td>
+                    <td className="p-3 text-right space-x-1">
+                      <button className="p-1 text-slate-400 hover:text-blue-600 rounded"><Eye className="w-4 h-4" /></button>
+                      <button className="p-1 text-slate-400 hover:text-amber-600 rounded"><Edit className="w-4 h-4" /></button>
+                      <button className="p-1 text-slate-400 hover:text-rose-600 rounded"><Trash2 className="w-4 h-4" /></button>
+                    </td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        )}
       </Card>
     </div>
   );

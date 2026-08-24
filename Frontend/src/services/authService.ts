@@ -9,6 +9,9 @@ export const login = async (email: string, password: string) => {
     if (token) {
       sessionStorage.setItem("token", token);
       localStorage.setItem("token", token);
+      const userToStore = { ...admin, role: 'SYSTEM_ADMIN' };
+      sessionStorage.setItem("user", JSON.stringify(userToStore));
+      localStorage.setItem("user", JSON.stringify(userToStore));
     }
     
     return { token, admin: { ...admin, role: 'SYSTEM_ADMIN' } };
@@ -16,14 +19,17 @@ export const login = async (email: string, password: string) => {
     if (error.response?.status === 401 || error.response?.status === 404) {
       // Fallback: Attempt Franchise Admin Login
       const frRes = await api.post("/franchise/auth/login", { email, password });
-      const { token, data } = frRes.data;
+      const { token, admin } = frRes.data;
       
       if (token) {
         sessionStorage.setItem("token", token);
         localStorage.setItem("token", token);
+        const userToStore = { ...admin, role: 'FRANCHISE_ADMIN' };
+        sessionStorage.setItem("user", JSON.stringify(userToStore));
+        localStorage.setItem("user", JSON.stringify(userToStore));
       }
       
-      return { token, admin: { ...data, role: 'FRANCHISE_ADMIN' } };
+      return { token, admin: { ...admin, role: 'FRANCHISE_ADMIN' } };
     }
     throw error;
   }

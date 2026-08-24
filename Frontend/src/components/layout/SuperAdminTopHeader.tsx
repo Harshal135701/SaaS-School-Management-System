@@ -1,6 +1,5 @@
 import React, { useState } from 'react';
 import { Badge } from '../ui/Badge';
-import { mockSuperAdminNotifications } from '../../data/superAdminMockData';
 import { 
   Search, 
   Bell, 
@@ -17,20 +16,105 @@ interface SuperAdminTopHeaderProps {
   onLogout?: () => void;
   onNavigate: (path: string) => void;
   onOpenAddFranchiseModal?: () => void;
+  user?: any;
+  franchises?: any[];
 }
 
 export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
   onToggleMobileSidebar,
-  onNavigate
+  onNavigate,
+  user,
+  franchises = []
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
-  const notifications = mockSuperAdminNotifications;
-  const unreadCount = notifications.filter(n => !n.read).length;
+  const [showSearchResults, setShowSearchResults] = useState(false);
+
+  // Deriving active school count
+  const activeSchoolsCount = franchises.filter(
+    f => f.status === 'ACTIVE' || f.status === 'Active'
+  ).length;
+
+  // Deriving notifications
+  const derivedNotifications = React.useMemo(() => {
+    const notifs: any[] = [];
+    const now = new Date();
+
+    franchises.forEach(f => {
+      // New franchise in last 7 days
+      if (f.createdAt) {
+        const createdDate = new Date(f.createdAt);
+        const diffDays = Math.ceil((now.getTime() - createdDate.getTime()) / (1000 * 3600 * 24));
+        if (diffDays <= 7) {
+          notifs.push({
+            id: `new-${f.id}`,
+            title: 'New Franchise Registered',
+            description: `${f.name} (${f.code}) completed onboarding.`,
+            severity: 'success',
+            read: false,
+            timestamp: diffDays === 1 ? '1 day ago' : `${diffDays} days ago`
+          });
+        }
+      }
+
+      // Overdue royalty
+      if (f.monthlyRoyalties) {
+        f.monthlyRoyalties.forEach((r: any) => {
+          if (r.status === 'OVERDUE') {
+            notifs.push({
+              id: `royalty-${r.id || f.id}`,
+              title: 'Royalty Payment Overdue',
+              description: `${f.name} (${f.code}) has an overdue payment.`,
+              severity: 'danger',
+              read: false,
+              timestamp: r.dueDate ? `Due ${new Date(r.dueDate).toLocaleDateString()}` : 'Recently'
+            });
+          }
+        });
+      }
+
+      // Contract expiring soon
+      if (f.contracts) {
+        f.contracts.forEach((c: any) => {
+          if (c.endDate) {
+            const endDate = new Date(c.endDate);
+            const diffDays = Math.ceil((endDate.getTime() - now.getTime()) / (1000 * 3600 * 24));
+            if (diffDays > 0 && diffDays <= 60) {
+              notifs.push({
+                id: `contract-${c.id || f.id}`,
+                title: 'Contract Expiring Soon',
+                description: `${f.name} (${f.code}) contract ends in ${diffDays} days.`,
+                severity: 'warning',
+                read: false,
+                timestamp: 'Upcoming'
+              });
+            }
+          }
+        });
+      }
+    });
+
+    // Sort notifications, newest first (simplified sort based on ID or we can just reverse)
+    return notifs.reverse();
+  }, [franchises]);
+
+  const unreadCount = derivedNotifications.length; // Assume all derived are unread or just count all
+
+  const searchResults = React.useMemo(() => {
+    if (!searchQuery.trim()) return [];
+    const q = searchQuery.toLowerCase();
+    return franchises.filter(f => 
+      f.name?.toLowerCase().includes(q) || 
+      f.code?.toLowerCase().includes(q) || 
+      f.admin?.name?.toLowerCase().includes(q) || 
+      f.admin?.email?.toLowerCase().includes(q)
+    ).slice(0, 5); // top 5
+  }, [searchQuery, franchises]);
 
   const handleSearchSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (searchQuery.trim()) {
+      setShowSearchResults(false);
       onNavigate(`/super-admin/franchises?search=${encodeURIComponent(searchQuery)}`);
     }
   };
@@ -56,9 +140,42 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
             type="text"
             placeholder="Search schools, franchise admins, contracts..."
             value={searchQuery}
-            onChange={(e) => setSearchQuery(e.target.value)}
+            onChange={(e) => {
+              setSearchQuery(e.target.value);
+              setShowSearchResults(true);
+            }}
+            onFocus={() => setShowSearchResults(true)}
             className="w-full bg-slate-100/90 border border-transparent rounded-2xl pl-10 pr-4 py-2 text-xs md:text-sm font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
           />
+          
+          {/* Search Results Dropdown */}
+          {showSearchResults && searchQuery.trim() !== '' && (
+            <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50">
+              {searchResults.length > 0 ? (
+                <div className="max-h-64 overflow-y-auto py-2">
+                  {searchResults.map((f: any) => (
+                    <button
+                      key={f.id}
+                      type="button"
+                      onClick={() => {
+                        setShowSearchResults(false);
+                        setSearchQuery('');
+                        onNavigate(`/super-admin/franchises/${f.id}`);
+                      }}
+                      className="w-full text-left px-4 py-2.5 hover:bg-slate-50 transition-colors flex flex-col cursor-pointer"
+                    >
+                      <span className="text-sm font-bold text-slate-900">{f.name}</span>
+                      <span className="text-xs text-slate-500">{f.code} {f.admin?.name ? `• ${f.admin.name}` : ''}</span>
+                    </button>
+                  ))}
+                </div>
+              ) : (
+                <div className="p-4 text-center text-sm font-medium text-slate-500">
+                  No franchises found
+                </div>
+              )}
+            </div>
+          )}
         </form>
       </div>
 
@@ -68,7 +185,7 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
         {/* Platform Status Badge */}
         <div className="hidden lg:flex items-center gap-1.5 px-3 py-1.5 bg-emerald-50 rounded-xl border border-emerald-200/80 text-xs font-bold text-emerald-700">
           <span className="w-2 h-2 rounded-full bg-emerald-500 animate-pulse" />
-          <span>SaaS Platform: <strong className="text-emerald-800">24 Schools Live</strong></span>
+          <span>SaaS Platform: <strong className="text-emerald-800">{activeSchoolsCount} Schools Live</strong></span>
         </div>
 
         {/* Notification Bell */}
@@ -103,7 +220,7 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
               </div>
 
               <div className="space-y-3 py-3 max-h-80 overflow-y-auto">
-                {notifications.map((n) => (
+                {derivedNotifications.length > 0 ? derivedNotifications.map((n) => (
                   <div 
                     key={n.id} 
                     className={`p-2.5 rounded-xl border text-xs flex items-start gap-3 transition-colors ${
@@ -125,7 +242,9 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
                       <span className="text-[9px] font-semibold text-slate-400 mt-1 block">{n.timestamp}</span>
                     </div>
                   </div>
-                ))}
+                )) : (
+                  <div className="text-center text-xs text-slate-500 py-4">No new notifications</div>
+                )}
               </div>
 
               <div className="pt-2 border-t border-slate-100 text-center">

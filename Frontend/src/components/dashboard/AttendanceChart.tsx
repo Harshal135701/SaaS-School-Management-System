@@ -1,7 +1,6 @@
-import React, { useState } from 'react';
+import React from 'react';
 import { Card } from '../ui/Card';
 import { Badge } from '../ui/Badge';
-import { mockAttendanceData } from '../../data/mockData';
 import { 
   ResponsiveContainer, 
   AreaChart, 
@@ -13,15 +12,26 @@ import {
 } from 'recharts';
 import { RefreshCw, CheckCircle, XCircle, Clock } from 'lucide-react';
 
-export const AttendanceChart: React.FC = () => {
-  const [timeframe, setTimeframe] = useState<'Today' | 'This Week' | 'This Month'>('Today');
+interface Props {
+  attendances: any[];
+}
 
-  const data = mockAttendanceData[timeframe];
+export const AttendanceChart: React.FC<Props> = ({ attendances }) => {
+  const totalPresent = attendances.filter(a => a.status === 'PRESENT').length;
+  const totalAbsent = attendances.filter(a => a.status === 'ABSENT').length;
+  const totalLate = attendances.filter(a => a.status === 'LATE').length;
 
-  // Calculate totals for summary metrics
-  const totalPresent = data.reduce((sum, d) => sum + d.Present, 0);
-  const totalAbsent = data.reduce((sum, d) => sum + d.Absent, 0);
-  const totalLate = data.reduce((sum, d) => sum + d.Late, 0);
+  // Group by date for the chart
+  const grouped = attendances.reduce((acc, curr) => {
+    const d = curr.date.split('T')[0]; // Handle ISO dates if necessary
+    if (!acc[d]) acc[d] = { name: d, Present: 0, Absent: 0, Late: 0 };
+    if (curr.status === 'PRESENT') acc[d].Present += 1;
+    if (curr.status === 'ABSENT') acc[d].Absent += 1;
+    if (curr.status === 'LATE') acc[d].Late += 1;
+    return acc;
+  }, {} as Record<string, any>);
+
+  const data = Object.values(grouped).sort((a: any, b: any) => a.name.localeCompare(b.name));
 
   return (
     <Card hoverLift padding="md" className="w-full">
@@ -30,30 +40,13 @@ export const AttendanceChart: React.FC = () => {
         <div>
           <div className="flex items-center gap-2">
             <h3 className="text-lg font-bold text-slate-900 tracking-tight">Attendance Overview</h3>
-            <Badge variant="blue" icon={<RefreshCw className="w-3 h-3 animate-spin text-blue-600" />}>
-              Real-Time Sync
+            <Badge variant="blue" icon={<RefreshCw className="w-3 h-3 text-blue-600" />}>
+              Live Data
             </Badge>
           </div>
           <p className="text-xs text-slate-500 mt-0.5">
-            Student & Faculty check-in telemetry across campus gates
+            Student check-in telemetry across campus
           </p>
-        </div>
-
-        {/* Timeframe selector pills */}
-        <div className="flex items-center p-1 bg-slate-100/80 rounded-xl border border-slate-200/60 self-start sm:self-auto">
-          {(['Today', 'This Week', 'This Month'] as const).map((t) => (
-            <button
-              key={t}
-              onClick={() => setTimeframe(t)}
-              className={`px-3 py-1.5 text-xs font-bold rounded-lg transition-all cursor-pointer ${
-                timeframe === t
-                  ? 'bg-white text-blue-600 shadow-xs'
-                  : 'text-slate-600 hover:text-slate-900'
-              }`}
-            >
-              {t}
-            </button>
-          ))}
         </div>
       </div>
 
@@ -90,51 +83,57 @@ export const AttendanceChart: React.FC = () => {
         </div>
       </div>
 
-      {/* Recharts Area Chart */}
+      {/* Recharts Area Chart or Empty State */}
       <div className="h-64 w-full">
-        <ResponsiveContainer width="100%" height="100%">
-          <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
-            <defs>
-              <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
-                <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
-              </linearGradient>
-              <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
-                <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
-                <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
-              </linearGradient>
-            </defs>
-            <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
-            <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-            <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
-            <RechartsTooltip
-              contentStyle={{
-                backgroundColor: '#ffffff',
-                borderRadius: '12px',
-                border: '1px solid #e2e8f0',
-                boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
-                fontSize: '12px',
-                fontWeight: '600'
-              }}
-            />
-            <Area
-              type="monotone"
-              dataKey="Present"
-              stroke="#10b981"
-              strokeWidth={3}
-              fillOpacity={1}
-              fill="url(#presentGradient)"
-            />
-            <Area
-              type="monotone"
-              dataKey="Absent"
-              stroke="#f43f5e"
-              strokeWidth={2}
-              fillOpacity={1}
-              fill="url(#absentGradient)"
-            />
-          </AreaChart>
-        </ResponsiveContainer>
+        {data.length > 0 ? (
+          <ResponsiveContainer width="100%" height="100%">
+            <AreaChart data={data} margin={{ top: 10, right: 10, left: -20, bottom: 0 }}>
+              <defs>
+                <linearGradient id="presentGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#10b981" stopOpacity={0.4} />
+                  <stop offset="95%" stopColor="#10b981" stopOpacity={0.0} />
+                </linearGradient>
+                <linearGradient id="absentGradient" x1="0" y1="0" x2="0" y2="1">
+                  <stop offset="5%" stopColor="#f43f5e" stopOpacity={0.3} />
+                  <stop offset="95%" stopColor="#f43f5e" stopOpacity={0.0} />
+                </linearGradient>
+              </defs>
+              <CartesianGrid strokeDasharray="3 3" vertical={false} stroke="#f1f5f9" />
+              <XAxis dataKey="name" stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+              <YAxis stroke="#94a3b8" fontSize={11} tickLine={false} axisLine={false} />
+              <RechartsTooltip
+                contentStyle={{
+                  backgroundColor: '#ffffff',
+                  borderRadius: '12px',
+                  border: '1px solid #e2e8f0',
+                  boxShadow: '0 10px 25px -5px rgba(0,0,0,0.1)',
+                  fontSize: '12px',
+                  fontWeight: '600'
+                }}
+              />
+              <Area
+                type="monotone"
+                dataKey="Present"
+                stroke="#10b981"
+                strokeWidth={3}
+                fillOpacity={1}
+                fill="url(#presentGradient)"
+              />
+              <Area
+                type="monotone"
+                dataKey="Absent"
+                stroke="#f43f5e"
+                strokeWidth={2}
+                fillOpacity={1}
+                fill="url(#absentGradient)"
+              />
+            </AreaChart>
+          </ResponsiveContainer>
+        ) : (
+          <div className="h-full w-full flex items-center justify-center bg-slate-50/50 rounded-xl border border-slate-100 border-dashed">
+            <p className="text-sm font-semibold text-slate-400">No attendance data available</p>
+          </div>
+        )}
       </div>
     </Card>
   );

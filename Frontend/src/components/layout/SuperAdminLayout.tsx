@@ -24,6 +24,7 @@ interface SuperAdminLayoutProps {
   onCloseAddAdminModal?: () => void;
   // Franchise list (for admin modal school selector)
   franchises?: Franchise[];
+  user?: any;
 }
 
 export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
@@ -41,7 +42,8 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
   isAddAdminModalOpen: externalAdminOpen,
   onOpenAddAdminModal: externalOpenAdmin,
   onCloseAddAdminModal: externalCloseAdmin,
-  franchises = []
+  franchises = [],
+  user
 }) => {
   const [isMobileSidebarOpen, setIsMobileSidebarOpen] = useState(false);
   const [internalSchoolOpen, setInternalSchoolOpen] = useState(false);
@@ -59,6 +61,7 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
     <div className="min-h-screen bg-slate-50 flex flex-col md:flex-row antialiased selection:bg-blue-600 selection:text-white">
       {/* Super Admin Left Sidebar */}
       <SuperAdminSidebar
+        user={user}
         currentPath={currentPath}
         onNavigate={onNavigate}
         onLogout={onLogout}
@@ -71,6 +74,8 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
       {/* Right Shell Main Area */}
       <div className="flex-1 flex flex-col min-w-0 overflow-x-hidden">
         <SuperAdminTopHeader
+          user={user}
+          franchises={franchises}
           onToggleMobileSidebar={() => setIsMobileSidebarOpen(true)}
           onLogout={onLogout}
           onNavigate={onNavigate}

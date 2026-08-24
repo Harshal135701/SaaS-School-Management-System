@@ -1,7 +1,5 @@
 import React from 'react';
 import { Card } from '../ui/Card';
-import { Badge } from '../ui/Badge';
-import { mockNotices } from '../../data/mockData';
 import { Bell, ArrowUpRight } from 'lucide-react';
 
 export const RecentNotices: React.FC = () => {
@@ -24,33 +22,8 @@ export const RecentNotices: React.FC = () => {
           </button>
         </div>
 
-        <div className="space-y-3">
-          {mockNotices.map((notice) => (
-            <div
-              key={notice.id}
-              className="p-3 rounded-xl border border-slate-100 bg-white hover:border-slate-200 transition-all flex items-center justify-between gap-3"
-            >
-              <div className="space-y-0.5">
-                <div className="flex items-center gap-2">
-                  <h4 className="text-xs font-bold text-slate-900">{notice.title}</h4>
-                </div>
-                <div className="flex items-center gap-2 text-[11px] text-slate-500">
-                  <span>Audience: <strong className="text-slate-700">{notice.targetAudience}</strong></span>
-                  <span>•</span>
-                  <span>{notice.date}</span>
-                  <span>•</span>
-                  <span>By {notice.author}</span>
-                </div>
-              </div>
-
-              <Badge
-                variant={notice.priority === 'High' ? 'rose' : notice.priority === 'Medium' ? 'amber' : 'slate'}
-                size="sm"
-              >
-                {notice.priority} Priority
-              </Badge>
-            </div>
-          ))}
+        <div className="h-40 w-full flex items-center justify-center bg-slate-50/50 rounded-xl border border-slate-100 border-dashed">
+          <p className="text-sm font-semibold text-slate-400">No recent notices</p>
         </div>
       </div>
     </Card>
