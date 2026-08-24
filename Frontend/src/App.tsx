@@ -5,6 +5,7 @@ import { ParentsPage } from './pages/admin/ParentsPage';
 import { RegisterPage } from './pages/auth/RegisterPage';
 import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { AttendancePage } from './pages/admin/AttendancePage';
+import { TimetablePage } from './pages/admin/TimetablePage';
 import api from './services/api';
 
 // School/Franchise Admin Existing Imports
@@ -548,6 +549,11 @@ export function App() {
           <TeachersPage
             onOpenStaffModal={() => setIsStaffModalOpen(true)}
           />
+        );
+
+      case '/admin/timetable':
+        return (
+          <TimetablePage />
         );
 
       case '/admin/attendance':

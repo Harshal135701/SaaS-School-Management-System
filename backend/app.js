@@ -63,7 +63,7 @@ app.use("/api/franchise/fees", feeRoutes);
 app.use("/api/franchise/examinations", examinationRoutes);
 app.use("/api/franchise/books", bookRoutes);
 app.use("/api/franchise/book-issues", bookIssueRoutes);
-app.use("/api/franchise/timetables", timetableRoutes);
+app.use("/api/franchise/timetable", timetableRoutes);
 app.use("/api/franchise/vehicles", vehicleRoutes);
 app.use("/api/franchise/transport-routes", transportRouteRoutes);
 app.use("/api/parent/auth", parentAuthRoutes);

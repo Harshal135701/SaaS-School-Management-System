@@ -20,6 +20,24 @@ const createTimetable = async (req, res) => {
       });
     }
 
+    const normalizedDay = day.toUpperCase();
+
+    const validDays = [
+      "MONDAY",
+      "TUESDAY",
+      "WEDNESDAY",
+      "THURSDAY",
+      "FRIDAY",
+      "SATURDAY",
+    ];
+
+    if (!validDays.includes(normalizedDay)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid day. Allowed days are Monday to Saturday",
+      });
+    }
+
     const teacher = await Teacher.findOne({
       where: {
         id: teacherId,
@@ -36,7 +54,7 @@ const createTimetable = async (req, res) => {
 
     const timetable = await Timetable.create({
       franchiseId: req.user.franchiseId,
-      day,
+      day: normalizedDay,
       startTime,
       endTime,
       subject,
@@ -46,14 +64,15 @@ const createTimetable = async (req, res) => {
       room,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Timetable created successfully",
       data: timetable,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
