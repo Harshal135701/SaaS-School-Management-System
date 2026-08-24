@@ -41,6 +41,7 @@ const parentAuthRoutes = require("./routes/parentAuthRoutes");
 const parentRoutes = require("./routes/parentRoutes");
 const teacherAuthRoutes = require("./routes/teacherAuthRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const passwordResetRoutes = require("./routes/passwordResetRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
@@ -69,6 +70,8 @@ app.use("/api/parent/auth", parentAuthRoutes);
 app.use("/api/franchise/parents", parentRoutes);
 app.use("/api/teacher/auth", teacherAuthRoutes);
 app.use("/api/franchise/chat", chatRoutes);
+
+app.use("/api/auth", passwordResetRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({

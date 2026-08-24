@@ -7,6 +7,7 @@ const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const Contract = require("./Contract");
 const Plan = require("./Plan");
+const PasswordResetOTP = require("./PasswordResetOTP");
 const TransportRoute = require("./TransportRoute");
 const Student = require("./Student");
 const Feature = require("./Feature");
@@ -352,6 +353,7 @@ module.exports = {
   Homework,
   Conversation,
   BookIssue,
+  PasswordResetOTP,
   Message,
   RoyaltyConfiguration,
   MonthlyRoyalty,
