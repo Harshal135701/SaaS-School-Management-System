@@ -21,7 +21,7 @@ export const TeachersPage: React.FC<TeachersPageProps> = ({ onOpenStaffModal }) 
         setError(null);
         const res = await api.get('/franchise/teachers');
         if (res.data?.success) {
-          setTeachers(res.data.data);
+          setTeachers(res.data.data || []);
         } else {
           setError('Failed to fetch teachers.');
         }

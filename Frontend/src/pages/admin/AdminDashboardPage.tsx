@@ -28,7 +28,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
   const [dashboardStats, setDashboardStats] = useState<StatItem[]>([]);
   const [attendanceData, setAttendanceData] = useState<any[]>([]);
   const [feeData, setFeeData] = useState<any[]>([]);
-  
+
   const [liveStudentCount, setLiveStudentCount] = useState(0);
   const [liveTeacherCount, setLiveTeacherCount] = useState(0);
 
@@ -47,7 +47,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
 
         const totalStudents = studentsRes.data.pagination?.total || 0;
         const totalTeachers = teachersRes.data.pagination?.total || 0;
-        const totalParents = parentsRes.data.data?.length || 0;
+        const totalParents =
+          parentsRes.data.pagination?.total ||
+          parentsRes.data.data?.length ||
+          0;
 
         setLiveStudentCount(totalStudents);
         setLiveTeacherCount(totalTeachers);
@@ -123,11 +126,11 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
     fetchData();
   }, []);
 
-  const todayDateString = new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+  const todayDateString = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   });
 
   const adminName = franchise?.adminName || 'Admin';

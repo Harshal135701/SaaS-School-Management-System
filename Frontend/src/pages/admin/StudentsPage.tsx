@@ -16,7 +16,7 @@ export const StudentsPage: React.FC = () => {
         setError(null);
         const res = await api.get('/franchise/students');
         if (res.data?.success) {
-          setStudents(res.data.data);
+          setStudents(res.data.data || []);
         } else {
           setError('Failed to fetch students.');
         }
