@@ -7,6 +7,7 @@ import { ForgotPasswordPage } from './pages/auth/ForgotPasswordPage';
 import { AttendancePage } from './pages/admin/AttendancePage';
 import { TimetablePage } from './pages/admin/TimetablePage';
 import { ExaminationPage } from "./pages/admin/ExaminationPage";
+import FeesPage from './pages/admin/FeesPage';
 import HomeworkPage from './pages/admin/HomeworkPage';
 import api from './services/api';
 
@@ -570,6 +571,10 @@ export function App() {
 
       case '/admin/homework':
         return <HomeworkPage />;
+
+
+      case '/admin/fees':
+        return <FeesPage />;
 
       case '/admin/settings':
         return <SettingsPage />;

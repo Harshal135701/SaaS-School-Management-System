@@ -25,6 +25,9 @@ const ParentStudent = require("./ParentStudent");
 const Conversation = require("./Conversation");
 const ConversationParticipant = require("./ConversationParticipant");
 const Message = require("./Message");
+const Class = require("./Class")(sequelize);
+const Section = require("./Section")(sequelize);
+const Subject = require("./Subject")(sequelize);
 
 // Plan ↔ Feature
 Plan.belongsToMany(Feature, {
@@ -67,6 +70,49 @@ Franchise.hasMany(Teacher, {
 });
 
 Teacher.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+
+
+Franchise.hasMany(Class, {
+  foreignKey: "franchiseId",
+  as: "classes",
+});
+
+Class.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Franchise.hasMany(Section, {
+  foreignKey: "franchiseId",
+  as: "sections",
+});
+
+Section.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Class.hasMany(Section, {
+  foreignKey: "classId",
+  as: "sections",
+  onDelete: "CASCADE",
+});
+
+Section.belongsTo(Class, {
+  foreignKey: "classId",
+  as: "class",
+});
+
+Franchise.hasMany(Subject, {
+  foreignKey: "franchiseId",
+  as: "subjects",
+});
+
+Subject.belongsTo(Franchise, {
   foreignKey: "franchiseId",
   as: "franchise",
 });
@@ -345,6 +391,9 @@ module.exports = {
   Feature,
   Contract,
   TransportRoute,
+  Class,
+  Section,
+  Subject,
   Book,
   ConversationParticipant,
   Vehicle,
