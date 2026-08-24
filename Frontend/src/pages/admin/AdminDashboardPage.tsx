@@ -93,6 +93,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             isPositive: true,
             subtext: 'Live count',
             iconName: 'GraduationCap',
+            color: 'blue',
           },
           {
             id: 'stat_teachers_staff',
@@ -102,6 +103,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             isPositive: true,
             subtext: 'Live count',
             iconName: 'Presentation',
+            color: 'purple',
           },
           {
             id: 'stat_parents',
@@ -111,6 +113,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             isPositive: true,
             subtext: 'Live count',
             iconName: 'Users',
+            color: 'emerald',
           },
           {
             id: 'stat_classes',
@@ -120,6 +123,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             isPositive: true,
             subtext: 'Not available',
             iconName: 'Building2',
+            color: 'amber',
           },
           {
             id: 'stat_admissions',
@@ -129,6 +133,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
             isPositive: true,
             subtext: 'Not available',
             iconName: 'UserPlus',
+            color: 'rose',
           },
         ];
 

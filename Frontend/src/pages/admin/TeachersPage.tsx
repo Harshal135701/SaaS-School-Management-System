@@ -18,10 +18,6 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
-interface TeachersPageProps {
-  onOpenStaffModal: () => void;
-}
-
 interface Teacher {
   id: string;
   name: string;
@@ -52,9 +48,7 @@ const emptyForm: TeacherForm = {
   confirmPassword: '',
 };
 
-export const TeachersPage: React.FC<TeachersPageProps> = ({
-  onOpenStaffModal,
-}) => {
+export const TeachersPage: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -96,7 +90,7 @@ export const TeachersPage: React.FC<TeachersPageProps> = ({
 
   const openAddModal = () => {
     setEditingTeacher(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm });
     setError(null);
     setShowPassword(false);
     setIsModalOpen(true);
@@ -125,8 +119,9 @@ export const TeachersPage: React.FC<TeachersPageProps> = ({
 
     setIsModalOpen(false);
     setEditingTeacher(null);
-    setForm(emptyForm);
+    setForm({ ...emptyForm });
     setError(null);
+    setShowPassword(false);
   };
 
   const handleChange = (
@@ -169,7 +164,14 @@ export const TeachersPage: React.FC<TeachersPageProps> = ({
       setSaving(true);
       setError(null);
 
-      const payload: any = {
+      const payload: {
+        name: string;
+        email: string;
+        phone?: string;
+        subject?: string;
+        department?: string;
+        password?: string;
+      } = {
         name: form.name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim() || undefined,

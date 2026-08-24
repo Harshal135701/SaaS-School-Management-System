@@ -549,9 +549,7 @@ export function App() {
 
       case '/admin/teachers':
         return (
-          <TeachersPage
-            onOpenStaffModal={() => setIsStaffModalOpen(true)}
-          />
+          <TeachersPage />
         );
 
       case '/admin/timetable':
