@@ -3,7 +3,6 @@ const { Homework, Teacher } = require("../models");
 const createHomework = async (req, res) => {
   try {
     const {
-      teacherId,
       title,
       description,
       subject,
@@ -11,7 +10,12 @@ const createHomework = async (req, res) => {
       status,
     } = req.body;
 
-    if (!teacherId || !title || !subject || !dueDate) {
+    const teacherId =
+      req.user.role === "TEACHER"
+        ? req.user.id
+        : req.body.teacherId;
+
+    if (!title || !subject || !dueDate) {
       return res.status(400).json({
         success: false,
         message: "teacherId, title, subject and dueDate are required",
@@ -226,5 +230,5 @@ const deleteHomework = async (req, res) => {
 
 
 module.exports = {
-  createHomework,getHomeworks,getHomeworkById,updateHomework,deleteHomework
+  createHomework, getHomeworks, getHomeworkById, updateHomework, deleteHomework
 };
