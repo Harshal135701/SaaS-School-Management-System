@@ -1,22 +1,30 @@
 const express = require("express");
+
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 
 const {
   createParent,
   assignStudent,
   getParents,
+  updateParent,
+  deleteParent,
 } = require("../controllers/parentController");
 
-router.post("/", franchiseProtect, createParent);
+router.post("/", teacherOrFranchiseProtect, createParent);
 
-router.get("/", franchiseProtect, getParents);
+router.get("/", teacherOrFranchiseProtect, getParents);
+
+router.put("/:id", teacherOrFranchiseProtect, updateParent);
+
+router.delete("/:id", teacherOrFranchiseProtect, deleteParent);
 
 router.post(
   "/assign-student",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   assignStudent
 );
 
 module.exports = router;
+
