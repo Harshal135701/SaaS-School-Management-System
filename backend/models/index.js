@@ -28,6 +28,7 @@ const Message = require("./Message");
 const Class = require("./Class")(sequelize);
 const Section = require("./Section")(sequelize);
 const Subject = require("./Subject")(sequelize);
+const ExamResult = require("./ExamResult");
 
 // Plan ↔ Feature
 Plan.belongsToMany(Feature, {
@@ -187,6 +188,35 @@ Examination.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Franchise.hasMany(ExamResult, {
+  foreignKey: "franchiseId",
+  as: "examResults",
+});
+
+ExamResult.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Examination.hasMany(ExamResult, {
+  foreignKey: "examinationId",
+  as: "results",
+});
+
+ExamResult.belongsTo(Examination, {
+  foreignKey: "examinationId",
+  as: "examination",
+});
+
+Student.hasMany(ExamResult, {
+  foreignKey: "studentId",
+  as: "examResults",
+});
+
+ExamResult.belongsTo(Student, {
+  foreignKey: "studentId",
+  as: "student",
+});
 
 Franchise.hasMany(Book, {
   foreignKey: "franchiseId",
@@ -406,6 +436,7 @@ module.exports = {
   Message,
   RoyaltyConfiguration,
   MonthlyRoyalty,
+  ExamResult,
   Timetable,
   Parent,
   Teacher,
