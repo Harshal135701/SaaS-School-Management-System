@@ -24,6 +24,10 @@ import { ContractsPage } from './pages/superAdmin/ContractsPage';
 import { SuperAdminSettingsPage } from './pages/superAdmin/SuperAdminSettingsPage';
 import type { Franchise } from './types/superAdmin';
 
+// Parent Imports
+import { ParentLayout } from './components/layout/ParentLayout';
+import { ParentDashboardPage } from './pages/parent/ParentDashboardPage';
+
 // Super Admin email — the only hardcoded check needed
 
 
@@ -157,6 +161,10 @@ export function App() {
         setCurrentPath('/admin/dashboard');
         setIsAuthenticated(true);
         loadFranchiseDashboard(storedUser);
+      } else if (decoded.role === 'PARENT') {
+        setUserRole('Parent');
+        setCurrentPath('/parent/dashboard');
+        setIsAuthenticated(true);
       } else {
         sessionStorage.removeItem('token');
         localStorage.removeItem('token');
@@ -271,6 +279,15 @@ if (user?.role === 'FRANCHISE_ADMIN') {
 
   return;
 }
+
+  // Parent
+  if (user?.role === 'PARENT') {
+    setUserRole('Parent');
+    setLoggedInFranchise(null); // Parent doesn't manage the franchise
+    setCurrentPath('/parent/dashboard');
+    showToast(`Welcome back, ${user.name || 'Parent'}!`);
+    return;
+  }
 
   // Unknown / invalid role
   setIsAuthenticated(false);
@@ -534,7 +551,36 @@ if (user?.role === 'FRANCHISE_ADMIN') {
     );
   }
 
-  // ── 2. FRANCHISE / SCHOOL ADMIN VIEWS ──
+  // ── 2. PARENT VIEWS ──
+  if (userRole === 'Parent' || currentPath.startsWith('/parent')) {
+    return (
+      <ParentLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        user={currentUser}
+      >
+        {currentPath === '/parent/dashboard' || currentPath === '/parent' ? (
+          <ParentDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in Parent Portal.
+          </div>
+        )}
+
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
+            <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>{toastMessage}</span>
+            </div>
+          </div>
+        )}
+      </ParentLayout>
+    );
+  }
+
+  // ── 3. FRANCHISE / SCHOOL ADMIN VIEWS ──
   // loggedInFranchise holds the specific school for this admin
   const renderDashboardContent = () => {
     switch (currentPath) {
