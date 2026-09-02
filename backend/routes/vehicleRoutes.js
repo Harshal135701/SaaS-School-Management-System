@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   createVehicle,
@@ -11,10 +12,16 @@ const {
   deleteVehicle,
 } = require("../controllers/vehicleController");
 
-router.post("/", franchiseProtect, createVehicle);
-router.get("/", franchiseProtect, getVehicles);
-router.get("/:id", franchiseProtect, getVehicleById);
-router.put("/:id", franchiseProtect, updateVehicle);
-router.delete("/:id", franchiseProtect, deleteVehicle);
+const transportAccess = allowRoles(
+  "PRINCIPAL",
+  "SUPPORT",
+  "FRANCHISE_ADMIN"
+);
+
+router.post("/", teacherOrFranchiseProtect, transportAccess, createVehicle);
+router.get("/", teacherOrFranchiseProtect, transportAccess, getVehicles);
+router.get("/:id", teacherOrFranchiseProtect, transportAccess, getVehicleById);
+router.put("/:id", teacherOrFranchiseProtect, transportAccess, updateVehicle);
+router.delete("/:id", teacherOrFranchiseProtect, transportAccess, deleteVehicle);
 
 module.exports = router;

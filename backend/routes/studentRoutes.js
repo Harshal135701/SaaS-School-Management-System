@@ -2,9 +2,8 @@ const express = require("express");
 
 const router = express.Router();
 
-// const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
-
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   createStudent,
@@ -14,14 +13,21 @@ const {
   deleteStudent,
 } = require("../controllers/studentController");
 
+const studentAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "DATA_ENTRY",
+  "FRANCHISE_ADMIN"
+);
 
-router.get("/", teacherOrFranchiseProtect, getStudents);
-router.get("/:id", teacherOrFranchiseProtect, getStudentById);
+router.get("/", teacherOrFranchiseProtect, studentAccess, getStudents);
+router.get("/:id", teacherOrFranchiseProtect, studentAccess, getStudentById);
 
-router.post("/", teacherOrFranchiseProtect, createStudent);
+router.post("/", teacherOrFranchiseProtect, studentAccess, createStudent);
 
-router.put("/:id", teacherOrFranchiseProtect, updateStudent);
+router.put("/:id", teacherOrFranchiseProtect, studentAccess, updateStudent);
 
-router.delete("/:id", teacherOrFranchiseProtect, deleteStudent);
+router.delete("/:id", teacherOrFranchiseProtect, studentAccess, deleteStudent);
 
 module.exports = router;

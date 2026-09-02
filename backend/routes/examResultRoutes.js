@@ -2,6 +2,7 @@ const express = require("express");
 const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   createExamResult,
@@ -11,18 +12,26 @@ const {
   deleteExamResult,
 } = require("../controllers/examResultController");
 
-router.post("/", teacherOrFranchiseProtect, createExamResult);
+const teachingAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "FRANCHISE_ADMIN"
+);
 
-router.get("/", teacherOrFranchiseProtect, getExamResults);
+router.post("/", teacherOrFranchiseProtect, teachingAccess, createExamResult);
+
+router.get("/", teacherOrFranchiseProtect, teachingAccess, getExamResults);
 
 router.get(
   "/examination/:examinationId",
   teacherOrFranchiseProtect,
+  teachingAccess,
   getResultsByExamination
 );
 
-router.put("/:id", teacherOrFranchiseProtect, updateExamResult);
+router.put("/:id", teacherOrFranchiseProtect, teachingAccess, updateExamResult);
 
-router.delete("/:id", teacherOrFranchiseProtect, deleteExamResult);
+router.delete("/:id", teacherOrFranchiseProtect, teachingAccess, deleteExamResult);
 
 module.exports = router;

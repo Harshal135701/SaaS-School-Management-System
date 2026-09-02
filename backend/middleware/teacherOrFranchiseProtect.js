@@ -1,5 +1,14 @@
 const jwt = require("jsonwebtoken");
 
+const STAFF_ROLES = [
+  "TEACHER",
+  "HOD",
+  "PRINCIPAL",
+  "ACCOUNTANT",
+  "DATA_ENTRY",
+  "SUPPORT",
+];
+
 const teacherOrFranchiseProtect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -15,7 +24,7 @@ const teacherOrFranchiseProtect = (req, res, next) => {
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
     if (
-      decoded.role !== "TEACHER" &&
+      !STAFF_ROLES.includes(decoded.role) &&
       decoded.role !== "FRANCHISE_ADMIN"
     ) {
       return res.status(403).json({
@@ -28,7 +37,7 @@ const teacherOrFranchiseProtect = (req, res, next) => {
       id: decoded.id,
       email: decoded.email,
       role: decoded.role,
-      teacherRole: decoded.teacherRole,
+      staffType: decoded.staffType,
       franchiseId: decoded.franchiseId,
     };
 
@@ -42,4 +51,3 @@ const teacherOrFranchiseProtect = (req, res, next) => {
 };
 
 module.exports = teacherOrFranchiseProtect;
-

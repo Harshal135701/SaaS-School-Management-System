@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   createHomework,
@@ -12,10 +13,21 @@ const {
   deleteHomework,
 } = require("../controllers/homeworkController");
 
-router.post("/", teacherOrFranchiseProtect, createHomework);
-router.get("/", teacherOrFranchiseProtect, getHomeworks);
-router.get("/:id", teacherOrFranchiseProtect, getHomeworkById);
-router.put("/:id", teacherOrFranchiseProtect, updateHomework);
-router.delete("/:id", teacherOrFranchiseProtect, deleteHomework);
+const teachingAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "FRANCHISE_ADMIN"
+);
+
+router.post("/", teacherOrFranchiseProtect, teachingAccess, createHomework);
+
+router.get("/", teacherOrFranchiseProtect, teachingAccess, getHomeworks);
+
+router.get("/:id", teacherOrFranchiseProtect, teachingAccess, getHomeworkById);
+
+router.put("/:id", teacherOrFranchiseProtect, teachingAccess, updateHomework);
+
+router.delete("/:id", teacherOrFranchiseProtect, teachingAccess, deleteHomework);
 
 module.exports = router;

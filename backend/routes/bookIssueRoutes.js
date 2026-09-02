@@ -1,7 +1,8 @@
 const express = require("express");
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   issueBook,
@@ -9,10 +10,22 @@ const {
   getBookIssues,
 } = require("../controllers/bookIssueController");
 
-router.post("/", franchiseProtect, issueBook);
+const libraryAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "FRANCHISE_ADMIN"
+);
 
-router.get("/", franchiseProtect, getBookIssues);
+router.post("/", teacherOrFranchiseProtect, libraryAccess, issueBook);
 
-router.put("/:id/return", franchiseProtect, returnBook);
+router.get("/", teacherOrFranchiseProtect, libraryAccess, getBookIssues);
+
+router.put(
+  "/:id/return",
+  teacherOrFranchiseProtect,
+  libraryAccess,
+  returnBook
+);
 
 module.exports = router;

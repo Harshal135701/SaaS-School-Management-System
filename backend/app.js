@@ -47,10 +47,12 @@ const examResultRoutes = require("./routes/examResultRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
-app.use("/api/system-admin", systemAdminRoutes);
+app.use("/api/contracts", contractRoutes);
+
 app.use("/api/system-admin/royalties", royaltyRoutes);
 app.use("/api/royalties/monthly", monthlyRoyaltyRoutes);
-app.use("/api/contracts", contractRoutes);
+
+app.use("/api/system-admin", systemAdminRoutes);
 app.use("/api/system-settings", systemSettingsRoutes);
 
 app.use("/api/plans", planRoutes);

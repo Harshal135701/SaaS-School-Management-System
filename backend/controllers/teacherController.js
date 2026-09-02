@@ -1,12 +1,12 @@
 const bcrypt = require("bcryptjs");
 const { Teacher } = require("../models");
-
 const createTeacher = async (req, res) => {
   try {
     const {
       name,
       email,
       phone,
+      staffType,
       role,
       password,
       dateOfBirth,
@@ -24,6 +24,31 @@ const createTeacher = async (req, res) => {
       });
     }
 
+    const validStaffTypes = ["TEACHING", "NON_TEACHING"];
+
+    const validRoles = [
+      "TEACHER",
+      "HOD",
+      "PRINCIPAL",
+      "ACCOUNTANT",
+      "DATA_ENTRY",
+      "SUPPORT",
+    ];
+
+    if (staffType && !validStaffTypes.includes(staffType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid staff type",
+      });
+    }
+
+    if (role && !validRoles.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid staff role",
+      });
+    }
+
     const hashedPassword = await bcrypt.hash(password, 10);
 
     const teacher = await Teacher.create({
@@ -32,6 +57,7 @@ const createTeacher = async (req, res) => {
       email,
       phone,
       password: hashedPassword,
+      staffType: staffType || "TEACHING",
       role: role || "TEACHER",
       dateOfBirth,
       gender,
@@ -155,6 +181,7 @@ const updateTeacher = async (req, res) => {
       name,
       email,
       phone,
+      staffType,
       role,
       dateOfBirth,
       gender,
@@ -169,6 +196,7 @@ const updateTeacher = async (req, res) => {
       name,
       email,
       phone,
+      staffType,
       role,
       dateOfBirth,
       gender,
