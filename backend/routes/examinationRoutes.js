@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 
 const {
   createExamination,
@@ -12,10 +12,10 @@ const {
   deleteExamination,
 } = require("../controllers/examinationController");
 
-router.post("/", franchiseProtect, createExamination);
-router.get("/", franchiseProtect, getExaminations);
-router.get("/:id", franchiseProtect, getExaminationById);
-router.put("/:id", franchiseProtect, updateExamination);
-router.delete("/:id", franchiseProtect, deleteExamination);
+router.post("/", teacherOrFranchiseProtect, createExamination);
+router.get("/", teacherOrFranchiseProtect, getExaminations);
+router.get("/:id", teacherOrFranchiseProtect, getExaminationById);
+router.put("/:id", teacherOrFranchiseProtect, updateExamination);
+router.delete("/:id", teacherOrFranchiseProtect, deleteExamination);
 
 module.exports = router;
