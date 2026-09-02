@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ParentSidebar } from './ParentSidebar';
-import { ParentTopHeader } from './ParentTopHeader';
+import { TeacherSidebar } from './TeacherSidebar';
+import { TeacherTopHeader } from './TeacherTopHeader';
 import { LogOut } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 
-interface ParentLayoutProps {
+interface TeacherLayoutProps {
   children: React.ReactNode;
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -12,7 +12,7 @@ interface ParentLayoutProps {
   user?: any;
 }
 
-export const ParentLayout: React.FC<ParentLayoutProps> = ({
+export const TeacherLayout: React.FC<TeacherLayoutProps> = ({
   children,
   currentPath,
   onNavigate,
@@ -29,7 +29,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden selection:bg-blue-100 selection:text-blue-900">
-      <ParentSidebar 
+      <TeacherSidebar 
         currentPath={currentPath}
         onNavigate={onNavigate}
         onLogout={() => setIsLogoutModalOpen(true)}
@@ -39,7 +39,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
       />
       
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
-        <ParentTopHeader 
+        <TeacherTopHeader 
           onMenuClick={() => setIsMobileMenuOpen(true)}
           user={user}
         />
@@ -63,7 +63,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
           </div>
           <h3 className="text-xl font-bold text-slate-900 mb-2">Ready to leave?</h3>
           <p className="text-slate-500 mb-6">
-            You are about to sign out of the Parent Portal. You will need to log in again to access your account.
+            You are about to sign out of the Teacher Portal. You will need to log in again to access your account.
           </p>
           <div className="flex items-center gap-3">
             <button

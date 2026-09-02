@@ -23,7 +23,7 @@ interface SuperAdminTopHeaderProps {
 export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
   onToggleMobileSidebar,
   onNavigate,
-  user,
+  // user,
   franchises = []
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);

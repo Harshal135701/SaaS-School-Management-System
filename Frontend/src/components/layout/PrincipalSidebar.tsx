@@ -1,33 +1,43 @@
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { Avatar } from '../ui/Avatar';
-import { Tooltip } from '../ui/Tooltip';
 import { 
   LayoutDashboard, 
-  GraduationCap, 
-  User, 
-  LogOut,
-  ChevronLeft,
-  ChevronRight,
-  ChevronUp,
+  Users, 
+  BookOpen, 
+  Calendar,
+  FileText,
+  Clock,
+  LogOut, 
+  ChevronLeft, 
+  ChevronRight, 
   X,
-  Heart
+  User,
+  ChevronUp,
+  School,
+  Building2,
+  DollarSign,
+  Library,
+  Bus,
+  Bell,
+  CheckSquare
 } from 'lucide-react';
+import { Avatar } from '../ui/Avatar';
+import { Tooltip } from '../ui/Tooltip';
 
-interface ParentSidebarProps {
+interface PrincipalSidebarProps {
   currentPath: string;
   onNavigate: (path: string) => void;
   onLogout: () => void;
-  isMobileOpen?: boolean;
-  onCloseMobile?: () => void;
+  isMobileOpen: boolean;
+  onCloseMobile: () => void;
   user?: any;
 }
 
-export const ParentSidebar: React.FC<ParentSidebarProps> = ({
+export const PrincipalSidebar: React.FC<PrincipalSidebarProps> = ({
   currentPath,
   onNavigate,
   onLogout,
-  isMobileOpen = false,
+  isMobileOpen,
   onCloseMobile,
   user
 }) => {
@@ -36,37 +46,65 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
 
   const menuSections = [
     {
-      title: 'DASHBOARD',
+      title: 'OVERVIEW',
       items: [
-        { id: 'p_dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/parent/dashboard' }
+        { id: 'p_dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/principal/dashboard' }
       ]
     },
     {
-      title: 'MY CHILD',
+      title: 'ACADEMICS & PEOPLE',
       items: [
-        { id: 'p_student_overview', label: 'Student Overview', icon: GraduationCap, path: '/parent/student-overview' }
+        { id: 'p_students', label: 'Students', icon: Users, path: '/principal/students' },
+        { id: 'p_teachers', label: 'Teachers & Staff', icon: User, path: '/principal/staff' },
+        { id: 'p_departments', label: 'Departments & HODs', icon: Building2, path: '/principal/departments' },
+        { id: 'p_attendance', label: 'Attendance', icon: CheckSquare, path: '/principal/attendance' }
+      ]
+    },
+    {
+      title: 'MANAGEMENT',
+      items: [
+        { id: 'p_examinations', label: 'Examinations', icon: FileText, path: '/principal/examinations' },
+        { id: 'p_fees', label: 'Fees & Finance', icon: DollarSign, path: '/principal/fees' },
+        { id: 'p_timetable', label: 'Timetable', icon: Clock, path: '/principal/timetable' },
+        { id: 'p_leave', label: 'Leave', icon: Calendar, path: '/principal/leave' }
+      ]
+    },
+    {
+      title: 'FACILITIES & COMMS',
+      items: [
+        { id: 'p_admissions', label: 'Admissions', icon: BookOpen, path: '/principal/admissions' },
+        { id: 'p_library', label: 'Library', icon: Library, path: '/principal/library' },
+        { id: 'p_transport', label: 'Transport', icon: Bus, path: '/principal/transport' },
+        { id: 'p_notices', label: 'Notices', icon: Bell, path: '/principal/notices' }
+      ]
+    },
+    {
+      title: 'PERSONAL',
+      items: [
+        { id: 'p_my_attendance', label: 'My Attendance', icon: CheckSquare, path: '/principal/my-attendance' },
+        { id: 'p_my_payment', label: 'My Payment', icon: DollarSign, path: '/principal/my-payment' }
       ]
     }
   ];
 
-  const parentName = user?.name || 'Parent';
-  const parentEmail = user?.email || 'parent@school.com';
+  const principalName = user?.name || 'Principal';
+  const principalEmail = user?.email || 'principal@school.com';
 
   const SidebarContent = (
     <div className="flex flex-col h-full bg-white relative">
       {/* Brand Header */}
       <div className={`p-4 flex items-center border-b border-slate-100 ${isCollapsed ? 'justify-center' : 'justify-between'}`}>
         <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-xl bg-blue-600 flex items-center justify-center shrink-0 shadow-sm">
+          <div className="w-8 h-8 rounded-xl bg-indigo-600 flex items-center justify-center shrink-0 shadow-sm">
             <span className="text-white font-black text-lg tracking-tighter">E</span>
           </div>
           {!isCollapsed && (
             <div className="flex flex-col">
               <span className="text-sm font-extrabold text-slate-900 tracking-tight leading-none">
-                EduSphere <span className="text-blue-600">SaaS</span>
+                EduSphere <span className="text-indigo-600">SaaS</span>
               </span>
               <span className="text-[10px] font-bold text-slate-400 tracking-wider uppercase mt-0.5">
-                Parent Portal
+                Principal Portal
               </span>
             </div>
           )}
@@ -75,7 +113,7 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
         {/* Desktop Collapse Button */}
         <button
           onClick={() => setIsCollapsed(!isCollapsed)}
-          className="hidden md:flex items-center justify-center w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 transition-colors"
+          className="hidden md:flex items-center justify-center w-6 h-6 rounded-md hover:bg-slate-100 text-slate-400 transition-colors cursor-pointer"
         >
           {isCollapsed ? <ChevronRight className="w-4 h-4" /> : <ChevronLeft className="w-4 h-4" />}
         </button>
@@ -83,7 +121,7 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
         {/* Mobile Close Button */}
         <button
           onClick={onCloseMobile}
-          className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors"
+          className="md:hidden p-1.5 rounded-lg text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition-colors cursor-pointer"
         >
           <X className="w-5 h-5" />
         </button>
@@ -112,13 +150,13 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
                         className={`
                           w-full flex items-center gap-3 px-3 py-2.5 rounded-xl text-sm font-semibold transition-all duration-200 cursor-pointer
                           ${isActive 
-                            ? 'bg-blue-600 text-white shadow-md shadow-blue-600/20' 
-                            : 'text-slate-600 hover:bg-blue-50/80 hover:text-blue-700'
+                            ? 'bg-indigo-600 text-white shadow-md shadow-indigo-600/20' 
+                            : 'text-slate-600 hover:bg-indigo-50/80 hover:text-indigo-700'
                           }
                           ${isCollapsed ? 'justify-center' : ''}
                         `}
                       >
-                        <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'}`} />
+                        <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-indigo-600'}`} />
                         {!isCollapsed && <span className="truncate">{item.label}</span>}
                       </button>
                     </Tooltip>
@@ -141,19 +179,19 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
               className="absolute bottom-full left-3 right-3 mb-2 bg-white rounded-2xl shadow-2xl border border-slate-200 p-2 z-50"
             >
               <div className="p-3 border-b border-slate-100 bg-slate-50/50 rounded-xl mb-1">
-                <p className="text-xs font-bold text-slate-900">{parentName}</p>
-                <p className="text-[11px] text-slate-500 truncate">{parentEmail}</p>
+                <p className="text-xs font-bold text-slate-900">{principalName}</p>
+                <p className="text-[11px] text-slate-500 truncate">{principalEmail}</p>
               </div>
 
               <button
                 onClick={() => {
-                  onNavigate('/parent/profile');
+                  onNavigate('/principal/profile');
                   setShowProfileMenu(false);
                 }}
                 className="w-full flex items-center gap-2.5 px-3 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
               >
                 <User className="w-4 h-4 text-slate-500" />
-                <span>Parent Profile</span>
+                <span>Profile</span>
               </button>
 
               <div className="my-1 border-t border-slate-100" />
@@ -179,17 +217,17 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
             ${isCollapsed ? 'justify-center p-1.5' : ''}
           `}
         >
-          <Avatar name={parentName} size={isCollapsed ? 'sm' : 'md'} status="online" />
+          <Avatar name={principalName} size={isCollapsed ? 'sm' : 'md'} status="online" />
           
           {!isCollapsed && (
             <div className="flex-1 min-w-0">
               <div className="text-xs font-extrabold text-slate-900 truncate">
-                {parentName}
+                {principalName}
               </div>
               <div className="flex items-center gap-1 mt-0.5">
-                <Heart className="w-3 h-3 text-rose-500 shrink-0" />
-                <span className="text-[10px] font-bold text-rose-500 tracking-wider uppercase truncate">
-                  PARENT
+                <School className="w-3 h-3 text-indigo-500 shrink-0" />
+                <span className="text-[10px] font-bold text-indigo-500 tracking-wider uppercase truncate">
+                  Principal
                 </span>
               </div>
             </div>

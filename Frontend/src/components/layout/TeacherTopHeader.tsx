@@ -2,12 +2,12 @@ import React from 'react';
 import { Bell, Menu, Search } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 
-interface ParentTopHeaderProps {
+interface TeacherTopHeaderProps {
   onMenuClick: () => void;
   user?: any;
 }
 
-export const ParentTopHeader: React.FC<ParentTopHeaderProps> = ({ 
+export const TeacherTopHeader: React.FC<TeacherTopHeaderProps> = ({ 
   onMenuClick,
   user
 }) => {
@@ -25,14 +25,14 @@ export const ParentTopHeader: React.FC<ParentTopHeaderProps> = ({
           <Search className="w-4 h-4" />
           <input 
             type="text" 
-            placeholder="Search..." 
+            placeholder="Search classes, students..." 
             className="bg-transparent border-none outline-none text-sm w-full placeholder:text-slate-400"
           />
         </div>
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
-        <button className="relative p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-colors">
+        <button className="relative p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer">
           <Bell className="w-5 h-5" />
           <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
         </button>
@@ -41,10 +41,10 @@ export const ParentTopHeader: React.FC<ParentTopHeaderProps> = ({
 
         <div className="flex items-center gap-3">
           <div className="hidden md:block text-right">
-            <p className="text-sm font-bold text-slate-900 leading-none">{user?.name || 'Parent'}</p>
-            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{user?.email || 'parent@school.com'}</p>
+            <p className="text-sm font-bold text-slate-900 leading-none">{user?.name || 'Teacher'}</p>
+            <p className="text-[11px] text-slate-500 font-medium mt-0.5">{user?.email || 'teacher@school.com'}</p>
           </div>
-          <Avatar name={user?.name || 'Parent'} size="md" status="online" className="shadow-sm border border-slate-200" />
+          <Avatar name={user?.name || 'Teacher'} size="md" status="online" className="shadow-sm border border-slate-200" />
         </div>
       </div>
     </header>

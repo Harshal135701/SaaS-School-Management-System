@@ -24,6 +24,18 @@ import { ContractsPage } from './pages/superAdmin/ContractsPage';
 import { SuperAdminSettingsPage } from './pages/superAdmin/SuperAdminSettingsPage';
 import type { Franchise } from './types/superAdmin';
 
+// Teacher Imports
+import { TeacherLayout } from './components/layout/TeacherLayout';
+import { TeacherDashboardPage } from './pages/teacher/TeacherDashboardPage';
+
+// HOD Imports
+import { HODLayout } from './components/layout/HODLayout';
+import { HODDashboardPage } from './pages/hod/HODDashboardPage';
+
+// Principal Imports
+import { PrincipalLayout } from './components/layout/PrincipalLayout';
+import { PrincipalDashboardPage } from './pages/principal/PrincipalDashboardPage';
+
 // Parent Imports
 import { ParentLayout } from './components/layout/ParentLayout';
 import { ParentDashboardPage } from './pages/parent/ParentDashboardPage';
@@ -161,6 +173,18 @@ export function App() {
         setCurrentPath('/admin/dashboard');
         setIsAuthenticated(true);
         loadFranchiseDashboard(storedUser);
+      } else if (decoded.role === 'PRINCIPAL') {
+        setUserRole('Principal');
+        setCurrentPath('/principal/dashboard');
+        setIsAuthenticated(true);
+      } else if (decoded.role === 'HOD') {
+        setUserRole('HOD');
+        setCurrentPath('/hod/dashboard');
+        setIsAuthenticated(true);
+      } else if (decoded.role === 'TEACHER') {
+        setUserRole('Teacher');
+        setCurrentPath('/teacher/dashboard');
+        setIsAuthenticated(true);
       } else if (decoded.role === 'PARENT') {
         setUserRole('Parent');
         setCurrentPath('/parent/dashboard');
@@ -279,6 +303,33 @@ if (user?.role === 'FRANCHISE_ADMIN') {
 
   return;
 }
+
+  // Principal
+  if (user?.role === 'PRINCIPAL') {
+    setUserRole('Principal');
+    setLoggedInFranchise(null);
+    setCurrentPath('/principal/dashboard');
+    showToast(`Welcome back, ${user.name || 'Principal'}!`);
+    return;
+  }
+
+  // HOD
+  if (user?.role === 'HOD') {
+    setUserRole('HOD');
+    setLoggedInFranchise(null);
+    setCurrentPath('/hod/dashboard');
+    showToast(`Welcome back, ${user.name || 'HOD'}!`);
+    return;
+  }
+
+  // Teacher
+  if (user?.role === 'TEACHER') {
+    setUserRole('Teacher');
+    setLoggedInFranchise(null);
+    setCurrentPath('/teacher/dashboard');
+    showToast(`Welcome back, ${user.name || 'Teacher'}!`);
+    return;
+  }
 
   // Parent
   if (user?.role === 'PARENT') {
@@ -551,7 +602,94 @@ if (user?.role === 'FRANCHISE_ADMIN') {
     );
   }
 
-  // ── 2. PARENT VIEWS ──
+  // ── 2. PRINCIPAL VIEWS ──
+  if (userRole === 'Principal' || currentPath.startsWith('/principal')) {
+    return (
+      <PrincipalLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        user={currentUser}
+      >
+        {currentPath === '/principal/dashboard' || currentPath === '/principal' ? (
+          <PrincipalDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in Principal Portal.
+          </div>
+        )}
+
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
+            <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              {toastMessage}
+            </div>
+          </div>
+        )}
+      </PrincipalLayout>
+    );
+  }
+
+  // ── 3. HOD VIEWS ──
+  if (userRole === 'HOD' || currentPath.startsWith('/hod')) {
+    return (
+      <HODLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        user={currentUser}
+      >
+        {currentPath === '/hod/dashboard' || currentPath === '/hod' ? (
+          <HODDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in HOD Portal.
+          </div>
+        )}
+
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
+            <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>{toastMessage}</span>
+            </div>
+          </div>
+        )}
+      </HODLayout>
+    );
+  }
+
+  // ── 4. TEACHER VIEWS ──
+  if (userRole === 'Teacher' || currentPath.startsWith('/teacher')) {
+    return (
+      <TeacherLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        user={currentUser}
+      >
+        {currentPath === '/teacher/dashboard' || currentPath === '/teacher' ? (
+          <TeacherDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in Teacher Portal.
+          </div>
+        )}
+
+        {toastMessage && (
+          <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
+            <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
+              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+              <span>{toastMessage}</span>
+            </div>
+          </div>
+        )}
+      </TeacherLayout>
+    );
+  }
+
+  // ── 5. PARENT VIEWS ──
   if (userRole === 'Parent' || currentPath.startsWith('/parent')) {
     return (
       <ParentLayout

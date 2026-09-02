@@ -60,7 +60,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
             change: '+0%',
             isPositive: true,
             subtext: 'Live count',
-            iconName: 'GraduationCap'
+            iconName: 'GraduationCap',
+            color: 'blue'
           },
           {
             id: 'stat_teachers',
@@ -69,7 +70,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
             change: '+0%',
             isPositive: true,
             subtext: 'Live count',
-            iconName: 'Presentation'
+            iconName: 'Presentation',
+            color: 'purple'
           },
           {
             id: 'stat_parents',
@@ -78,7 +80,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
             change: '+0%',
             isPositive: true,
             subtext: 'Live count',
-            iconName: 'Users'
+            iconName: 'Users',
+            color: 'emerald'
           },
           {
             id: 'stat_staff',
@@ -87,7 +90,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
             change: '0%',
             isPositive: true,
             subtext: 'Not available',
-            iconName: 'Briefcase'
+            iconName: 'Briefcase',
+            color: 'amber'
           },
           {
             id: 'stat_classes',
@@ -96,7 +100,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
             change: '0%',
             isPositive: true,
             subtext: 'Not available',
-            iconName: 'Building2'
+            iconName: 'Building2',
+            color: 'indigo'
           },
           {
             id: 'stat_admissions',
@@ -105,7 +110,8 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({ onOpenSt
             change: '0%',
             isPositive: true,
             subtext: 'Not available',
-            iconName: 'UserPlus'
+            iconName: 'UserPlus',
+            color: 'rose'
           }
         ];
 

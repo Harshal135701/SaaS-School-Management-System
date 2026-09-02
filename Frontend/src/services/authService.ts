@@ -33,19 +33,39 @@ export const login = async (email: string, password: string) => {
         return { token, admin: { ...admin, role: 'FRANCHISE_ADMIN' } };
       } catch (frError: any) {
         if (frError.response?.status === 401 || frError.response?.status === 404 || frError.response?.status === 403) {
-          // Fallback: Attempt Parent Login
-          const parentRes = await api.post("/parent/auth/login", { email, password });
-          const { token, parent } = parentRes.data;
-          
-          if (token) {
-            sessionStorage.setItem("token", token);
-            localStorage.setItem("token", token);
-            const userToStore = { ...parent, role: 'PARENT' };
-            sessionStorage.setItem("user", JSON.stringify(userToStore));
-            localStorage.setItem("user", JSON.stringify(userToStore));
+          try {
+            // Fallback: Attempt Teacher/HOD Login
+            const teacherRes = await api.post("/teacher/auth/login", { email, password });
+            const { token, teacher } = teacherRes.data;
+            
+            if (token) {
+              const mappedRole = teacher.teacherRole === 'HOD' ? 'HOD' : 'TEACHER';
+              sessionStorage.setItem("token", token);
+              localStorage.setItem("token", token);
+              const userToStore = { ...teacher, role: mappedRole };
+              sessionStorage.setItem("user", JSON.stringify(userToStore));
+              localStorage.setItem("user", JSON.stringify(userToStore));
+              
+              return { token, admin: { ...teacher, role: mappedRole } };
+            }
+          } catch (teacherError: any) {
+            if (teacherError.response?.status === 401 || teacherError.response?.status === 404 || teacherError.response?.status === 403) {
+              // Fallback: Attempt Parent Login
+              const parentRes = await api.post("/parent/auth/login", { email, password });
+              const { token, parent } = parentRes.data;
+              
+              if (token) {
+                sessionStorage.setItem("token", token);
+                localStorage.setItem("token", token);
+                const userToStore = { ...parent, role: 'PARENT' };
+                sessionStorage.setItem("user", JSON.stringify(userToStore));
+                localStorage.setItem("user", JSON.stringify(userToStore));
+              }
+              
+              return { token, admin: { ...parent, role: 'PARENT' } };
+            }
+            throw teacherError;
           }
-          
-          return { token, admin: { ...parent, role: 'PARENT' } };
         }
         throw frError;
       }

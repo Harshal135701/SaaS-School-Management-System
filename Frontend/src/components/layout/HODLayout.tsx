@@ -1,10 +1,10 @@
 import React, { useState } from 'react';
-import { ParentSidebar } from './ParentSidebar';
-import { ParentTopHeader } from './ParentTopHeader';
+import { HODSidebar } from './HODSidebar';
+import { HODTopHeader } from './HODTopHeader';
 import { LogOut } from 'lucide-react';
 import { Modal } from '../ui/Modal';
 
-interface ParentLayoutProps {
+interface HODLayoutProps {
   children: React.ReactNode;
   currentPath: string;
   onNavigate: (path: string) => void;
@@ -12,7 +12,7 @@ interface ParentLayoutProps {
   user?: any;
 }
 
-export const ParentLayout: React.FC<ParentLayoutProps> = ({
+export const HODLayout: React.FC<HODLayoutProps> = ({
   children,
   currentPath,
   onNavigate,
@@ -29,7 +29,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
 
   return (
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden selection:bg-blue-100 selection:text-blue-900">
-      <ParentSidebar 
+      <HODSidebar 
         currentPath={currentPath}
         onNavigate={onNavigate}
         onLogout={() => setIsLogoutModalOpen(true)}
@@ -39,7 +39,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
       />
       
       <div className="flex-1 flex flex-col h-screen overflow-hidden bg-slate-50 relative">
-        <ParentTopHeader 
+        <HODTopHeader 
           onMenuClick={() => setIsMobileMenuOpen(true)}
           user={user}
         />
@@ -63,7 +63,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
           </div>
           <h3 className="text-xl font-bold text-slate-900 mb-2">Ready to leave?</h3>
           <p className="text-slate-500 mb-6">
-            You are about to sign out of the Parent Portal. You will need to log in again to access your account.
+            You are about to sign out of the HOD Portal. You will need to log in again to access your account.
           </p>
           <div className="flex items-center gap-3">
             <button
@@ -74,7 +74,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
             </button>
             <button
               onClick={handleLogout}
-              className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-700 hover:shadow-lg hover:shadow-rose-600/20 transition-all active:scale-95"
+              className="flex-1 px-4 py-2.5 rounded-xl bg-rose-600 text-white font-semibold hover:bg-rose-700 hover:shadow-lg hover:shadow-rose-600/20 transition-all active:scale-95 cursor-pointer"
             >
               Sign Out
             </button>
