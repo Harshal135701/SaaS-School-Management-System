@@ -61,14 +61,36 @@ const createFee = async (req, res) => {
   }
 };
 
+
 const getFees = async (req, res) => {
   try {
-    const { Fee, Student } = require("../models");
+    const { Fee, Student, ParentStudent } = require("../models");
+
+    const where = {
+      franchiseId: req.user.franchiseId,
+    };
+
+    // Parent can only see fees of their linked student
+    if (req.user.role === "PARENT") {
+      const relationship = await ParentStudent.findOne({
+        where: {
+          parentId: req.user.id,
+          studentId: req.params.studentId,
+        },
+      });
+
+      if (!relationship) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have access to this student's fees",
+        });
+      }
+
+      where.studentId = req.params.studentId;
+    }
 
     const fees = await Fee.findAll({
-      where: {
-        franchiseId: req.user.franchiseId,
-      },
+      where,
       include: [
         {
           model: Student,

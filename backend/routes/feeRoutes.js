@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const parentProtect = require("../middleware/parentAuthMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -19,10 +20,65 @@ const financeAccess = allowRoles(
   "FRANCHISE_ADMIN"
 );
 
-router.post("/", teacherOrFranchiseProtect, financeAccess, createFee);
-router.get("/", teacherOrFranchiseProtect, financeAccess, getFees);
-router.get("/:id", teacherOrFranchiseProtect, financeAccess, getFeeById);
-router.put("/:id", teacherOrFranchiseProtect, financeAccess, updateFee);
-router.delete("/:id", teacherOrFranchiseProtect, financeAccess, deleteFee);
+// ====================
+// PARENT - VIEW ONLY
+// ====================
+
+router.get(
+  "/parent/student/:studentId",
+  parentProtect,
+  getFees
+);
+
+// ====================
+// STAFF - VIEW
+// ====================
+
+router.get(
+  "/",
+  teacherOrFranchiseProtect,
+  financeAccess,
+  getFees
+);
+
+router.get(
+  "/:id",
+  teacherOrFranchiseProtect,
+  financeAccess,
+  getFeeById
+);
+
+// ====================
+// STAFF - CREATE
+// ====================
+
+router.post(
+  "/",
+  teacherOrFranchiseProtect,
+  financeAccess,
+  createFee
+);
+
+// ====================
+// STAFF - UPDATE
+// ====================
+
+router.put(
+  "/:id",
+  teacherOrFranchiseProtect,
+  financeAccess,
+  updateFee
+);
+
+// ====================
+// STAFF - DELETE
+// ====================
+
+router.delete(
+  "/:id",
+  teacherOrFranchiseProtect,
+  financeAccess,
+  deleteFee
+);
 
 module.exports = router;
