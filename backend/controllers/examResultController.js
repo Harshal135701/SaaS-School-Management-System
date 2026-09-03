@@ -104,9 +104,31 @@ const createExamResult = async (req, res) => {
 const getExamResults = async (req, res) => {
   try {
     const franchiseId = req.user.franchiseId;
+    const { ParentStudent } = require("../models");
+
+    const where = { franchiseId };
+
+    // Parent can only see their linked student's results
+    if (req.user.role === "PARENT") {
+      const relationship = await ParentStudent.findOne({
+        where: {
+          parentId: req.user.id,
+          studentId: req.params.studentId,
+        },
+      });
+
+      if (!relationship) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have access to this student's results",
+        });
+      }
+
+      where.studentId = req.params.studentId;
+    }
 
     const results = await ExamResult.findAll({
-      where: { franchiseId },
+      where,
       include: [
         {
           model: Examination,
@@ -123,6 +145,7 @@ const getExamResults = async (req, res) => {
 
     return res.status(200).json({
       success: true,
+      count: results.length,
       data: results,
     });
   } catch (error) {
@@ -131,7 +154,6 @@ const getExamResults = async (req, res) => {
     return res.status(500).json({
       success: false,
       message: "Failed to fetch marks",
-      error: error.message,
     });
   }
 };
