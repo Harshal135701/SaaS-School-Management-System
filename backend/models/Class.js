@@ -20,6 +20,11 @@ module.exports = (sequelize) => {
         allowNull: false,
       },
 
+      code: {
+        type: DataTypes.STRING,
+        allowNull: false,
+      },
+
       numericValue: {
         type: DataTypes.INTEGER,
         allowNull: true,
