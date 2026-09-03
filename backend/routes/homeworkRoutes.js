@@ -3,6 +3,8 @@ const express = require("express");
 const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const parentProtect = require("../middleware/parentAuthMiddleware");
+
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -13,21 +15,70 @@ const {
   deleteHomework,
 } = require("../controllers/homeworkController");
 
-const teachingAccess = allowRoles(
+// Staff/Admin permissions
+const homeworkViewAccess = allowRoles(
   "PRINCIPAL",
   "HOD",
   "TEACHER",
   "FRANCHISE_ADMIN"
 );
 
-router.post("/", teacherOrFranchiseProtect, teachingAccess, createHomework);
+const homeworkManageAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "FRANCHISE_ADMIN"
+);
 
-router.get("/", teacherOrFranchiseProtect, teachingAccess, getHomeworks);
+// Staff/Admin - View
+router.get(
+  "/",
+  teacherOrFranchiseProtect,
+  homeworkViewAccess,
+  getHomeworks
+);
 
-router.get("/:id", teacherOrFranchiseProtect, teachingAccess, getHomeworkById);
+router.get(
+  "/:id",
+  teacherOrFranchiseProtect,
+  homeworkViewAccess,
+  getHomeworkById
+);
 
-router.put("/:id", teacherOrFranchiseProtect, teachingAccess, updateHomework);
+// Parent - View only
+router.get(
+  "/parent/list",
+  parentProtect,
+  getHomeworks
+);
 
-router.delete("/:id", teacherOrFranchiseProtect, teachingAccess, deleteHomework);
+router.get(
+  "/parent/:id",
+  parentProtect,
+  getHomeworkById
+);
+
+// Staff/Admin - Create/Update/Delete
+router.post(
+  "/",
+  teacherOrFranchiseProtect,
+  homeworkManageAccess,
+  createHomework
+);
+
+router.put(
+  "/:id",
+  teacherOrFranchiseProtect,
+  homeworkManageAccess,
+  updateHomework
+);
+
+router.delete(
+  "/:id",
+  teacherOrFranchiseProtect,
+  homeworkManageAccess,
+  deleteHomework
+);
 
 module.exports = router;
+

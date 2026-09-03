@@ -21,6 +21,16 @@ const Student = sequelize.define(
       onDelete: "RESTRICT",
     },
 
+    classId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+
+    sectionId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+
     name: {
       type: DataTypes.STRING,
       allowNull: false,

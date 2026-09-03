@@ -9,6 +9,8 @@ const createStudent = async (req, res) => {
       dateOfBirth,
       gender,
       address,
+      classId,
+      sectionId,
     } = req.body;
 
     if (!name) {
@@ -26,6 +28,8 @@ const createStudent = async (req, res) => {
       dateOfBirth,
       gender,
       address,
+      classId,
+      sectionId,
     });
 
     return res.status(201).json({
@@ -42,6 +46,7 @@ const createStudent = async (req, res) => {
     });
   }
 };
+
 const getStudents = async (req, res) => {
   try {
     const { Op } = require("sequelize");
@@ -144,6 +149,8 @@ const updateStudent = async (req, res) => {
       gender,
       address,
       status,
+      classId,
+      sectionId,
     } = req.body;
 
     await student.update({
@@ -154,6 +161,8 @@ const updateStudent = async (req, res) => {
       gender,
       address,
       status,
+      classId,
+      sectionId,
     });
 
     return res.status(200).json({
@@ -198,7 +207,7 @@ const deleteStudent = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Internal server error",
+      message: "Student deleted successfully",
     });
   }
 };
@@ -210,3 +219,4 @@ module.exports = {
   updateStudent,
   deleteStudent,
 };
+
