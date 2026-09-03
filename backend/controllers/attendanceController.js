@@ -90,7 +90,7 @@ const getAttendance = async (req, res) => {
 
 const getStudentAttendance = async (req, res) => {
   try {
-    const { Attendance, Student } = require("../models");
+    const { Attendance, Student, ParentStudent } = require("../models");
 
     const student = await Student.findOne({
       where: {
@@ -104,6 +104,23 @@ const getStudentAttendance = async (req, res) => {
         success: false,
         message: "Student not found in your franchise",
       });
+    }
+
+    // Parent security check
+    if (req.user.role === "PARENT") {
+      const relationship = await ParentStudent.findOne({
+        where: {
+          parentId: req.user.id,
+          studentId: student.id,
+        },
+      });
+
+      if (!relationship) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have access to this student's attendance",
+        });
+      }
     }
 
     const attendance = await Attendance.findAll({
