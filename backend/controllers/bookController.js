@@ -140,14 +140,14 @@ const updateBook = async (req, res) => {
     const newQuantity = quantity !== undefined ? quantity : book.quantity;
 
     await book.update({
-      title,
-      author,
-      isbn,
-      category,
+      ...(title !== undefined && { title }),
+      ...(author !== undefined && { author }),
+      ...(isbn !== undefined && { isbn }),
+      ...(category !== undefined && { category }),
       quantity: newQuantity,
       availableQuantity: newQuantity - issuedBooks,
-      status: status || book.status,
-      description,
+      ...(status !== undefined && { status }),
+      ...(description !== undefined && { description }),
     });
 
     return res.status(200).json({

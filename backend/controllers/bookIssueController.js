@@ -46,6 +46,22 @@ const issueBook = async (req, res) => {
       });
     }
 
+    const existingIssue = await BookIssue.findOne({
+      where: {
+        bookId,
+        studentId,
+        franchiseId: req.user.franchiseId,
+        status: "ISSUED",
+      },
+    });
+
+    if (existingIssue) {
+      return res.status(409).json({
+        success: false,
+        message: "This student already has this book issued",
+      });
+    }
+
     const issue = await BookIssue.create({
       franchiseId: req.user.franchiseId,
       bookId,
@@ -170,8 +186,58 @@ const getBookIssues = async (req, res) => {
   }
 };
 
+const getParentBookIssues = async (req, res) => {
+  try {
+    const { ParentStudent } = require("../models");
+    const { studentId } = req.params;
+
+    const relationship = await ParentStudent.findOne({
+      where: {
+        parentId: req.user.id,
+        studentId,
+      },
+    });
+
+    if (!relationship) {
+      return res.status(403).json({
+        success: false,
+        message: "You do not have access to this student's book records",
+      });
+    }
+
+    const issues = await BookIssue.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+        studentId,
+      },
+      include: [
+        {
+          model: Book,
+          as: "book",
+          attributes: ["id", "title", "author"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    return res.status(200).json({
+      success: true,
+      count: issues.length,
+      data: issues,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to fetch book issues",
+    });
+  }
+};
+
 module.exports = {
   issueBook,
   returnBook,
   getBookIssues,
+  getParentBookIssues,
 };
