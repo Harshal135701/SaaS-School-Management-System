@@ -2,7 +2,6 @@
 
 const { randomUUID } = require("crypto");
 
-
 module.exports = {
   async up(queryInterface, Sequelize) {
     const [existingPlans] = await queryInterface.sequelize.query(
@@ -11,33 +10,38 @@ module.exports = {
 
     const existingNames = existingPlans.map((plan) => plan.name);
 
+    const now = new Date();
+
     const plans = [
       {
+        id: randomUUID(),
         name: "BASIC",
         description: "Basic school management features",
         price: 3000,
         billingCycle: "MONTHLY",
         isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       },
       {
+        id: randomUUID(),
         name: "PRO",
         description: "Advanced school management features",
         price: 5000,
         billingCycle: "MONTHLY",
         isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       },
       {
+        id: randomUUID(),
         name: "ENTERPRISE",
         description: "Complete school management features",
         price: 10000,
         billingCycle: "MONTHLY",
         isActive: true,
-        createdAt: new Date(),
-        updatedAt: new Date(),
+        createdAt: now,
+        updatedAt: now,
       },
     ];
 
@@ -50,7 +54,7 @@ module.exports = {
     }
   },
 
-  async down(queryInterface) {
+  async down(queryInterface, Sequelize) {
     await queryInterface.bulkDelete("plans", {
       name: ["BASIC", "PRO", "ENTERPRISE"],
     });

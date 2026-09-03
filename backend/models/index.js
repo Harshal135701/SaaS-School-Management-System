@@ -7,6 +7,7 @@ const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const Contract = require("./Contract");
 const Plan = require("./Plan");
+const PasswordResetOTP = require("./PasswordResetOTP");
 const TransportRoute = require("./TransportRoute");
 const Student = require("./Student");
 const Feature = require("./Feature");
@@ -24,6 +25,10 @@ const ParentStudent = require("./ParentStudent");
 const Conversation = require("./Conversation");
 const ConversationParticipant = require("./ConversationParticipant");
 const Message = require("./Message");
+const Class = require("./Class")(sequelize);
+const Section = require("./Section")(sequelize);
+const Subject = require("./Subject")(sequelize);
+const ExamResult = require("./ExamResult");
 
 // Plan ↔ Feature
 Plan.belongsToMany(Feature, {
@@ -66,6 +71,49 @@ Franchise.hasMany(Teacher, {
 });
 
 Teacher.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+
+
+Franchise.hasMany(Class, {
+  foreignKey: "franchiseId",
+  as: "classes",
+});
+
+Class.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Franchise.hasMany(Section, {
+  foreignKey: "franchiseId",
+  as: "sections",
+});
+
+Section.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Class.hasMany(Section, {
+  foreignKey: "classId",
+  as: "sections",
+  onDelete: "CASCADE",
+});
+
+Section.belongsTo(Class, {
+  foreignKey: "classId",
+  as: "class",
+});
+
+Franchise.hasMany(Subject, {
+  foreignKey: "franchiseId",
+  as: "subjects",
+});
+
+Subject.belongsTo(Franchise, {
   foreignKey: "franchiseId",
   as: "franchise",
 });
@@ -140,6 +188,35 @@ Examination.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Franchise.hasMany(ExamResult, {
+  foreignKey: "franchiseId",
+  as: "examResults",
+});
+
+ExamResult.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Examination.hasMany(ExamResult, {
+  foreignKey: "examinationId",
+  as: "results",
+});
+
+ExamResult.belongsTo(Examination, {
+  foreignKey: "examinationId",
+  as: "examination",
+});
+
+Student.hasMany(ExamResult, {
+  foreignKey: "studentId",
+  as: "examResults",
+});
+
+ExamResult.belongsTo(Student, {
+  foreignKey: "studentId",
+  as: "student",
+});
 
 Franchise.hasMany(Book, {
   foreignKey: "franchiseId",
@@ -344,6 +421,9 @@ module.exports = {
   Feature,
   Contract,
   TransportRoute,
+  Class,
+  Section,
+  Subject,
   Book,
   ConversationParticipant,
   Vehicle,
@@ -352,9 +432,11 @@ module.exports = {
   Homework,
   Conversation,
   BookIssue,
+  PasswordResetOTP,
   Message,
   RoyaltyConfiguration,
   MonthlyRoyalty,
+  ExamResult,
   Timetable,
   Parent,
   Teacher,

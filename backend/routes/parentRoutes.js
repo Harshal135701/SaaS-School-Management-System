@@ -1,21 +1,38 @@
 const express = require("express");
+
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   createParent,
   assignStudent,
   getParents,
+  updateParent,
+  deleteParent,
 } = require("../controllers/parentController");
 
-router.post("/", franchiseProtect, createParent);
+const parentAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "DATA_ENTRY",
+  "FRANCHISE_ADMIN"
+);
 
-router.get("/", franchiseProtect, getParents);
+router.post("/", teacherOrFranchiseProtect, parentAccess, createParent);
+
+router.get("/", teacherOrFranchiseProtect, parentAccess, getParents);
+
+router.put("/:id", teacherOrFranchiseProtect, parentAccess, updateParent);
+
+router.delete("/:id", teacherOrFranchiseProtect, parentAccess, deleteParent);
 
 router.post(
   "/assign-student",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
+  parentAccess,
   assignStudent
 );
 

@@ -1,9 +1,9 @@
 import React, { useState } from 'react';
 import { Badge } from '../ui/Badge';
-import { 
-  Search, 
-  Bell, 
-  Menu, 
+import {
+  Search,
+  Bell,
+  Menu,
   CheckCircle2,
   AlertTriangle,
   Clock,
@@ -23,7 +23,6 @@ interface SuperAdminTopHeaderProps {
 export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
   onToggleMobileSidebar,
   onNavigate,
-  // user,
   franchises = []
 }) => {
   const [showNotifications, setShowNotifications] = useState(false);
@@ -103,10 +102,10 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
   const searchResults = React.useMemo(() => {
     if (!searchQuery.trim()) return [];
     const q = searchQuery.toLowerCase();
-    return franchises.filter(f => 
-      f.name?.toLowerCase().includes(q) || 
-      f.code?.toLowerCase().includes(q) || 
-      f.admin?.name?.toLowerCase().includes(q) || 
+    return franchises.filter(f =>
+      f.name?.toLowerCase().includes(q) ||
+      f.code?.toLowerCase().includes(q) ||
+      f.admin?.name?.toLowerCase().includes(q) ||
       f.admin?.email?.toLowerCase().includes(q)
     ).slice(0, 5); // top 5
   }, [searchQuery, franchises]);
@@ -147,7 +146,7 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
             onFocus={() => setShowSearchResults(true)}
             className="w-full bg-slate-100/90 border border-transparent rounded-2xl pl-10 pr-4 py-2 text-xs md:text-sm font-medium text-slate-800 placeholder-slate-400 focus:bg-white focus:border-blue-500 focus:ring-4 focus:ring-blue-500/10 outline-none transition-all"
           />
-          
+
           {/* Search Results Dropdown */}
           {showSearchResults && searchQuery.trim() !== '' && (
             <div className="absolute top-full left-0 right-0 mt-2 bg-white rounded-2xl shadow-xl border border-slate-200 overflow-hidden z-50">
@@ -211,7 +210,7 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
                   <h4 className="text-sm font-extrabold text-slate-900">SaaS System Notifications</h4>
                   <Badge variant="blue" size="sm">{unreadCount} New</Badge>
                 </div>
-                <button 
+                <button
                   onClick={() => setShowNotifications(false)}
                   className="text-xs text-blue-600 hover:text-blue-800 font-bold"
                 >
@@ -221,14 +220,13 @@ export const SuperAdminTopHeader: React.FC<SuperAdminTopHeaderProps> = ({
 
               <div className="space-y-3 py-3 max-h-80 overflow-y-auto">
                 {derivedNotifications.length > 0 ? derivedNotifications.map((n) => (
-                  <div 
-                    key={n.id} 
-                    className={`p-2.5 rounded-xl border text-xs flex items-start gap-3 transition-colors ${
-                      n.severity === 'danger' ? 'bg-rose-50/70 border-rose-200 text-rose-900' :
-                      n.severity === 'warning' ? 'bg-amber-50/70 border-amber-200 text-amber-900' :
-                      n.severity === 'success' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' :
-                      'bg-slate-50 border-slate-200 text-slate-800'
-                    }`}
+                  <div
+                    key={n.id}
+                    className={`p-2.5 rounded-xl border text-xs flex items-start gap-3 transition-colors ${n.severity === 'danger' ? 'bg-rose-50/70 border-rose-200 text-rose-900' :
+                        n.severity === 'warning' ? 'bg-amber-50/70 border-amber-200 text-amber-900' :
+                          n.severity === 'success' ? 'bg-emerald-50/70 border-emerald-200 text-emerald-900' :
+                            'bg-slate-50 border-slate-200 text-slate-800'
+                      }`}
                   >
                     <div className="mt-0.5 shrink-0">
                       {n.severity === 'danger' && <AlertTriangle className="w-4 h-4 text-rose-600" />}

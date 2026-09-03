@@ -40,8 +40,21 @@ const Teacher = sequelize.define(
       allowNull: true,
     },
 
+    staffType: {
+      type: DataTypes.ENUM("TEACHING", "NON_TEACHING"),
+      allowNull: false,
+      defaultValue: "TEACHING",
+    },
+
     role: {
-      type: DataTypes.ENUM("TEACHER", "HOD"),
+      type: DataTypes.ENUM(
+        "TEACHER",
+        "HOD",
+        "PRINCIPAL",
+        "ACCOUNTANT",
+        "DATA_ENTRY",
+        "SUPPORT"
+      ),
       allowNull: false,
       defaultValue: "TEACHER",
     },

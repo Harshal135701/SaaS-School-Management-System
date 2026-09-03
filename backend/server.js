@@ -2,6 +2,8 @@ const http = require("http");
 const app = require("./app");
 const { Server } = require("socket.io");
 
+const { connectDB } = require("./config/database");
+
 const socketAuth = require("./middleware/socketAuthMiddleware");
 const registerChatSocket = require("./socket/chatSocket");
 
@@ -32,6 +34,17 @@ io.on("connection", (socket) => {
   });
 });
 
-server.listen(PORT, () => {
-  console.log(`Server running on port ${PORT}`);
-});
+const startServer = async () => {
+  try {
+    await connectDB();
+
+    server.listen(PORT, () => {
+      console.log(`Server running on port ${PORT}`);
+    });
+  } catch (error) {
+    console.error("Failed to start server:", error);
+    process.exit(1);
+  }
+};
+
+startServer();

@@ -2,6 +2,7 @@ const express = require("express");
 const cors = require("cors");
 const helmet = require("helmet");
 require("dotenv").config();
+const { connectDB } = require("./config/database");
 
 const app = express();
 
@@ -41,13 +42,20 @@ const parentAuthRoutes = require("./routes/parentAuthRoutes");
 const parentRoutes = require("./routes/parentRoutes");
 const teacherAuthRoutes = require("./routes/teacherAuthRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const passwordResetRoutes = require("./routes/passwordResetRoutes");
+const examResultRoutes = require("./routes/examResultRoutes");
+const classRoutes = require("./routes/classRoutes");
+const sectionRoutes = require("./routes/sectionRoutes");
+const subjectRoutes = require("./routes/subjectRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
-app.use("/api/system-admin", systemAdminRoutes);
+app.use("/api/contracts", contractRoutes);
+
 app.use("/api/system-admin/royalties", royaltyRoutes);
 app.use("/api/royalties/monthly", monthlyRoyaltyRoutes);
-app.use("/api/contracts", contractRoutes);
+
+app.use("/api/system-admin", systemAdminRoutes);
 app.use("/api/system-settings", systemSettingsRoutes);
 
 app.use("/api/plans", planRoutes);
@@ -62,13 +70,18 @@ app.use("/api/franchise/fees", feeRoutes);
 app.use("/api/franchise/examinations", examinationRoutes);
 app.use("/api/franchise/books", bookRoutes);
 app.use("/api/franchise/book-issues", bookIssueRoutes);
-app.use("/api/franchise/timetables", timetableRoutes);
+app.use("/api/franchise/timetable", timetableRoutes);
 app.use("/api/franchise/vehicles", vehicleRoutes);
 app.use("/api/franchise/transport-routes", transportRouteRoutes);
 app.use("/api/parent/auth", parentAuthRoutes);
 app.use("/api/franchise/parents", parentRoutes);
 app.use("/api/teacher/auth", teacherAuthRoutes);
 app.use("/api/franchise/chat", chatRoutes);
+app.use("/api/franchise/exam-results", examResultRoutes);
+app.use("/api/franchise/classes", classRoutes);
+app.use("/api/franchise/sections", sectionRoutes);
+app.use("/api/franchise/subjects", subjectRoutes);
+app.use("/api/auth", passwordResetRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({

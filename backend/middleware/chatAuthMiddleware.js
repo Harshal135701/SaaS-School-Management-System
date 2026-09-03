@@ -1,5 +1,14 @@
 const jwt = require("jsonwebtoken");
 
+const STAFF_ROLES = [
+  "TEACHER",
+  "HOD",
+  "PRINCIPAL",
+  "ACCOUNTANT",
+  "DATA_ENTRY",
+  "SUPPORT",
+];
+
 const chatProtect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -18,7 +27,10 @@ const chatProtect = (req, res, next) => {
       process.env.JWT_SECRET
     );
 
-    if (!["PARENT", "TEACHER"].includes(decoded.role)) {
+    if (
+      decoded.role !== "PARENT" &&
+      !STAFF_ROLES.includes(decoded.role)
+    ) {
       return res.status(403).json({
         success: false,
         message: "Chat access required",
@@ -28,7 +40,7 @@ const chatProtect = (req, res, next) => {
     req.user = {
       id: decoded.id,
       role: decoded.role,
-      teacherRole: decoded.teacherRole || null,
+      staffType: decoded.staffType || null,
       franchiseId: decoded.franchiseId,
     };
 

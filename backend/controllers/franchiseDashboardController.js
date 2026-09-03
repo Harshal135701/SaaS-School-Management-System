@@ -1,4 +1,4 @@
-const { Franchise } = require("../models");
+const { Franchise, FranchiseAdmin } = require("../models");
 
 const getDashboard = async (req, res) => {
   try {
@@ -6,7 +6,24 @@ const getDashboard = async (req, res) => {
       where: {
         id: req.user.franchiseId,
       },
-      attributes: ["id", "name", "code", "email", "phone", "city", "state", "status", "planId"],
+      attributes: [
+        "id",
+        "name",
+        "code",
+        "email",
+        "phone",
+        "city",
+        "state",
+        "status",
+        "planId",
+      ],
+      include: [
+        {
+          model: FranchiseAdmin,
+          as: "admin",
+          attributes: ["id", "name", "email"],
+        },
+      ],
     });
 
     if (!franchise) {
@@ -19,11 +36,15 @@ const getDashboard = async (req, res) => {
     return res.status(200).json({
       success: true,
       data: {
-        franchise,
+        franchise: {
+          ...franchise.toJSON(),
+          adminName: franchise.admin?.name || "",
+          adminEmail: franchise.admin?.email || "",
+        },
       },
     });
   } catch (error) {
-    console.error(error);
+    console.error("Dashboard error:", error);
 
     return res.status(500).json({
       success: false,

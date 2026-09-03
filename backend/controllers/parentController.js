@@ -7,12 +7,7 @@ const {
 
 const createParent = async (req, res) => {
   try {
-    const {
-      name,
-      email,
-      phone,
-      password,
-    } = req.body;
+    const { name, email, phone, password } = req.body;
 
     if (!name || !email || !password) {
       return res.status(400).json({
@@ -55,6 +50,129 @@ const createParent = async (req, res) => {
         phone: parent.phone,
         status: parent.status,
       },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const getParents = async (req, res) => {
+  try {
+    const parents = await Parent.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+      },
+      attributes: {
+        exclude: ["password"],
+      },
+      include: [
+        {
+          model: Student,
+          as: "students",
+          attributes: ["id", "name", "email", "status"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    return res.status(200).json({
+      success: true,
+      data: parents,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const updateParent = async (req, res) => {
+  try {
+    const parent = await Parent.findOne({
+      where: {
+        id: req.params.id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!parent) {
+      return res.status(404).json({
+        success: false,
+        message: "Parent not found",
+      });
+    }
+
+    const { name, email, phone, password, status } = req.body;
+
+    const updateData = {
+      name,
+      email,
+      phone,
+      status,
+    };
+
+    if (password) {
+      updateData.password = await bcrypt.hash(password, 10);
+    }
+
+    await parent.update(updateData);
+
+    return res.status(200).json({
+      success: true,
+      message: "Parent updated successfully",
+      data: {
+        id: parent.id,
+        name: parent.name,
+        email: parent.email,
+        phone: parent.phone,
+        status: parent.status,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
+const deleteParent = async (req, res) => {
+  try {
+    const parent = await Parent.findOne({
+      where: {
+        id: req.params.id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!parent) {
+      return res.status(404).json({
+        success: false,
+        message: "Parent not found",
+      });
+    }
+
+    await ParentStudent.destroy({
+      where: {
+        parentId: parent.id,
+      },
+    });
+
+    await parent.destroy();
+
+    return res.status(200).json({
+      success: true,
+      message: "Parent deleted successfully",
     });
   } catch (error) {
     console.error(error);
@@ -141,41 +259,11 @@ const assignStudent = async (req, res) => {
   }
 };
 
-const getParents = async (req, res) => {
-  try {
-    const parents = await Parent.findAll({
-      where: {
-        franchiseId: req.user.franchiseId,
-      },
-      attributes: {
-        exclude: ["password"],
-      },
-      include: [
-        {
-          model: Student,
-          as: "students",
-          attributes: ["id", "name", "email", "status"],
-        },
-      ],
-      order: [["createdAt", "DESC"]],
-    });
-
-    return res.status(200).json({
-      success: true,
-      data: parents,
-    });
-  } catch (error) {
-    console.error(error);
-
-    return res.status(500).json({
-      success: false,
-      message: "Internal server error",
-    });
-  }
-};
-
 module.exports = {
   createParent,
-  assignStudent,
   getParents,
+  updateParent,
+  deleteParent,
+  assignStudent,
 };
+

@@ -2,7 +2,8 @@ const express = require("express");
 
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
   createAttendance,
@@ -12,16 +13,39 @@ const {
   deleteAttendance
 } = require("../controllers/attendanceController");
 
-router.post("/", franchiseProtect, createAttendance);
+router.post(
+  "/",
+  teacherOrFranchiseProtect,
+  allowRoles("PRINCIPAL", "HOD", "TEACHER", "FRANCHISE_ADMIN"),
+  createAttendance
+);
 
+router.get(
+  "/",
+  teacherOrFranchiseProtect,
+  allowRoles("PRINCIPAL", "HOD", "TEACHER", "FRANCHISE_ADMIN"),
+  getAttendance
+);
 
-router.get("/", franchiseProtect, getAttendance);
-router.get("/student/:studentId",franchiseProtect,getStudentAttendance);
+router.get(
+  "/student/:studentId",
+  teacherOrFranchiseProtect,
+  allowRoles("PRINCIPAL", "HOD", "TEACHER", "FRANCHISE_ADMIN"),
+  getStudentAttendance
+);
 
+router.put(
+  "/:id",
+  teacherOrFranchiseProtect,
+  allowRoles("PRINCIPAL", "HOD", "TEACHER", "FRANCHISE_ADMIN"),
+  updateAttendance
+);
 
-router.put("/:id", franchiseProtect, updateAttendance);
-
-router.delete("/:id", franchiseProtect, deleteAttendance);
-
+router.delete(
+  "/:id",
+  teacherOrFranchiseProtect,
+  allowRoles("PRINCIPAL", "HOD", "TEACHER", "FRANCHISE_ADMIN"),
+  deleteAttendance
+);
 
 module.exports = router;

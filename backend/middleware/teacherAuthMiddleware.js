@@ -1,5 +1,14 @@
 const jwt = require("jsonwebtoken");
 
+const STAFF_ROLES = [
+  "TEACHER",
+  "HOD",
+  "PRINCIPAL",
+  "ACCOUNTANT",
+  "DATA_ENTRY",
+  "SUPPORT",
+];
+
 const teacherProtect = (req, res, next) => {
   try {
     const authHeader = req.headers.authorization;
@@ -15,10 +24,10 @@ const teacherProtect = (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.role !== "TEACHER") {
+    if (!STAFF_ROLES.includes(decoded.role)) {
       return res.status(403).json({
         success: false,
-        message: "Teacher access required",
+        message: "Staff access required",
       });
     }
 
@@ -26,7 +35,7 @@ const teacherProtect = (req, res, next) => {
       id: decoded.id,
       email: decoded.email,
       role: decoded.role,
-      teacherRole: decoded.teacherRole,
+      staffType: decoded.staffType,
       franchiseId: decoded.franchiseId,
     };
 
