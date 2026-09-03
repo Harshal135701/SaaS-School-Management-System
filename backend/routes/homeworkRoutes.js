@@ -4,7 +4,6 @@ const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 const parentProtect = require("../middleware/parentAuthMiddleware");
-
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -15,7 +14,10 @@ const {
   deleteHomework,
 } = require("../controllers/homeworkController");
 
-// Staff/Admin permissions
+// ====================
+// STAFF / ADMIN ACCESS
+// ====================
+
 const homeworkViewAccess = allowRoles(
   "PRINCIPAL",
   "HOD",
@@ -30,7 +32,27 @@ const homeworkManageAccess = allowRoles(
   "FRANCHISE_ADMIN"
 );
 
-// Staff/Admin - View
+// ====================
+// PARENT - VIEW ONLY
+// IMPORTANT: Keep these BEFORE /:id
+// ====================
+
+router.get(
+  "/parent/list",
+  parentProtect,
+  getHomeworks
+);
+
+router.get(
+  "/parent/:id",
+  parentProtect,
+  getHomeworkById
+);
+
+// ====================
+// STAFF / ADMIN - VIEW
+// ====================
+
 router.get(
   "/",
   teacherOrFranchiseProtect,
@@ -45,20 +67,10 @@ router.get(
   getHomeworkById
 );
 
-// Parent - View only
-router.get(
-  "/parent/list",
-  parentProtect,
-  getHomeworks
-);
+// ====================
+// STAFF / ADMIN - MANAGE
+// ====================
 
-router.get(
-  "/parent/:id",
-  parentProtect,
-  getHomeworkById
-);
-
-// Staff/Admin - Create/Update/Delete
 router.post(
   "/",
   teacherOrFranchiseProtect,
@@ -81,4 +93,3 @@ router.delete(
 );
 
 module.exports = router;
-

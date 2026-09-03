@@ -1,4 +1,4 @@
-const { Student } = require("../models");
+const { Student, ParentStudent } = require("../models");
 
 const createStudent = async (req, res) => {
   try {
@@ -97,9 +97,28 @@ const getStudents = async (req, res) => {
 
 const getStudentById = async (req, res) => {
   try {
+    const studentId = req.params.studentId || req.params.id;
+
+    // Parent can view only their own child
+    if (req.user.role === "PARENT") {
+      const relationship = await ParentStudent.findOne({
+        where: {
+          parentId: req.user.id,
+          studentId,
+        },
+      });
+
+      if (!relationship) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have permission to view this student",
+        });
+      }
+    }
+
     const student = await Student.findOne({
       where: {
-        id: req.params.id,
+        id: studentId,
         franchiseId: req.user.franchiseId,
       },
     });

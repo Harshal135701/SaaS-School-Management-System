@@ -1,52 +1,62 @@
 const { Attendance, Student } = require("../models");
 
 const createAttendance = async (req, res) => {
-    try {
-        const { studentId, date, status, remarks } = req.body;
+  try {
+    const { studentId, date, status, remarks } = req.body;
 
-        if (!studentId || !date || !status) {
-            return res.status(400).json({
-                success: false,
-                message: "studentId, date and status are required",
-            });
-        }
-
-        const student = await Student.findOne({
-            where: {
-                id: studentId,
-                franchiseId: req.user.franchiseId,
-            },
-        });
-
-        if (!student) {
-            return res.status(404).json({
-                success: false,
-                message: "Student not found in your franchise",
-            });
-        }
-
-        const attendance = await Attendance.create({
-            franchiseId: req.user.franchiseId,
-            studentId,
-            date,
-            status,
-            remarks,
-        });
-
-        return res.status(201).json({
-            success: true,
-            message: "Attendance marked successfully",
-            data: attendance,
-        });
-    } catch (error) {
-        console.error(error);
-
-        return res.status(500).json({
-            success: false,
-            message: "Internal server error",
-        });
+    if (!studentId || !date || !status) {
+      return res.status(400).json({
+        success: false,
+        message: "studentId, date and status are required",
+      });
     }
+
+    const validStatuses = ["PRESENT", "ABSENT", "LATE"];
+
+    if (!validStatuses.includes(status.toUpperCase())) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid attendance status",
+      });
+    }
+
+    const student = await Student.findOne({
+      where: {
+        id: studentId,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        success: false,
+        message: "Student not found in your franchise",
+      });
+    }
+
+    const attendance = await Attendance.create({
+      franchiseId: req.user.franchiseId,
+      studentId,
+      date,
+      status: status.toUpperCase(),
+      remarks,
+    });
+
+    return res.status(201).json({
+      success: true,
+      message: "Attendance marked successfully",
+      data: attendance,
+    });
+  } catch (error) {
+    console.error(error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
 };
+
 const getAttendance = async (req, res) => {
     try {
         const { Attendance, Student } = require("../models");

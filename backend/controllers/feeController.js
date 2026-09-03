@@ -197,14 +197,14 @@ const updateFee = async (req, res) => {
     }
 
     await fee.update({
-      studentId,
-      title,
-      amount,
-      dueDate,
-      status,
-      paymentDate,
-      paymentMethod,
-      remarks,
+      ...(studentId !== undefined && { studentId }),
+      ...(title !== undefined && { title }),
+      ...(amount !== undefined && { amount }),
+      ...(dueDate !== undefined && { dueDate }),
+      ...(status !== undefined && { status }),
+      ...(paymentDate !== undefined && { paymentDate }),
+      ...(paymentMethod !== undefined && { paymentMethod }),
+      ...(remarks !== undefined && { remarks }),
     });
 
     return res.status(200).json({

@@ -70,8 +70,23 @@ const createTeacher = async (req, res) => {
     return res.status(201).json({
       success: true,
       message: "Teacher created successfully",
-      data: teacher,
+      data: {
+        id: teacher.id,
+        name: teacher.name,
+        email: teacher.email,
+        phone: teacher.phone,
+        staffType: teacher.staffType,
+        role: teacher.role,
+        dateOfBirth: teacher.dateOfBirth,
+        gender: teacher.gender,
+        subject: teacher.subject,
+        qualification: teacher.qualification,
+        joiningDate: teacher.joiningDate,
+        address: teacher.address,
+        status: teacher.status,
+      },
     });
+
   } catch (error) {
     console.error(error);
 
@@ -105,6 +120,7 @@ const getTeachers = async (req, res) => {
     }
 
     const { count, rows } = await Teacher.findAndCountAll({
+      attributes: { exclude: ["password"] },
       where,
       limit,
       offset,
@@ -164,6 +180,7 @@ const getTeacherById = async (req, res) => {
 const updateTeacher = async (req, res) => {
   try {
     const teacher = await Teacher.findOne({
+      attributes: { exclude: ["password"] },
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,

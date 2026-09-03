@@ -129,10 +129,28 @@ const getExamResults = async (req, res) => {
 
     const results = await ExamResult.findAll({
       where,
+      attributes: [
+        "id",
+        "examinationId",
+        "studentId",
+        "obtainedMarks",
+        "remarks",
+        "createdAt",
+        "updatedAt",
+      ],
       include: [
         {
           model: Examination,
           as: "examination",
+          attributes: [
+            "id",
+            "name",
+            "subject",
+            "examDate",
+            "totalMarks",
+            "passingMarks",
+            "status",
+          ],
         },
         {
           model: Student,
