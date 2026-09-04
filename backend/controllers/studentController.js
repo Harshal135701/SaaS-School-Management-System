@@ -1,4 +1,4 @@
-const { Student, ParentStudent } = require("../models");
+const { Student, ParentStudent, Section } = require("../models");
 
 const createStudent = async (req, res) => {
   try {
@@ -17,6 +17,21 @@ const createStudent = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Student name is required",
+      });
+    }
+
+    const section = await Section.findOne({
+      where: {
+        id: sectionId,
+        classId,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!section) {
+      return res.status(400).json({
+        success: false,
+        message: "Section does not belong to the selected class",
       });
     }
 
@@ -99,7 +114,6 @@ const getStudentById = async (req, res) => {
   try {
     const studentId = req.params.studentId || req.params.id;
 
-    // Parent can view only their own child
     if (req.user.role === "PARENT") {
       const relationship = await ParentStudent.findOne({
         where: {
@@ -172,16 +186,37 @@ const updateStudent = async (req, res) => {
       sectionId,
     } = req.body;
 
+    const finalClassId = classId ?? student.classId;
+    const finalSectionId = sectionId ?? student.sectionId;
+
+    // Validate class + section only when assignment exists
+    if (finalClassId || finalSectionId) {
+      const section = await Section.findOne({
+        where: {
+          id: finalSectionId,
+          classId: finalClassId,
+          franchiseId: req.user.franchiseId,
+        },
+      });
+
+      if (!section) {
+        return res.status(400).json({
+          success: false,
+          message: "Section does not belong to the selected class",
+        });
+      }
+    }
+
     await student.update({
-      name,
-      email,
-      phone,
-      dateOfBirth,
-      gender,
-      address,
-      status,
-      classId,
-      sectionId,
+      ...(name !== undefined && { name }),
+      ...(email !== undefined && { email }),
+      ...(phone !== undefined && { phone }),
+      ...(dateOfBirth !== undefined && { dateOfBirth }),
+      ...(gender !== undefined && { gender }),
+      ...(address !== undefined && { address }),
+      ...(status !== undefined && { status }),
+      ...(classId !== undefined && { classId: finalClassId }),
+      ...(sectionId !== undefined && { sectionId: finalSectionId }),
     });
 
     return res.status(200).json({
@@ -226,7 +261,7 @@ const deleteStudent = async (req, res) => {
 
     return res.status(500).json({
       success: false,
-      message: "Student deleted successfully",
+      message: "Internal server error",
     });
   }
 };

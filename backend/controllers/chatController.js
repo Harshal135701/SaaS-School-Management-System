@@ -4,6 +4,8 @@ const {
   Parent,
   Teacher,
   Student,
+  ParentStudent,
+  TeacherAssignment,
 } = require("../models");
 
 const createConversation = async (req, res) => {
@@ -57,6 +59,36 @@ const createConversation = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Student not found",
+      });
+    }
+
+    const teacherAssignment = await TeacherAssignment.findOne({
+      where: {
+        teacherId,
+        classId: student.classId,
+        sectionId: student.sectionId,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!teacherAssignment) {
+      return res.status(403).json({
+        success: false,
+        message: "Teacher is not assigned to this student's class and section",
+      });
+    }
+
+    const relationship = await ParentStudent.findOne({
+      where: {
+        parentId,
+        studentId,
+      },
+    });
+
+    if (!relationship) {
+      return res.status(403).json({
+        success: false,
+        message: "Parent is not linked to this student",
       });
     }
 

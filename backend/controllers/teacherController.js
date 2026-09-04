@@ -1,5 +1,17 @@
 const bcrypt = require("bcryptjs");
 const { Teacher } = require("../models");
+
+const VALID_STAFF_TYPES = ["TEACHING", "NON_TEACHING"];
+
+const VALID_ROLES = [
+  "TEACHER",
+  "HOD",
+  "PRINCIPAL",
+  "ACCOUNTANT",
+  "DATA_ENTRY",
+  "SUPPORT",
+];
+
 const createTeacher = async (req, res) => {
   try {
     const {
@@ -24,28 +36,41 @@ const createTeacher = async (req, res) => {
       });
     }
 
-    const validStaffTypes = ["TEACHING", "NON_TEACHING"];
-
-    const validRoles = [
-      "TEACHER",
-      "HOD",
-      "PRINCIPAL",
-      "ACCOUNTANT",
-      "DATA_ENTRY",
-      "SUPPORT",
-    ];
-
-    if (staffType && !validStaffTypes.includes(staffType)) {
+    if (staffType && !VALID_STAFF_TYPES.includes(staffType)) {
       return res.status(400).json({
         success: false,
         message: "Invalid staff type",
       });
     }
 
-    if (role && !validRoles.includes(role)) {
+    if (role && !VALID_ROLES.includes(role)) {
       return res.status(400).json({
         success: false,
         message: "Invalid staff role",
+      });
+    }
+
+    if (
+      req.user.role === "HOD" &&
+      (role === "HOD" || role === "PRINCIPAL")
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "HOD cannot create HOD or PRINCIPAL staff",
+      });
+    }
+
+    const existingTeacher = await Teacher.findOne({
+      where: {
+        email,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (existingTeacher) {
+      return res.status(409).json({
+        success: false,
+        message: "A teacher with this email already exists",
       });
     }
 
@@ -86,7 +111,6 @@ const createTeacher = async (req, res) => {
         status: teacher.status,
       },
     });
-
   } catch (error) {
     console.error(error);
 
@@ -150,6 +174,7 @@ const getTeachers = async (req, res) => {
 const getTeacherById = async (req, res) => {
   try {
     const teacher = await Teacher.findOne({
+      attributes: { exclude: ["password"] },
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
@@ -180,7 +205,6 @@ const getTeacherById = async (req, res) => {
 const updateTeacher = async (req, res) => {
   try {
     const teacher = await Teacher.findOne({
-      attributes: { exclude: ["password"] },
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
@@ -191,6 +215,16 @@ const updateTeacher = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Teacher not found",
+      });
+    }
+
+    if (
+      req.user.role === "HOD" &&
+      (teacher.role === "HOD" || teacher.role === "PRINCIPAL")
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "HOD cannot modify HOD or PRINCIPAL staff",
       });
     }
 
@@ -209,25 +243,73 @@ const updateTeacher = async (req, res) => {
       status,
     } = req.body;
 
+    if (staffType && !VALID_STAFF_TYPES.includes(staffType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid staff type",
+      });
+    }
+
+    if (role && !VALID_ROLES.includes(role)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid staff role",
+      });
+    }
+
+    if (
+      req.user.role === "HOD" &&
+      (role === "HOD" || role === "PRINCIPAL")
+    ) {
+      return res.status(403).json({
+        success: false,
+        message: "HOD cannot assign HOD or PRINCIPAL role",
+      });
+    }
+
+    if (email && email !== teacher.email) {
+      const existingTeacher = await Teacher.findOne({
+        where: {
+          email,
+          franchiseId: req.user.franchiseId,
+        },
+      });
+
+      if (existingTeacher && existingTeacher.id !== teacher.id) {
+        return res.status(409).json({
+          success: false,
+          message: "A teacher with this email already exists",
+        });
+      }
+    }
+
     await teacher.update({
-      name,
-      email,
-      phone,
-      staffType,
-      role,
-      dateOfBirth,
-      gender,
-      subject,
-      qualification,
-      joiningDate,
-      address,
-      status,
+      ...(name !== undefined && { name }),
+      ...(email !== undefined && { email }),
+      ...(phone !== undefined && { phone }),
+      ...(staffType !== undefined && { staffType }),
+      ...(role !== undefined && { role }),
+      ...(dateOfBirth !== undefined && { dateOfBirth }),
+      ...(gender !== undefined && { gender }),
+      ...(subject !== undefined && { subject }),
+      ...(qualification !== undefined && { qualification }),
+      ...(joiningDate !== undefined && { joiningDate }),
+      ...(address !== undefined && { address }),
+      ...(status !== undefined && { status }),
+    });
+
+    const updatedTeacher = await Teacher.findOne({
+      attributes: { exclude: ["password"] },
+      where: {
+        id: teacher.id,
+        franchiseId: req.user.franchiseId,
+      },
     });
 
     return res.status(200).json({
       success: true,
       message: "Teacher updated successfully",
-      data: teacher,
+      data: updatedTeacher,
     });
   } catch (error) {
     console.error(error);
