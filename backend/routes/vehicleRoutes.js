@@ -12,16 +12,25 @@ const {
   deleteVehicle,
 } = require("../controllers/vehicleController");
 
-const transportAccess = allowRoles(
+const vehicleViewAccess = allowRoles(
   "PRINCIPAL",
+  "HOD",
+  "TEACHER",
   "SUPPORT",
   "FRANCHISE_ADMIN"
 );
 
-router.post("/", teacherOrFranchiseProtect, transportAccess, createVehicle);
-router.get("/", teacherOrFranchiseProtect, transportAccess, getVehicles);
-router.get("/:id", teacherOrFranchiseProtect, transportAccess, getVehicleById);
-router.put("/:id", teacherOrFranchiseProtect, transportAccess, updateVehicle);
-router.delete("/:id", teacherOrFranchiseProtect, transportAccess, deleteVehicle);
+const vehicleManageAccess = allowRoles(
+  "PRINCIPAL",
+  "FRANCHISE_ADMIN"
+);
+
+
+router.get("/", teacherOrFranchiseProtect, vehicleViewAccess, getVehicles);
+router.get("/:id", teacherOrFranchiseProtect, vehicleViewAccess, getVehicleById);
+
+router.post("/", teacherOrFranchiseProtect, vehicleManageAccess, createVehicle);
+router.put("/:id", teacherOrFranchiseProtect, vehicleManageAccess, updateVehicle);
+router.delete("/:id", teacherOrFranchiseProtect, vehicleManageAccess, deleteVehicle);
 
 module.exports = router;
