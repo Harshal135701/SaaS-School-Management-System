@@ -412,6 +412,46 @@ Message.belongsTo(Conversation, {
   as: "conversation",
 });
 
+Student.belongsTo(Class, {
+  foreignKey: "classId",
+  as: "class",
+});
+
+Student.belongsTo(Section, {
+  foreignKey: "sectionId",
+  as: "section",
+});
+
+Class.hasMany(Student, {
+  foreignKey: "classId",
+  as: "students",
+});
+
+Section.hasMany(Student, {
+  foreignKey: "sectionId",
+  as: "students",
+});
+
+Class.hasMany(Homework, {
+  foreignKey: "classId",
+  as: "homeworks",
+});
+
+Homework.belongsTo(Class, {
+  foreignKey: "classId",
+  as: "class",
+});
+
+Section.hasMany(Homework, {
+  foreignKey: "sectionId",
+  as: "homeworks",
+});
+
+Homework.belongsTo(Section, {
+  foreignKey: "sectionId",
+  as: "section",
+});
+
 module.exports = {
   sequelize,
   Franchise,

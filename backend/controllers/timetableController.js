@@ -81,10 +81,74 @@ const createTimetable = async (req, res) => {
 
 const getTimetables = async (req, res) => {
   try {
+    const {
+      Timetable,
+      Teacher,
+      Student,
+      ParentStudent,
+      Class,
+      Section,
+    } = require("../models");
+
+    const where = {
+      franchiseId: req.user.franchiseId,
+    };
+
+    // Parent access
+    if (req.user.role === "PARENT") {
+      const relationship = await ParentStudent.findOne({
+        where: {
+          parentId: req.user.id,
+          studentId: req.params.studentId,
+        },
+      });
+
+      if (!relationship) {
+        return res.status(403).json({
+          success: false,
+          message: "You do not have access to this student's timetable",
+        });
+      }
+
+      const student = await Student.findOne({
+        where: {
+          id: req.params.studentId,
+          franchiseId: req.user.franchiseId,
+        },
+        include: [
+          {
+            model: Class,
+            as: "class",
+            attributes: ["id", "name"],
+          },
+          {
+            model: Section,
+            as: "section",
+            attributes: ["id", "name"],
+          },
+        ],
+      });
+
+      if (!student) {
+        return res.status(404).json({
+          success: false,
+          message: "Student not found",
+        });
+      }
+
+      if (!student.class || !student.section) {
+        return res.status(404).json({
+          success: false,
+          message: "Student class or section is not assigned",
+        });
+      }
+
+      where.className = student.class.name;
+      where.section = student.section.name;
+    }
+
     const data = await Timetable.findAll({
-      where: {
-        franchiseId: req.user.franchiseId,
-      },
+      where,
       include: [
         {
           model: Teacher,
@@ -98,14 +162,15 @@ const getTimetables = async (req, res) => {
       ],
     });
 
-    res.json({
+    return res.json({
       success: true,
       count: data.length,
       data,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });

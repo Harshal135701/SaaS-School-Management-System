@@ -1,4 +1,4 @@
-const { Vehicle } = require("../models");
+const { Vehicle, TransportRoute } = require("../models");
 
 const createVehicle = async (req, res) => {
   try {
@@ -20,6 +20,27 @@ const createVehicle = async (req, res) => {
       return res.status(400).json({
         success: false,
         message: "Required fields are missing",
+      });
+    }
+
+    if (capacity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Capacity must be greater than 0",
+      });
+    }
+
+    const existingVehicle = await Vehicle.findOne({
+      where: {
+        vehicleNumber,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (existingVehicle) {
+      return res.status(409).json({
+        success: false,
+        message: "Vehicle number already exists",
       });
     }
 
@@ -99,6 +120,16 @@ const getVehicleById = async (req, res) => {
 
 const updateVehicle = async (req, res) => {
   try {
+
+    const {
+      vehicleNumber,
+      vehicleType,
+      capacity,
+      driverName,
+      driverPhone,
+      status,
+    } = req.body;
+
     const vehicle = await Vehicle.findOne({
       where: {
         id: req.params.id,
@@ -113,7 +144,21 @@ const updateVehicle = async (req, res) => {
       });
     }
 
-    await vehicle.update(req.body);
+    if (capacity !== undefined && capacity <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Capacity must be greater than 0",
+      });
+    }
+
+    await vehicle.update({
+      ...(vehicleNumber !== undefined && { vehicleNumber }),
+      ...(vehicleType !== undefined && { vehicleType }),
+      ...(capacity !== undefined && { capacity }),
+      ...(driverName !== undefined && { driverName }),
+      ...(driverPhone !== undefined && { driverPhone }),
+      ...(status !== undefined && { status }),
+    });
 
     res.json({
       success: true,
@@ -142,6 +187,20 @@ const deleteVehicle = async (req, res) => {
       return res.status(404).json({
         success: false,
         message: "Vehicle not found",
+      });
+    }
+
+    const existingRoute = await TransportRoute.findOne({
+      where: {
+        vehicleId: vehicle.id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (existingRoute) {
+      return res.status(409).json({
+        success: false,
+        message: "Cannot delete vehicle because it is assigned to a transport route",
       });
     }
 

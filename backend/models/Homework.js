@@ -20,6 +20,16 @@ const Homework = sequelize.define(
       allowNull: false,
     },
 
+    classId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+
+    sectionId: {
+      type: DataTypes.UUID,
+      allowNull: true,
+    },
+
     title: {
       type: DataTypes.STRING,
       allowNull: false,

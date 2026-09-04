@@ -3,6 +3,7 @@ const express = require("express");
 const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const parentProtect = require("../middleware/parentAuthMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -13,21 +14,82 @@ const {
   deleteHomework,
 } = require("../controllers/homeworkController");
 
-const teachingAccess = allowRoles(
+// ====================
+// STAFF / ADMIN ACCESS
+// ====================
+
+const homeworkViewAccess = allowRoles(
   "PRINCIPAL",
   "HOD",
   "TEACHER",
   "FRANCHISE_ADMIN"
 );
 
-router.post("/", teacherOrFranchiseProtect, teachingAccess, createHomework);
+const homeworkManageAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "FRANCHISE_ADMIN"
+);
 
-router.get("/", teacherOrFranchiseProtect, teachingAccess, getHomeworks);
+// ====================
+// PARENT - VIEW ONLY
+// IMPORTANT: Keep these BEFORE /:id
+// ====================
 
-router.get("/:id", teacherOrFranchiseProtect, teachingAccess, getHomeworkById);
+router.get(
+  "/parent/list",
+  parentProtect,
+  getHomeworks
+);
 
-router.put("/:id", teacherOrFranchiseProtect, teachingAccess, updateHomework);
+router.get(
+  "/parent/:id",
+  parentProtect,
+  getHomeworkById
+);
 
-router.delete("/:id", teacherOrFranchiseProtect, teachingAccess, deleteHomework);
+// ====================
+// STAFF / ADMIN - VIEW
+// ====================
+
+router.get(
+  "/",
+  teacherOrFranchiseProtect,
+  homeworkViewAccess,
+  getHomeworks
+);
+
+router.get(
+  "/:id",
+  teacherOrFranchiseProtect,
+  homeworkViewAccess,
+  getHomeworkById
+);
+
+// ====================
+// STAFF / ADMIN - MANAGE
+// ====================
+
+router.post(
+  "/",
+  teacherOrFranchiseProtect,
+  homeworkManageAccess,
+  createHomework
+);
+
+router.put(
+  "/:id",
+  teacherOrFranchiseProtect,
+  homeworkManageAccess,
+  updateHomework
+);
+
+router.delete(
+  "/:id",
+  teacherOrFranchiseProtect,
+  homeworkManageAccess,
+  deleteHomework
+);
 
 module.exports = router;

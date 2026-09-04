@@ -1,4 +1,4 @@
-const { Homework, Teacher } = require("../models");
+const { Homework, Teacher, Class, Section } = require("../models");
 
 const createHomework = async (req, res) => {
   try {
@@ -8,6 +8,8 @@ const createHomework = async (req, res) => {
       subject,
       dueDate,
       status,
+      classId,
+      sectionId,
     } = req.body;
 
     const teacherId =
@@ -15,10 +17,11 @@ const createHomework = async (req, res) => {
         ? req.user.id
         : req.body.teacherId;
 
-    if (!title || !subject || !dueDate) {
+    if (!title || !subject || !dueDate || !classId || !sectionId) {
       return res.status(400).json({
         success: false,
-        message: "teacherId, title, subject and dueDate are required",
+        message:
+          "teacherId, title, subject, dueDate, classId and sectionId are required",
       });
     }
 
@@ -39,6 +42,8 @@ const createHomework = async (req, res) => {
     const homework = await Homework.create({
       franchiseId: req.user.franchiseId,
       teacherId,
+      classId,
+      sectionId,
       title,
       description,
       subject,
@@ -63,17 +68,78 @@ const createHomework = async (req, res) => {
 
 const getHomeworks = async (req, res) => {
   try {
-    const { Homework, Teacher } = require("../models");
+    const { Op } = require("sequelize");
+    const { Homework, Teacher, Class, Section, ParentStudent, Student } =
+      require("../models");
+
+    const where = {
+      franchiseId: req.user.franchiseId,
+    };
+
+    // Parent can only see homework for their assigned students
+    if (req.user.role === "PARENT") {
+      const parentStudents = await ParentStudent.findAll({
+        where: {
+          parentId: req.user.id,
+        },
+        attributes: ["studentId"],
+      });
+
+      const studentIds = parentStudents.map((item) => item.studentId);
+
+      if (studentIds.length === 0) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
+
+      const students = await Student.findAll({
+        where: {
+          id: {
+            [Op.in]: studentIds,
+          },
+          franchiseId: req.user.franchiseId,
+        },
+        attributes: ["classId", "sectionId"],
+      });
+
+      const classSectionPairs = students
+        .filter((student) => student.classId && student.sectionId)
+        .map((student) => ({
+          classId: student.classId,
+          sectionId: student.sectionId,
+        }));
+
+      if (classSectionPairs.length === 0) {
+        return res.status(200).json({
+          success: true,
+          count: 0,
+          data: [],
+        });
+      }
+
+      where[Op.or] = classSectionPairs;
+    }
 
     const homeworks = await Homework.findAll({
-      where: {
-        franchiseId: req.user.franchiseId,
-      },
+      where,
       include: [
         {
           model: Teacher,
           as: "teacher",
           attributes: ["id", "name", "subject"],
+        },
+        {
+          model: Class,
+          as: "class",
+          attributes: ["id", "name", "code"],
+        },
+        {
+          model: Section,
+          as: "section",
+          attributes: ["id", "name", "capacity"],
         },
       ],
       order: [["dueDate", "ASC"]],
@@ -94,18 +160,73 @@ const getHomeworks = async (req, res) => {
   }
 };
 
+
 const getHomeworkById = async (req, res) => {
   try {
+    const { Op } = require("sequelize");
+    const { Homework, Teacher, Class, Section, ParentStudent, Student } =
+      require("../models");
+
+    const where = {
+      id: req.params.id,
+      franchiseId: req.user.franchiseId,
+    };
+
+    // Parent can only access homework assigned to their student's class/section
+    if (req.user.role === "PARENT") {
+      const parentStudents = await ParentStudent.findAll({
+        where: {
+          parentId: req.user.id,
+        },
+        attributes: ["studentId"],
+      });
+
+      const studentIds = parentStudents.map((item) => item.studentId);
+
+      const students = await Student.findAll({
+        where: {
+          id: {
+            [Op.in]: studentIds,
+          },
+          franchiseId: req.user.franchiseId,
+        },
+        attributes: ["classId", "sectionId"],
+      });
+
+      const classSectionPairs = students
+        .filter((student) => student.classId && student.sectionId)
+        .map((student) => ({
+          classId: student.classId,
+          sectionId: student.sectionId,
+        }));
+
+      if (classSectionPairs.length === 0) {
+        return res.status(404).json({
+          success: false,
+          message: "Homework not found",
+        });
+      }
+
+      where[Op.or] = classSectionPairs;
+    }
+
     const homework = await Homework.findOne({
-      where: {
-        id: req.params.id,
-        franchiseId: req.user.franchiseId,
-      },
+      where,
       include: [
         {
           model: Teacher,
           as: "teacher",
           attributes: ["id", "name", "subject"],
+        },
+        {
+          model: Class,
+          as: "class",
+          attributes: ["id", "name", "code"],
+        },
+        {
+          model: Section,
+          as: "section",
+          attributes: ["id", "name", "capacity"],
         },
       ],
     });
@@ -131,6 +252,7 @@ const getHomeworkById = async (req, res) => {
   }
 };
 
+
 const updateHomework = async (req, res) => {
   try {
     const {
@@ -140,6 +262,8 @@ const updateHomework = async (req, res) => {
       subject,
       dueDate,
       status,
+      classId,
+      sectionId,
     } = req.body;
 
     const homework = await Homework.findOne({
@@ -172,6 +296,38 @@ const updateHomework = async (req, res) => {
       }
     }
 
+    if (classId) {
+      const classExists = await Class.findOne({
+        where: {
+          id: classId,
+          franchiseId: req.user.franchiseId,
+        },
+      });
+
+      if (!classExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Class not found in your franchise",
+        });
+      }
+    }
+
+    if (sectionId) {
+      const sectionExists = await Section.findOne({
+        where: {
+          id: sectionId,
+          franchiseId: req.user.franchiseId,
+        },
+      });
+
+      if (!sectionExists) {
+        return res.status(404).json({
+          success: false,
+          message: "Section not found in your franchise",
+        });
+      }
+    }
+
     await homework.update({
       teacherId,
       title,
@@ -179,6 +335,8 @@ const updateHomework = async (req, res) => {
       subject,
       dueDate,
       status,
+      classId,
+      sectionId,
     });
 
     return res.status(200).json({
@@ -228,7 +386,11 @@ const deleteHomework = async (req, res) => {
   }
 };
 
-
 module.exports = {
-  createHomework, getHomeworks, getHomeworkById, updateHomework, deleteHomework
+  createHomework,
+  getHomeworks,
+  getHomeworkById,
+  updateHomework,
+  deleteHomework,
 };
+

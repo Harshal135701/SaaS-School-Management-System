@@ -40,6 +40,13 @@ const createRoute = async (req, res) => {
       });
     }
 
+    if (arrivalTime <= departureTime) {
+      return res.status(400).json({
+        success: false,
+        message: "Arrival time must be after departure time",
+      });
+    }
+
     const route = await TransportRoute.create({
       franchiseId: req.user.franchiseId,
       vehicleId,
@@ -134,6 +141,18 @@ const getRouteById = async (req, res) => {
 
 const updateRoute = async (req, res) => {
   try {
+
+    const {
+      vehicleId,
+      routeName,
+      startPoint,
+      endPoint,
+      stops,
+      departureTime,
+      arrivalTime,
+      status,
+    } = req.body;
+
     const route = await TransportRoute.findOne({
       where: {
         id: req.params.id,
@@ -148,13 +167,39 @@ const updateRoute = async (req, res) => {
       });
     }
 
-    await route.update(req.body);
+    if (vehicleId !== undefined) {
+      const vehicle = await Vehicle.findOne({
+        where: {
+          id: vehicleId,
+          franchiseId: req.user.franchiseId,
+        },
+      });
+
+      if (!vehicle) {
+        return res.status(404).json({
+          success: false,
+          message: "Vehicle not found",
+        });
+      }
+    }
+
+    await route.update({
+      ...(vehicleId !== undefined && { vehicleId }),
+      ...(routeName !== undefined && { routeName }),
+      ...(startPoint !== undefined && { startPoint }),
+      ...(endPoint !== undefined && { endPoint }),
+      ...(stops !== undefined && { stops }),
+      ...(departureTime !== undefined && { departureTime }),
+      ...(arrivalTime !== undefined && { arrivalTime }),
+      ...(status !== undefined && { status }),
+    });
 
     res.json({
       success: true,
       message: "Transport route updated successfully",
       data: route,
     });
+
   } catch (error) {
     console.error(error);
     res.status(500).json({

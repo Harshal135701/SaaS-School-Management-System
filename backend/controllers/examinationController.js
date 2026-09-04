@@ -152,13 +152,13 @@ const updateExamination = async (req, res) => {
     }
 
     await examination.update({
-      name,
-      subject,
-      examDate,
-      totalMarks,
-      passingMarks,
-      status,
-      description,
+      ...(name !== undefined && { name }),
+      ...(subject !== undefined && { subject }),
+      ...(examDate !== undefined && { examDate }),
+      ...(totalMarks !== undefined && { totalMarks }),
+      ...(passingMarks !== undefined && { passingMarks }),
+      ...(status !== undefined && { status }),
+      ...(description !== undefined && { description }),
     });
 
     return res.status(200).json({

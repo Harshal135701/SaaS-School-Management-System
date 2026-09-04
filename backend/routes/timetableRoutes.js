@@ -1,7 +1,9 @@
 const express = require("express");
+
 const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const parentProtect = require("../middleware/parentAuthMiddleware");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -19,10 +21,48 @@ const teachingAccess = allowRoles(
   "FRANCHISE_ADMIN"
 );
 
-router.post("/", teacherOrFranchiseProtect, teachingAccess, createTimetable);
-router.get("/", teacherOrFranchiseProtect, teachingAccess, getTimetables);
-router.get("/:id", teacherOrFranchiseProtect, teachingAccess, getTimetableById);
-router.put("/:id", teacherOrFranchiseProtect, teachingAccess, updateTimetable);
-router.delete("/:id", teacherOrFranchiseProtect, teachingAccess, deleteTimetable);
+// Parent - view only
+router.get(
+  "/parent/student/:studentId",
+  parentProtect,
+  getTimetables
+);
+
+// Staff - view
+router.get(
+  "/",
+  teacherOrFranchiseProtect,
+  teachingAccess,
+  getTimetables
+);
+
+router.get(
+  "/:id",
+  teacherOrFranchiseProtect,
+  teachingAccess,
+  getTimetableById
+);
+
+// Staff - create/update/delete
+router.post(
+  "/",
+  teacherOrFranchiseProtect,
+  teachingAccess,
+  createTimetable
+);
+
+router.put(
+  "/:id",
+  teacherOrFranchiseProtect,
+  teachingAccess,
+  updateTimetable
+);
+
+router.delete(
+  "/:id",
+  teacherOrFranchiseProtect,
+  teachingAccess,
+  deleteTimetable
+);
 
 module.exports = router;
