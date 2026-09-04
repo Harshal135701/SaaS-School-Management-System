@@ -27,10 +27,7 @@ const chatProtect = (req, res, next) => {
       process.env.JWT_SECRET
     );
 
-    if (
-      decoded.role !== "PARENT" &&
-      !STAFF_ROLES.includes(decoded.role)
-    ) {
+    if (!["PARENT", "TEACHER"].includes(decoded.role)) {
       return res.status(403).json({
         success: false,
         message: "Chat access required",

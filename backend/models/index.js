@@ -3,6 +3,7 @@ const { sequelize } = require("../config/database");
 const Franchise = require("./Franchise");
 const FranchiseAdmin = require("./FranchiseAdmin");
 const SystemAdmin = require("./SystemAdmin");
+const TeacherAssignment = require("./TeacherAssignment");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const Contract = require("./Contract");
@@ -452,6 +453,46 @@ Homework.belongsTo(Section, {
   as: "section",
 });
 
+Teacher.hasMany(TeacherAssignment, {
+  foreignKey: "teacherId",
+  as: "assignments",
+});
+
+TeacherAssignment.belongsTo(Teacher, {
+  foreignKey: "teacherId",
+  as: "teacher",
+});
+
+Class.hasMany(TeacherAssignment, {
+  foreignKey: "classId",
+  as: "teacherAssignments",
+});
+
+TeacherAssignment.belongsTo(Class, {
+  foreignKey: "classId",
+  as: "class",
+});
+
+Section.hasMany(TeacherAssignment, {
+  foreignKey: "sectionId",
+  as: "teacherAssignments",
+});
+
+TeacherAssignment.belongsTo(Section, {
+  foreignKey: "sectionId",
+  as: "section",
+});
+
+Subject.hasMany(TeacherAssignment, {
+  foreignKey: "subjectId",
+  as: "teacherAssignments",
+});
+
+TeacherAssignment.belongsTo(Subject, {
+  foreignKey: "subjectId",
+  as: "subject",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -481,6 +522,7 @@ module.exports = {
   Parent,
   Teacher,
   Fee,
+  TeacherAssignment,
   Attendance,
   ParentStudent,
 };

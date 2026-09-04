@@ -16,7 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Here all the apis init
-
+const teacherAssignmentRoutes = require("./routes/teacherAssignmentRoutes");
 const authRoutes = require("./routes/authRoutes");
 const systemAdminRoutes = require("./routes/systemAdminRoutes");
 const royaltyRoutes = require("./routes/royaltyRoutes");
@@ -82,6 +82,7 @@ app.use("/api/franchise/classes", classRoutes);
 app.use("/api/franchise/sections", sectionRoutes);
 app.use("/api/franchise/subjects", subjectRoutes);
 app.use("/api/auth", passwordResetRoutes);
+app.use("/api/franchise/teacher-assignments", teacherAssignmentRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({
