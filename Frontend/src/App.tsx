@@ -725,7 +725,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
       case '/admin/students':
         return <StudentsPage />;
       case '/admin/teachers':
-        return <TeachersPage onOpenStaffModal={() => setIsStaffModalOpen(true)} />;
+        return <TeachersPage />;
       case '/admin/settings':
         return <SettingsPage />;
       case '/admin/dashboard':

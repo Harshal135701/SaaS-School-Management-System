@@ -5,13 +5,10 @@ import { Button } from '../../components/ui/Button';
 import api from '../../services/api';
 
 import {
-  Settings,
-  Calendar,
   CheckCircle,
   Clock,
   AlertCircle,
   FileText,
-  Download,
   Search,
   Plus,
   Edit,
@@ -439,49 +436,6 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
     }
   };
 
-  /* =========================
-     GENERATE MONTHLY BILL
-  ========================= */
-
-  const generateMonthlyBill = async (
-    franchiseId: string
-  ) => {
-    try {
-      const now = new Date();
-
-      const billingMonth = `${now.getFullYear()}-${String(
-        now.getMonth() + 1
-      ).padStart(2, '0')}-01`;
-
-      const dueDate = new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        5
-      )
-        .toISOString()
-        .split('T')[0];
-
-      await api.post('/royalties/monthly', {
-        franchiseId,
-        billingMonth,
-        dueDate,
-      });
-
-      showToast('Monthly bill generated successfully');
-
-      await fetchRoyalties();
-    } catch (error: any) {
-      console.error(
-        'Failed to generate monthly bill:',
-        error
-      );
-
-      showToast(
-        error?.response?.data?.message ||
-        'Failed to generate monthly bill'
-      );
-    }
-  };
 
   /* =========================
      REPORT
