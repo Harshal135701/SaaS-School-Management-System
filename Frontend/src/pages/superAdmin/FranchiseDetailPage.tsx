@@ -2,7 +2,7 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { mockContracts, mockRoyaltyRecords } from '../../data/superAdminMockData';
+import { mockContracts } from '../../data/superAdminMockData';
 import api from '../../services/api';
 
 import {
@@ -34,12 +34,36 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
   const [loading, setLoading] = useState(true);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
 
+  const [royaltyConfig, setRoyaltyConfig] = useState<any>(null);
+  const [royaltyReport, setRoyaltyReport] = useState<any>(null);
+
   useEffect(() => {
-    const fetchFranchise = async () => {
+    const fetchData = async () => {
       try {
         const response = await api.get(`/system-admin/franchises/${franchiseId}`);
         if (response.data?.success) {
           setFranchise(response.data.data);
+        }
+
+        // Fetch Royalty Configs
+        try {
+          const configRes = await api.get(`/system-admin/royalties/configurations/franchise/${franchiseId}`);
+          if (configRes.data?.success && Array.isArray(configRes.data.data)) {
+            const activeConfig = configRes.data.data.find((c: any) => c.isActive);
+            if (activeConfig) setRoyaltyConfig(activeConfig);
+          }
+        } catch (err) {
+          console.error("Error fetching royalty config:", err);
+        }
+
+        // Fetch Royalty Report
+        try {
+          const reportRes = await api.get(`/royalties/monthly/report?franchiseId=${franchiseId}`);
+          if (reportRes.data?.success) {
+            setRoyaltyReport(reportRes.data.summary);
+          }
+        } catch (err) {
+          console.error("Error fetching royalty report:", err);
         }
       } catch (error: any) {
         console.error("Error fetching franchise details:", error);
@@ -48,7 +72,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
         setLoading(false);
       }
     };
-    fetchFranchise();
+    fetchData();
   }, [franchiseId]);
 
   if (loading) {
@@ -82,7 +106,46 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
   const adminEmail = displayFranchise.admin?.email || displayFranchise.adminEmail || 'No email';
 
   const contract = mockContracts.find(c => c.schoolId === displayFranchise.id) || mockContracts[0];
-  const royaltyRecord = mockRoyaltyRecords.find(r => r.schoolId === displayFranchise.id) || mockRoyaltyRecords[0];
+  
+  // Calculate Royalty Information from REAL backend data
+  let royaltyStatusDisplay = 'No Bills Generated';
+  let royaltyStatusColor: 'slate' | 'rose' | 'amber' | 'emerald' = 'slate';
+  let royaltyStatusSubtext = 'No billing records available';
+
+  if (royaltyReport) {
+    if (royaltyReport.overdueBills > 0) {
+      royaltyStatusDisplay = 'Overdue';
+      royaltyStatusColor = 'rose';
+      royaltyStatusSubtext = 'Action required for overdue bills';
+    } else if (royaltyReport.pendingBills > 0) {
+      royaltyStatusDisplay = 'Pending';
+      royaltyStatusColor = 'amber';
+      royaltyStatusSubtext = 'Pending bills await payment';
+    } else if (royaltyReport.paidBills > 0) {
+      royaltyStatusDisplay = 'Paid';
+      royaltyStatusColor = 'emerald';
+      royaltyStatusSubtext = 'All generated bills are paid';
+    }
+  }
+
+  let monthlyAmountDisplay = 'Not Configured';
+  let monthlyAmountCardDisplay = 'Not Configured';
+  if (royaltyConfig) {
+    if (royaltyConfig.royaltyType === 'FIXED') {
+      const formatted = `₹${Number(royaltyConfig.amount).toLocaleString('en-IN')}`;
+      monthlyAmountDisplay = `${formatted}/mo`;
+      monthlyAmountCardDisplay = `${formatted} (Fixed)`;
+    } else if (royaltyConfig.royaltyType === 'PERCENTAGE') {
+      const formatted = `${royaltyConfig.amount}%`;
+      monthlyAmountDisplay = `${formatted}/mo`;
+      monthlyAmountCardDisplay = `${formatted}`;
+    }
+  }
+
+  let totalCollectedDisplay = '₹0';
+  if (royaltyReport && royaltyReport.paidAmount) {
+    totalCollectedDisplay = `₹${Number(royaltyReport.paidAmount).toLocaleString('en-IN')}`;
+  }
 
   return (
     <div className="space-y-6">
@@ -141,7 +204,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monthly Royalty</span>
-            <span className="text-xl font-extrabold text-emerald-400">₹{(displayFranchise.monthlyRoyalty || 45000).toLocaleString('en-IN')}/mo</span>
+            <span className="text-xl font-extrabold text-emerald-400">{monthlyAmountDisplay}</span>
           </div>
         </div>
       </div>
@@ -178,13 +241,11 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
         <Card className="p-4 border-slate-200/80">
           <div className="flex items-center justify-between mb-2">
             <span className="text-[10px] font-bold text-slate-500 uppercase">Royalty Status</span>
-            <CreditCard className="w-4 h-4 text-emerald-600" />
+            <CreditCard className={`w-4 h-4 text-${royaltyStatusColor}-600`} />
           </div>
-          <div className="text-xl font-extrabold text-slate-900">{displayFranchise.royaltyStatus || 'Paid'}</div>
-          <span className={`text-[11px] font-bold mt-1 block ${
-            (displayFranchise.royaltyStatus || 'Paid') === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
-          }`}>
-            August billing cleared
+          <div className="text-xl font-extrabold text-slate-900">{royaltyStatusDisplay}</div>
+          <span className={`text-[11px] font-bold mt-1 block text-${royaltyStatusColor}-600`}>
+            {royaltyStatusSubtext}
           </span>
         </Card>
       </div>
@@ -320,21 +381,21 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
                 <IndianRupee className="w-5 h-5 text-amber-600" />
                 <h3 className="text-base font-extrabold text-slate-900">Royalty Financial Breakdown</h3>
               </div>
-              <Badge variant={royaltyRecord.status === 'Paid' ? 'emerald' : 'amber'}>
-                {royaltyRecord.status}
+              <Badge variant={royaltyStatusColor === 'slate' ? 'slate' : royaltyStatusColor}>
+                {royaltyStatusDisplay}
               </Badge>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
                 <span className="text-[10px] font-bold text-slate-500 uppercase block">Monthly Amount</span>
-                <span className="text-lg font-extrabold text-slate-900">₹{(displayFranchise.monthlyRoyalty || 45000).toLocaleString('en-IN')}</span>
+                <span className="text-lg font-extrabold text-slate-900">{monthlyAmountCardDisplay}</span>
               </div>
 
               <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
                 <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Collected</span>
                 <span className="text-lg font-extrabold text-emerald-800">
-                  ₹{((displayFranchise.monthlyRoyalty || 45000) * 12).toLocaleString('en-IN')}
+                  {totalCollectedDisplay}
                 </span>
               </div>
             </div>
@@ -342,11 +403,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <div className="text-xs font-medium text-slate-600 space-y-1.5 pt-2">
               <div className="flex justify-between">
                 <span>Billing Cycle:</span>
-                <strong className="text-slate-800">Monthly (Due 5th of month)</strong>
-              </div>
-              <div className="flex justify-between">
-                <span>Invoice Number:</span>
-                <strong className="text-slate-800">{royaltyRecord.invoiceNumber}</strong>
+                <strong className="text-slate-800">Monthly</strong>
               </div>
             </div>
           </Card>
