@@ -19,6 +19,22 @@ const createConversation = async (req, res) => {
       });
     }
 
+    // Parent can only start chat as themselves
+    if (req.user.role === "PARENT" && req.user.id !== parentId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only start a conversation as yourself",
+      });
+    }
+
+    // Teacher can only start chat as themselves
+    if (req.user.role === "TEACHER" && req.user.id !== teacherId) {
+      return res.status(403).json({
+        success: false,
+        message: "You can only start a conversation as yourself",
+      });
+    }
+
     const parent = await Parent.findOne({
       where: {
         id: parentId,
@@ -62,6 +78,7 @@ const createConversation = async (req, res) => {
       });
     }
 
+    // Teacher must teach this student's class and section
     const teacherAssignment = await TeacherAssignment.findOne({
       where: {
         teacherId,
@@ -78,6 +95,7 @@ const createConversation = async (req, res) => {
       });
     }
 
+    // Parent must be linked to this student
     const relationship = await ParentStudent.findOne({
       where: {
         parentId,
@@ -93,15 +111,14 @@ const createConversation = async (req, res) => {
     }
 
     // Check existing conversation
-    const existingConversation =
-      await Conversation.findOne({
-        where: {
-          franchiseId: req.user.franchiseId,
-          parentId,
-          teacherId,
-          studentId,
-        },
-      });
+    const existingConversation = await Conversation.findOne({
+      where: {
+        franchiseId: req.user.franchiseId,
+        parentId,
+        teacherId,
+        studentId,
+      },
+    });
 
     if (existingConversation) {
       return res.status(200).json({

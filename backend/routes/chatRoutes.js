@@ -14,7 +14,7 @@ const {
 // Franchise Admin
 router.post(
   "/",
-  franchiseProtect,
+  chatProtect,
   createConversation
 );
 
