@@ -395,7 +395,74 @@ const updateFranchisePlan = async (req, res) => {
   }
 };
 
+const updateFranchise = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const {
+      name,
+      code,
+      email,
+      phone,
+      address,
+      city,
+      state,
+      pincode,
+    } = req.body;
+
+    // Find franchise
+    const franchise = await Franchise.findByPk(id);
+
+    if (!franchise) {
+      return res.status(404).json({
+        success: false,
+        message: "Franchise not found",
+      });
+    }
+
+    // Check if code is already used by another franchise
+    if (code && code !== franchise.code) {
+      const existingFranchise = await Franchise.findOne({
+        where: { code },
+      });
+
+      if (existingFranchise) {
+        return res.status(409).json({
+          success: false,
+          message: "Franchise code already exists",
+        });
+      }
+    }
+
+    // Update only provided fields
+    if (name !== undefined) franchise.name = name;
+    if (code !== undefined) franchise.code = code;
+    if (email !== undefined) franchise.email = email;
+    if (phone !== undefined) franchise.phone = phone;
+    if (address !== undefined) franchise.address = address;
+    if (city !== undefined) franchise.city = city;
+    if (state !== undefined) franchise.state = state;
+    if (pincode !== undefined) franchise.pincode = pincode;
+
+    await franchise.save();
+
+    return res.status(200).json({
+      success: true,
+      message: "Franchise details updated successfully",
+      data: franchise,
+    });
+  } catch (error) {
+    console.error("Update Franchise Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to update franchise details",
+    });
+  }
+};
+
 
 module.exports = {
   createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin, updateFranchisePlan
+  ,updateFranchise,
 };
