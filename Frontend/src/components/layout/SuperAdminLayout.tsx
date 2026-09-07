@@ -93,11 +93,10 @@ export const SuperAdminLayout: React.FC<SuperAdminLayoutProps> = ({
         editFranchise={editFranchise}
         onSave={(franchise) => {
           if (editFranchise && onFranchiseUpdated) {
-            onFranchiseUpdated(franchise);
+            return onFranchiseUpdated(franchise);
           } else if (onFranchiseAdded) {
-            onFranchiseAdded(franchise);
+            return onFranchiseAdded(franchise);
           }
-          handleCloseSchool();
         }}
       />
 

@@ -377,21 +377,60 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         planId: franchise.plan // The UI now sets the real UUID here
       });
       
-      // Use returned ID if available
-      if (res.data?.data?.id) {
-        franchise.id = res.data.data.id;
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Server rejected creation');
       }
-    } catch (error) {
-      console.warn('Backend franchise creation note:', error);
+
+      // Use returned data if available
+      const newFranchise = res.data?.data || franchise;
+      setFranchises(prev => [...prev, newFranchise]);
+      showToast(`Franchise school "${newFranchise.name}" (${newFranchise.code}) created successfully!`);
+    } catch (error: any) {
+      console.error('Backend franchise creation failed:', error);
+      showToast(error.response?.data?.message || error.message || 'Failed to create franchise');
+      throw error;
     }
-    
-    setFranchises(prev => [...prev, franchise]);
-    showToast(`Franchise school "${franchise.name}" (${franchise.code}) created successfully!`);
   };
 
-  const handleFranchiseUpdated = (franchise: Franchise) => {
-    setFranchises(prev => prev.map(f => f.id === franchise.id ? franchise : f));
-    showToast(`Franchise school "${franchise.name}" updated successfully!`);
+  const handleFranchiseUpdated = async (franchise: Franchise) => {
+    try {
+      const res = await api.put(`/system-admin/franchises/${franchise.id}`, {
+        name: franchise.name,
+        code: franchise.code,
+        email: franchise.email,
+        phone: franchise.phone,
+        address: franchise.address,
+        city: franchise.city,
+        state: franchise.state
+      });
+
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Server rejected update');
+      }
+
+      const updatedFranchise = res.data?.data || franchise;
+      setFranchises(prev => prev.map(f => f.id === updatedFranchise.id ? updatedFranchise : f));
+      showToast(`Franchise school "${updatedFranchise.name}" updated successfully!`);
+    } catch (error: any) {
+      console.error('Backend franchise update failed:', error);
+      showToast(error.response?.data?.message || error.message || 'Failed to update franchise (Endpoint likely missing)');
+      throw error;
+    }
+  };
+
+  const handleFranchiseDeleted = async (id: string) => {
+    try {
+      const res = await api.delete(`/system-admin/franchises/${id}`);
+      if (!res.data?.success) {
+        throw new Error(res.data?.message || 'Server rejected deletion');
+      }
+      setFranchises(prev => prev.filter(f => f.id !== id));
+      showToast(`Franchise deleted successfully!`);
+    } catch (error: any) {
+      console.error('Backend franchise deletion failed:', error);
+      showToast(error.response?.data?.message || error.message || 'Failed to delete franchise (Endpoint likely missing)');
+      throw error;
+    }
   };
 
   const handleAdminAdded = async (data: {
@@ -504,6 +543,8 @@ if (user?.role === 'FRANCHISE_ADMIN') {
             onNavigate={(p) => setCurrentPath(p)}
             onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
             onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+            onEditFranchise={handleOpenEditSchoolModal}
+            onDeleteFranchise={handleFranchiseDeleted}
             subView="all"
           />
         );
@@ -514,6 +555,8 @@ if (user?.role === 'FRANCHISE_ADMIN') {
             onNavigate={(p) => setCurrentPath(p)}
             onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
             onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+            onEditFranchise={handleOpenEditSchoolModal}
+            onDeleteFranchise={handleFranchiseDeleted}
             subView="admins"
           />
         );
@@ -565,6 +608,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
           onOpenAddSchoolModal={() => setIsAddSchoolModalOpen(true)}
           onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
           onEditFranchise={handleOpenEditSchoolModal}
+          onDeleteFranchise={handleFranchiseDeleted}
           franchiseList={franchises}
         />
       );

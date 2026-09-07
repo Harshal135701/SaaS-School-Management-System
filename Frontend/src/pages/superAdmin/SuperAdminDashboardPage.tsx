@@ -94,6 +94,7 @@ interface SuperAdminDashboardPageProps {
   onOpenAddSchoolModal: () => void;
   onOpenAddAdminModal: () => void;
   onEditFranchise?: (franchise: any) => void;
+  onDeleteFranchise?: (id: string) => void;
   franchiseList?: any[];
 }
 
@@ -108,6 +109,7 @@ export const SuperAdminDashboardPage: React.FC<
   onOpenAddSchoolModal,
   onOpenAddAdminModal,
   onEditFranchise,
+  onDeleteFranchise,
   franchiseList
 }) => {
   /* =======================================================
@@ -269,23 +271,16 @@ export const SuperAdminDashboardPage: React.FC<
      DELETE
   ======================================================= */
 
-  const handleDelete = async (
-    id: string
-  ) => {
+  const handleDelete = async (id: string) => {
     try {
-      setLocalFranchises((prev) =>
-        prev.filter(
-          (franchise) =>
-            franchise.id !== id
-        )
-      );
-
+      if (onDeleteFranchise) {
+        await onDeleteFranchise(id);
+      }
+      setLocalFranchises((prev) => prev.filter((franchise) => franchise.id !== id));
       setDeleteConfirmId(null);
     } catch (error) {
-      console.error(
-        'Failed to delete franchise:',
-        error
-      );
+      console.error('Failed to delete franchise:', error);
+      setDeleteConfirmId(null); // Clear confirm state even on failure
     }
   };
 

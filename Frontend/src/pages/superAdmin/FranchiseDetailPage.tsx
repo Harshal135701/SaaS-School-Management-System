@@ -60,7 +60,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
         try {
           const reportRes = await api.get(`/royalties/monthly/report?franchiseId=${franchiseId}`);
           if (reportRes.data?.success) {
-            setRoyaltyReport(reportRes.data.summary);
+            setRoyaltyReport(reportRes.data);
           }
         } catch (err) {
           console.error("Error fetching royalty report:", err);
@@ -112,16 +112,16 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
   let royaltyStatusColor: 'slate' | 'rose' | 'amber' | 'emerald' = 'slate';
   let royaltyStatusSubtext = 'No billing records available';
 
-  if (royaltyReport) {
-    if (royaltyReport.overdueBills > 0) {
+  if (royaltyReport && royaltyReport.summary) {
+    if (royaltyReport.summary.overdueBills > 0) {
       royaltyStatusDisplay = 'Overdue';
       royaltyStatusColor = 'rose';
       royaltyStatusSubtext = 'Action required for overdue bills';
-    } else if (royaltyReport.pendingBills > 0) {
+    } else if (royaltyReport.summary.pendingBills > 0) {
       royaltyStatusDisplay = 'Pending';
       royaltyStatusColor = 'amber';
       royaltyStatusSubtext = 'Pending bills await payment';
-    } else if (royaltyReport.paidBills > 0) {
+    } else if (royaltyReport.summary.paidBills > 0) {
       royaltyStatusDisplay = 'Paid';
       royaltyStatusColor = 'emerald';
       royaltyStatusSubtext = 'All generated bills are paid';
@@ -130,21 +130,35 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
 
   let monthlyAmountDisplay = 'Not Configured';
   let monthlyAmountCardDisplay = 'Not Configured';
+  let monthlyAmountSubtitle = '';
+  
   if (royaltyConfig) {
     if (royaltyConfig.royaltyType === 'FIXED') {
-      const formatted = `₹${Number(royaltyConfig.amount).toLocaleString('en-IN')}`;
-      monthlyAmountDisplay = `${formatted}/mo`;
-      monthlyAmountCardDisplay = `${formatted} (Fixed)`;
+      const formatted = `\u20B9${Number(royaltyConfig.amount).toLocaleString('en-IN')}`;
+      monthlyAmountDisplay = `${formatted}`;
+      monthlyAmountCardDisplay = `${formatted} / month`;
+      monthlyAmountSubtitle = `FIXED \u2022 Active`;
     } else if (royaltyConfig.royaltyType === 'PERCENTAGE') {
       const formatted = `${royaltyConfig.amount}%`;
-      monthlyAmountDisplay = `${formatted}/mo`;
-      monthlyAmountCardDisplay = `${formatted}`;
+      monthlyAmountDisplay = `${formatted}`;
+      monthlyAmountCardDisplay = `${formatted} / month`;
+      monthlyAmountSubtitle = `PERCENTAGE \u2022 Active`;
     }
   }
 
-  let totalCollectedDisplay = '₹0';
-  if (royaltyReport && royaltyReport.paidAmount) {
-    totalCollectedDisplay = `₹${Number(royaltyReport.paidAmount).toLocaleString('en-IN')}`;
+  let totalCollectedDisplay = '\u20B90';
+  if (royaltyReport && royaltyReport.summary && royaltyReport.summary.paidAmount) {
+    totalCollectedDisplay = `\u20B9${Number(royaltyReport.summary.paidAmount).toLocaleString('en-IN')}`;
+  }
+
+  let latestBillDisplay = 'No Bills Generated';
+  let latestBillSubDisplay = '';
+  if (royaltyReport && royaltyReport.data && royaltyReport.data.length > 0) {
+    const latestBill = royaltyReport.data[0];
+    latestBillDisplay = `\u20B9${Number(latestBill.totalAmount).toLocaleString('en-IN')}`;
+    if (latestBill.planAmount && latestBill.royaltyAmount) {
+      latestBillSubDisplay = `\u20B9${Number(latestBill.planAmount).toLocaleString('en-IN')} + \u20B9${Number(latestBill.royaltyAmount).toLocaleString('en-IN')}`;
+    }
   }
 
   return (
@@ -386,19 +400,24 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
               </Badge>
             </div>
 
-            <div className="grid grid-cols-2 gap-3 text-center">
-              <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block">Monthly Amount</span>
-                <span className="text-lg font-extrabold text-slate-900">{monthlyAmountCardDisplay}</span>
-              </div>
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-3 text-center">
+                <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100 flex flex-col justify-center">
+                  <span className="text-[10px] font-bold text-slate-500 uppercase block mb-1">Monthly Royalty</span>
+                  <span className="text-lg font-extrabold text-slate-900 leading-tight whitespace-pre-wrap">{monthlyAmountCardDisplay}</span>
+                  {monthlyAmountSubtitle && <span className="text-[10px] font-bold text-slate-500 mt-1">{monthlyAmountSubtitle}</span>}
+                </div>
 
-              <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Collected</span>
-                <span className="text-lg font-extrabold text-emerald-800">
-                  {totalCollectedDisplay}
-                </span>
+                <div className="p-3 bg-blue-50/60 rounded-2xl border border-blue-100 flex flex-col justify-center">
+                  <span className="text-[10px] font-bold text-blue-700 uppercase block mb-1">Latest Bill</span>
+                  <span className="text-lg font-extrabold text-blue-800 leading-tight whitespace-pre-wrap">{latestBillDisplay}</span>
+                  {latestBillSubDisplay && <span className="text-[10px] font-bold text-blue-600 mt-1">{latestBillSubDisplay}</span>}
+                </div>
+  
+                <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100 flex flex-col justify-center">
+                  <span className="text-[10px] font-bold text-emerald-700 uppercase block mb-1">Total Collected</span>
+                  <span className="text-lg font-extrabold text-emerald-800 leading-tight whitespace-pre-wrap">{totalCollectedDisplay}</span>
+                </div>
               </div>
-            </div>
 
             <div className="text-xs font-medium text-slate-600 space-y-1.5 pt-2">
               <div className="flex justify-between">
