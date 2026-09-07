@@ -394,7 +394,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
 
   const handleFranchiseUpdated = async (franchise: Franchise) => {
     try {
-      const res = await api.put(`/system-admin/franchises/${franchise.id}`, {
+      const res = await api.patch(`/system-admin/franchises/${franchise.id}`, {
         name: franchise.name,
         code: franchise.code,
         email: franchise.email,
@@ -408,12 +408,16 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         throw new Error(res.data?.message || 'Server rejected update');
       }
 
+      const refreshRes = await api.get('/system-admin/franchises');
+      if (refreshRes.data?.success && Array.isArray(refreshRes.data.data)) {
+        setFranchises(refreshRes.data.data);
+      }
+
       const updatedFranchise = res.data?.data || franchise;
-      setFranchises(prev => prev.map(f => f.id === updatedFranchise.id ? updatedFranchise : f));
       showToast(`Franchise school "${updatedFranchise.name}" updated successfully!`);
     } catch (error: any) {
       console.error('Backend franchise update failed:', error);
-      showToast(error.response?.data?.message || error.message || 'Failed to update franchise (Endpoint likely missing)');
+      showToast(error.response?.data?.message || error.message || 'Failed to update franchise');
       throw error;
     }
   };
