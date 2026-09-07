@@ -15,6 +15,7 @@ const {
   createFranchiseAdmin,
   updateFranchisePlan,
   updateFranchise,
+  deleteFranchise,
 } = require("../controllers/franchiseController");
 
 const router = express.Router();
@@ -34,5 +35,6 @@ router.patch("/franchises/:id/status", protect, updateFranchiseStatus);
 router.patch("/franchises/:id/plan", protect, updateFranchisePlan);
 router.patch("/franchises/:id", protect, updateFranchise);
 
+router.delete("/franchises/:id", protect, deleteFranchise);
 
 module.exports = router;
