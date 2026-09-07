@@ -14,6 +14,7 @@ const {
   updateFranchiseStatus,
   createFranchiseAdmin,
   updateFranchisePlan,
+  updateFranchise,
 } = require("../controllers/franchiseController");
 
 const router = express.Router();
@@ -30,9 +31,8 @@ router.post("/franchises/:id/admin", protect, createFranchiseAdmin);
 
 
 router.patch("/franchises/:id/status", protect, updateFranchiseStatus);
-router.patch("/franchises/:id/plan",protect,updateFranchisePlan);
-  
-
+router.patch("/franchises/:id/plan", protect, updateFranchisePlan);
+router.patch("/franchises/:id", protect, updateFranchise);
 
 
 module.exports = router;
