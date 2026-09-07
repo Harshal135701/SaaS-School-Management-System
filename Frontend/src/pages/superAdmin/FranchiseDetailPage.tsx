@@ -2,7 +2,6 @@ import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Badge } from '../../components/ui/Badge';
 import { Button } from '../../components/ui/Button';
-import { mockContracts, mockRoyaltyRecords } from '../../data/superAdminMockData';
 import api from '../../services/api';
 
 import {
@@ -16,7 +15,7 @@ import {
   ShieldCheck,
   GraduationCap,
   Users,
-  IndianRupee
+  IndianRupee,
 } from 'lucide-react';
 
 interface FranchiseDetailPageProps {
@@ -28,7 +27,7 @@ interface FranchiseDetailPageProps {
 export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
   franchiseId,
   franchiseList = [],
-  onNavigate
+  onNavigate,
 }) => {
   const [franchise, setFranchise] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -55,11 +54,10 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
     return <div className="p-10 text-center text-slate-500 font-medium">Loading franchise details...</div>;
   }
 
-  // 1. Prefer live API data
-  // 2. Fall back to the franchiseList prop (real DB rows passed from App.tsx)
-  // 3. Show error — do NOT fall back to unrelated mock data
   const listMatch = franchiseList.find((f: any) => String(f.id) === String(franchiseId));
   const displayFranchise = franchise || listMatch;
+  const latestRoyalty = displayFranchise?.monthlyRoyalties?.[0] || null;
+  const latestContract = displayFranchise?.contracts?.[0] || null;
 
   if (!displayFranchise) {
     return (
@@ -71,18 +69,18 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
       </div>
     );
   }
-  
-  // Try to safely extract plan name (backend sends object, mock sends string)
+
   const planName = typeof displayFranchise.plan === 'object' && displayFranchise.plan !== null 
     ? displayFranchise.plan.name 
     : displayFranchise.plan || 'No Plan';
 
-  // Extract admin name (backend sends admin object, mock sends adminName string)
   const adminName = displayFranchise.admin?.name || displayFranchise.adminName || 'Not Assigned';
   const adminEmail = displayFranchise.admin?.email || displayFranchise.adminEmail || 'No email';
 
-  const contract = mockContracts.find(c => c.schoolId === displayFranchise.id) || mockContracts[0];
-  const royaltyRecord = mockRoyaltyRecords.find(r => r.schoolId === displayFranchise.id) || mockRoyaltyRecords[0];
+  // Calculate contract days remaining dynamically
+  const daysRemaining = latestContract?.endDate 
+    ? Math.max(0, Math.ceil((new Date(latestContract.endDate).getTime() - new Date().getTime()) / (1000 * 60 * 60 * 24)))
+    : 0;
 
   return (
     <div className="space-y-6">
@@ -114,7 +112,7 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
       {/* Main Banner Header */}
       <div className="bg-gradient-to-r from-blue-900 via-indigo-900 to-slate-900 text-white p-6 md:p-8 rounded-3xl shadow-xl flex flex-col md:flex-row md:items-center justify-between gap-6 border border-slate-800">
         <div className="flex items-start gap-4">
-          <div className="w-16 h-16 rounded-2xl bg-white/10 backdrop-blur-md text-white font-extrabold text-2xl flex items-center justify-center border border-white/20 shrink-0">
+          <div className="w-16 h-16 rounded-2xl bg-white/15 backdrop-blur-md text-white font-extrabold text-2xl flex items-center justify-center border border-white/20 shrink-0">
             {displayFranchise.name.substring(0, 2).toUpperCase()}
           </div>
           <div>
@@ -141,7 +139,9 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
           </div>
           <div className="text-right">
             <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider block">Monthly Royalty</span>
-            <span className="text-xl font-extrabold text-emerald-400">₹{(displayFranchise.monthlyRoyalty || 45000).toLocaleString('en-IN')}/mo</span>
+            <span className="text-xl font-extrabold text-emerald-400">
+              ₹{Number(latestRoyalty?.royaltyAmount || 0).toLocaleString('en-IN')}/mo
+            </span>
           </div>
         </div>
       </div>
@@ -171,8 +171,10 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase">Contract Days Left</span>
             <Calendar className="w-4 h-4 text-indigo-600" />
           </div>
-          <div className="text-2xl font-extrabold text-slate-900">{contract.daysRemaining} Days</div>
-          <span className="text-[11px] font-bold text-indigo-600 mt-1 block">Expires: {contract.endDate}</span>
+          <div className="text-2xl font-extrabold text-slate-900">{daysRemaining} Days</div>
+          <span className="text-[11px] font-bold text-indigo-600 mt-1 block">
+            Expires: {latestContract?.endDate ? new Date(latestContract.endDate).toLocaleDateString('en-IN') : 'N/A'}
+          </span>
         </Card>
 
         <Card className="p-4 border-slate-200/80">
@@ -180,11 +182,16 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <span className="text-[10px] font-bold text-slate-500 uppercase">Royalty Status</span>
             <CreditCard className="w-4 h-4 text-emerald-600" />
           </div>
-          <div className="text-xl font-extrabold text-slate-900">{displayFranchise.royaltyStatus || 'Paid'}</div>
-          <span className={`text-[11px] font-bold mt-1 block ${
-            (displayFranchise.royaltyStatus || 'Paid') === 'Paid' ? 'text-emerald-600' : 'text-rose-600'
-          }`}>
-            August billing cleared
+          <div className="text-xl font-extrabold text-slate-900">
+            {latestRoyalty?.status || 'No Record'}
+          </div>
+          <span className="text-[11px] font-bold mt-1 block text-slate-600">
+            {latestRoyalty
+              ? `Billing: ${new Date(latestRoyalty.billingMonth).toLocaleDateString('en-IN', {
+                  month: 'long',
+                  year: 'numeric',
+                })}`
+              : 'No record available'}
           </span>
         </Card>
       </div>
@@ -274,33 +281,41 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
                 <FileText className="w-5 h-5 text-emerald-600" />
                 <h3 className="text-base font-extrabold text-slate-900">SaaS License Contract</h3>
               </div>
-              <Badge variant="blue" size="sm">{contract.renewalStatus}</Badge>
+              <Badge 
+                variant={latestContract?.status === 'ACTIVE' || latestContract?.status === 'Active' ? 'emerald' : 'amber'} 
+                size="sm"
+              >
+                {latestContract?.status || 'No Contract'}
+              </Badge>
             </div>
 
             <div className="space-y-3 text-xs">
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="font-semibold text-slate-500">Contract Number:</span>
-                <span className="font-extrabold text-slate-900">{contract.contractNumber}</span>
+                <span className="font-semibold text-slate-500">Agreement Number:</span>
+                <span className="font-extrabold text-slate-900">
+                  {latestContract?.agreementNumber || latestContract?.id || 'N/A'}
+                </span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="font-semibold text-slate-500">Agreement Title:</span>
-                <span className="font-bold text-slate-800">{contract.agreementTitle}</span>
-              </div>
-
-              <div className="flex items-center justify-between py-1 border-b border-slate-50">
-                <span className="font-semibold text-slate-500">Contract Duration:</span>
-                <span className="font-bold text-slate-800">{contract.durationMonths} Months</span>
+                <span className="font-semibold text-slate-500">Agreement Type:</span>
+                <span className="font-bold text-slate-800">
+                  {latestContract?.agreementType || 'Standard License'}
+                </span>
               </div>
 
               <div className="flex items-center justify-between py-1 border-b border-slate-50">
                 <span className="font-semibold text-slate-500">Start Date:</span>
-                <span className="font-bold text-slate-800">{contract.startDate}</span>
+                <span className="font-bold text-slate-800">
+                  {latestContract?.startDate ? new Date(latestContract.startDate).toLocaleDateString('en-IN') : 'N/A'}
+                </span>
               </div>
 
               <div className="flex items-center justify-between py-1">
                 <span className="font-semibold text-slate-500">End Date:</span>
-                <span className="font-bold text-slate-800">{contract.endDate}</span>
+                <span className="font-bold text-slate-800">
+                  {latestContract?.endDate ? new Date(latestContract.endDate).toLocaleDateString('en-IN') : 'N/A'}
+                </span>
               </div>
             </div>
 
@@ -318,23 +333,40 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <div className="flex items-center justify-between border-b border-slate-100 pb-3">
               <div className="flex items-center gap-2">
                 <IndianRupee className="w-5 h-5 text-amber-600" />
-                <h3 className="text-base font-extrabold text-slate-900">Royalty Financial Breakdown</h3>
+                <h3 className="text-base font-extrabold text-slate-900">
+                  Royalty Financial Breakdown
+                </h3>
               </div>
-              <Badge variant={royaltyRecord.status === 'Paid' ? 'emerald' : 'amber'}>
-                {royaltyRecord.status}
+
+              <Badge
+                variant={
+                  latestRoyalty?.status === 'Paid' || latestRoyalty?.status === 'PAID'
+                    ? 'emerald'
+                    : 'amber'
+                }
+              >
+                {latestRoyalty?.status || 'No Record'}
               </Badge>
             </div>
 
             <div className="grid grid-cols-2 gap-3 text-center">
               <div className="p-3 bg-slate-50 rounded-2xl border border-slate-100">
-                <span className="text-[10px] font-bold text-slate-500 uppercase block">Monthly Amount</span>
-                <span className="text-lg font-extrabold text-slate-900">₹{(displayFranchise.monthlyRoyalty || 45000).toLocaleString('en-IN')}</span>
+                <span className="text-[10px] font-bold text-slate-500 uppercase block">
+                  Monthly Amount
+                </span>
+
+                <span className="text-lg font-extrabold text-slate-900">
+                  ₹{Number(latestRoyalty?.royaltyAmount || 0).toLocaleString('en-IN')}
+                </span>
               </div>
 
               <div className="p-3 bg-emerald-50/60 rounded-2xl border border-emerald-100">
-                <span className="text-[10px] font-bold text-emerald-700 uppercase block">Total Collected</span>
+                <span className="text-[10px] font-bold text-emerald-700 uppercase block">
+                  Total Amount
+                </span>
+
                 <span className="text-lg font-extrabold text-emerald-800">
-                  ₹{((displayFranchise.monthlyRoyalty || 45000) * 12).toLocaleString('en-IN')}
+                  ₹{Number(latestRoyalty?.totalAmount || 0).toLocaleString('en-IN')}
                 </span>
               </div>
             </div>
@@ -342,11 +374,44 @@ export const FranchiseDetailPage: React.FC<FranchiseDetailPageProps> = ({
             <div className="text-xs font-medium text-slate-600 space-y-1.5 pt-2">
               <div className="flex justify-between">
                 <span>Billing Cycle:</span>
-                <strong className="text-slate-800">Monthly (Due 5th of month)</strong>
+
+                <strong className="text-slate-800">
+                  Monthly
+                  {latestRoyalty?.dueDate
+                    ? ` (Due ${new Date(latestRoyalty.dueDate).getDate()}th of month)`
+                    : ''}
+                </strong>
               </div>
+
               <div className="flex justify-between">
-                <span>Invoice Number:</span>
-                <strong className="text-slate-800">{royaltyRecord.invoiceNumber}</strong>
+                <span>Billing Month:</span>
+
+                <strong className="text-slate-800">
+                  {latestRoyalty?.billingMonth
+                    ? new Date(latestRoyalty.billingMonth).toLocaleDateString('en-IN', {
+                        month: 'long',
+                        year: 'numeric',
+                      })
+                    : 'N/A'}
+                </strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Due Date:</span>
+
+                <strong className="text-slate-800">
+                  {latestRoyalty?.dueDate
+                    ? new Date(latestRoyalty.dueDate).toLocaleDateString('en-IN')
+                    : 'N/A'}
+                </strong>
+              </div>
+
+              <div className="flex justify-between">
+                <span>Royalty Record:</span>
+
+                <strong className="text-slate-800">
+                  {latestRoyalty?.id || 'N/A'}
+                </strong>
               </div>
             </div>
           </Card>

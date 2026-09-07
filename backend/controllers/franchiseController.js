@@ -5,6 +5,7 @@ const {
   Franchise,
   FranchiseAdmin,
   Plan,
+  Feature,
   Contract,
   MonthlyRoyalty,
   Student,
@@ -198,8 +199,15 @@ const getFranchiseById = async (req, res) => {
         {
           model: FranchiseAdmin,
           as: "admin",
-          attributes: ["id", "name", "email", "isActive", "createdAt"],
+          attributes: [
+            "id",
+            "name",
+            "email",
+            "isActive",
+            "createdAt",
+          ],
         },
+
         {
           model: Plan,
           as: "plan",
@@ -217,6 +225,35 @@ const getFranchiseById = async (req, res) => {
             },
           ],
         },
+
+        {
+          model: Contract,
+          as: "contracts",
+          attributes: [
+            "id",
+            "agreementNumber",
+            "agreementType",
+            "startDate",
+            "endDate",
+            "status",
+          ],
+        },
+
+        {
+          model: MonthlyRoyalty,
+          as: "monthlyRoyalties",
+          attributes: [
+            "id",
+            "billingMonth",
+            "royaltyAmount",
+            "totalAmount",
+            "status",
+            "dueDate",
+          ],
+          separate: true,
+          limit: 1,
+          order: [["billingMonth", "DESC"]],
+        },
       ],
     });
 
@@ -232,7 +269,7 @@ const getFranchiseById = async (req, res) => {
       data: franchise,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Get Franchise By ID Error:", error);
 
     return res.status(500).json({
       success: false,
@@ -410,7 +447,6 @@ const updateFranchise = async (req, res) => {
       pincode,
     } = req.body;
 
-    // Find franchise
     const franchise = await Franchise.findByPk(id);
 
     if (!franchise) {
@@ -420,7 +456,6 @@ const updateFranchise = async (req, res) => {
       });
     }
 
-    // Check if code is already used by another franchise
     if (code && code !== franchise.code) {
       const existingFranchise = await Franchise.findOne({
         where: { code },
@@ -434,7 +469,6 @@ const updateFranchise = async (req, res) => {
       }
     }
 
-    // Update only provided fields
     if (name !== undefined) franchise.name = name;
     if (code !== undefined) franchise.code = code;
     if (email !== undefined) franchise.email = email;
@@ -461,8 +495,58 @@ const updateFranchise = async (req, res) => {
   }
 };
 
+const deleteFranchise = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { id } = req.params;
+
+    const franchise = await Franchise.findByPk(id, {
+      transaction,
+    });
+
+    if (!franchise) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Franchise not found",
+      });
+    }
+
+    await franchise.destroy({
+      transaction,
+    });
+
+    await transaction.commit();
+
+    return res.status(200).json({
+      success: true,
+      message: "Franchise deleted successfully",
+      data: {
+        franchiseId: id,
+      },
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error("Delete Franchise Error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Failed to delete franchise",
+      error: error.message,
+    });
+  }
+};
 
 module.exports = {
-  createFranchise, getFranchises, getFranchiseById, updateFranchiseStatus, createFranchiseAdmin, updateFranchisePlan
-  ,updateFranchise,
+  createFranchise,
+  getFranchises,
+  getFranchiseById,
+  updateFranchiseStatus,
+  createFranchiseAdmin,
+  updateFranchisePlan,
+  updateFranchise,
+  deleteFranchise,
 };
