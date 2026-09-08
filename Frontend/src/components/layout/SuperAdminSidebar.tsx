@@ -98,7 +98,7 @@ export const SuperAdminSidebar: React.FC<SuperAdminSidebarProps> = ({
       items: [
         { id: 'sa_all_contracts', label: 'All Contracts', icon: FileText, path: '/super-admin/contracts' },
         { id: 'sa_active_contracts', label: 'Active Contracts', icon: FileCheck2, path: '/super-admin/contracts/active' },
-        { id: 'sa_expiring_contracts', label: 'Expiring Soon', icon: Clock, path: '/super-admin/contracts/expiring', badge: '3' },
+        { id: 'sa_expiring_contracts', label: 'Expiring Soon', icon: Clock, path: '/super-admin/contracts/expiring' },
         { id: 'sa_expired_contracts', label: 'Expired Contracts', icon: FileX2, path: '/super-admin/contracts/expired' }
       ]
     }

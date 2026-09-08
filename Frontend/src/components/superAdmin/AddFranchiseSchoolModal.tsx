@@ -89,11 +89,12 @@ export const AddFranchiseSchoolModal: React.FC<AddFranchiseSchoolModalProps> = (
 
 
 
-  const handleSubmit = (e: React.FormEvent) => {
+  const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!name || !email) return;
     setIsLoading(true);
-    setTimeout(() => {
+    
+    try {
       const franchise: Franchise = {
         id: editFranchise?.id || `fr-${Date.now()}`,
         code,
@@ -118,10 +119,14 @@ export const AddFranchiseSchoolModal: React.FC<AddFranchiseSchoolModalProps> = (
         contractEndDate: endDate,
         monthlyRoyalty: parseInt(monthlyRoyalty) || 45000
       };
-      setIsLoading(false);
-      onSave(franchise);
+
+      await onSave(franchise);
       onClose();
-    }, 600);
+    } catch (error) {
+      console.error('Save failed:', error);
+    } finally {
+      setIsLoading(false);
+    }
   };
 
   return (

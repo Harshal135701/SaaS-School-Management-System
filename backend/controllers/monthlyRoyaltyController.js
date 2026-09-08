@@ -55,13 +55,18 @@ const createMonthlyRoyalty = async (req, res) => {
       });
     }
 
+    // Calculate the last day of the billing month to allow mid-month configurations
+    const [year, month] = billingMonth.split('-');
+    const lastDay = new Date(year, month, 0).getDate();
+    const endOfMonthStr = `${year}-${month}-${String(lastDay).padStart(2, '0')}`;
+
     // Find active royalty configuration
     const configuration = await RoyaltyConfiguration.findOne({
       where: {
         franchiseId,
         isActive: true,
         effectiveFrom: {
-          [Op.lte]: billingMonth,
+          [Op.lte]: endOfMonthStr,
         },
       },
       order: [["effectiveFrom", "DESC"]],

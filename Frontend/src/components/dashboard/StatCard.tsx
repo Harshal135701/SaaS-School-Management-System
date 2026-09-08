@@ -10,7 +10,12 @@ import {
   UserPlus, 
   TrendingUp, 
   TrendingDown, 
-  ArrowRight 
+  ArrowRight,
+  Calendar,
+  CreditCard,
+  BookOpen,
+  FileText,
+  Clock
 } from 'lucide-react';
 
 interface StatCardProps {
@@ -27,6 +32,11 @@ export const StatCard: React.FC<StatCardProps> = ({ stat, onViewDetails }) => {
       case 'HeartHandshake': return <HeartHandshake className="w-5 h-5 text-indigo-600" />;
       case 'Building2': return <Building2 className="w-5 h-5 text-amber-600" />;
       case 'UserPlus': return <UserPlus className="w-5 h-5 text-rose-600" />;
+      case 'Calendar': return <Calendar className="w-5 h-5 text-emerald-600" />;
+      case 'CreditCard': return <CreditCard className="w-5 h-5 text-amber-600" />;
+      case 'BookOpen': return <BookOpen className="w-5 h-5 text-purple-600" />;
+      case 'FileText': return <FileText className="w-5 h-5 text-indigo-600" />;
+      case 'Clock': return <Clock className="w-5 h-5 text-rose-600" />;
       default: return <GraduationCap className="w-5 h-5 text-blue-600" />;
     }
   };

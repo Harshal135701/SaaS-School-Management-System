@@ -5,13 +5,10 @@ import { Button } from '../../components/ui/Button';
 import api from '../../services/api';
 
 import {
-  Settings,
-  Calendar,
   CheckCircle,
   Clock,
   AlertCircle,
   FileText,
-  Download,
   Search,
   Plus,
   Edit,
@@ -107,8 +104,21 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
   const [reportFrom, setReportFrom] = useState('');
   const [reportTo, setReportTo] = useState('');
   const [reportFranchise, setReportFranchise] = useState('');
+  const [reportData, setReportData] = useState<any>(null);
+  const [isGeneratingReport, setIsGeneratingReport] = useState(false);
 
   const [toastMsg, setToastMsg] = useState('');
+
+  // Generate Monthly Bill modal state
+  const [showBillModal, setShowBillModal] = useState(false);
+
+  const [billForm, setBillForm] = useState({
+    franchiseId: '',
+    billingMonth: '',
+    dueDate: '',
+  });
+
+  const [generatingBill, setGeneratingBill] = useState(false);
 
   useEffect(() => {
     setActiveTab((subView as RoyaltyTab) || 'overview');
@@ -191,6 +201,7 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
         'Failed to fetch royalty configurations:',
         error
       );
+
       showToast('Failed to load royalty configurations');
     }
   };
@@ -262,16 +273,18 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
 
   const filteredRoyalties = useMemo(() => {
     return royalties.filter((royalty) => {
-      const search = searchQuery.toLowerCase();
+      const search = searchQuery.trim().toLowerCase();
 
       const matchesSearch =
+        !search ||
         royalty.franchise?.name
           ?.toLowerCase()
           .includes(search) ||
         royalty.franchise?.code
           ?.toLowerCase()
           .includes(search) ||
-        royalty.id?.toLowerCase().includes(search);
+        royalty.id?.toLowerCase().includes(search) ||
+        false;
 
       let matchesTab = true;
 
@@ -404,7 +417,7 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
 
       showToast(
         error?.response?.data?.message ||
-        'Failed to save configuration'
+          'Failed to save configuration'
       );
     } finally {
       setLoading(false);
@@ -443,23 +456,40 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
      GENERATE MONTHLY BILL
   ========================= */
 
+  const openBillModal = () => {
+    setBillForm({
+      franchiseId: '',
+      billingMonth: '',
+      dueDate: '',
+    });
+
+    setShowBillModal(true);
+  };
+
   const generateMonthlyBill = async (
-    franchiseId: string
+    e: React.FormEvent
   ) => {
+    e.preventDefault();
+
+    if (
+      !billForm.franchiseId ||
+      !billForm.billingMonth ||
+      !billForm.dueDate
+    ) {
+      showToast('Please fill in all required fields.');
+      return;
+    }
+
+    // Convert YYYY-MM → YYYY-MM-01
+    const billingMonth = `${billForm.billingMonth}-01`;
+
+    const {
+      franchiseId,
+      dueDate,
+    } = billForm;
+
     try {
-      const now = new Date();
-
-      const billingMonth = `${now.getFullYear()}-${String(
-        now.getMonth() + 1
-      ).padStart(2, '0')}-01`;
-
-      const dueDate = new Date(
-        now.getFullYear(),
-        now.getMonth() + 1,
-        5
-      )
-        .toISOString()
-        .split('T')[0];
+      setGeneratingBill(true);
 
       await api.post('/royalties/monthly', {
         franchiseId,
@@ -467,7 +497,11 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
         dueDate,
       });
 
-      showToast('Monthly bill generated successfully');
+      showToast(
+        'Monthly bill generated successfully.'
+      );
+
+      setShowBillModal(false);
 
       await fetchRoyalties();
     } catch (error: any) {
@@ -478,8 +512,10 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
 
       showToast(
         error?.response?.data?.message ||
-        'Failed to generate monthly bill'
+          'Failed to generate monthly bill.'
       );
+    } finally {
+      setGeneratingBill(false);
     }
   };
 
@@ -489,6 +525,9 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
 
   const generateReport = async () => {
     try {
+      setIsGeneratingReport(true);
+      setReportData(null);
+
       const params: any = {};
 
       if (reportFranchise) {
@@ -505,13 +544,17 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
 
       const res = await api.get(
         '/royalties/monthly/report',
-        { params }
+        {
+          params,
+        }
       );
 
       if (res.data?.success) {
         showToast(
           `Report generated: ${res.data.summary.totalBills} bills`
         );
+
+        setReportData(res.data);
       }
     } catch (error) {
       console.error(
@@ -520,6 +563,8 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
       );
 
       showToast('Failed to generate report');
+    } finally {
+      setIsGeneratingReport(false);
     }
   };
 
@@ -577,7 +622,7 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
   return (
     <div className="space-y-6">
 
-      {/* HEADER */}
+      {/* ================= HEADER ================= */}
 
       <div className="flex items-center justify-between">
         <div>
@@ -602,10 +647,9 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
         </Button>
       </div>
 
-      {/* TABS */}
+      {/* ================= TABS ================= */}
 
       <div className="flex flex-wrap gap-2 border-b pb-2">
-
         {[
           ['overview', 'Overview'],
           ['config', 'Configuration'],
@@ -620,17 +664,18 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
             onClick={() =>
               handleTabChange(id as RoyaltyTab)
             }
-            className={`px-4 py-2 rounded-lg text-sm ${activeTab === id
-              ? 'bg-blue-600 text-white'
-              : 'bg-gray-100 text-gray-700'
-              }`}
+            className={`px-4 py-2 rounded-lg text-sm ${
+              activeTab === id
+                ? 'bg-blue-600 text-white'
+                : 'bg-gray-100 text-gray-700'
+            }`}
           >
             {label}
           </button>
         ))}
       </div>
 
-      {/* TOAST */}
+      {/* ================= TOAST ================= */}
 
       {toastMsg && (
         <div className="fixed right-6 top-6 z-50 rounded-lg bg-gray-900 px-5 py-3 text-white shadow-lg">
@@ -784,6 +829,7 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
                         key={config.id}
                         className="border-b"
                       >
+
                         <td className="p-3">
                           <div className="font-medium">
                             {config.franchise?.name ||
@@ -801,11 +847,11 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
 
                         <td className="p-3 font-medium">
                           {config.royaltyType ===
-                            'PERCENTAGE'
+                          'PERCENTAGE'
                             ? `${config.amount}%`
                             : formatCurrency(
-                              Number(config.amount)
-                            )}
+                                Number(config.amount)
+                              )}
                         </td>
 
                         <td className="p-3">
@@ -836,6 +882,7 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
                             Edit
                           </Button>
                         </td>
+
                       </tr>
                     ))
                   )}
@@ -853,292 +900,556 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
       {['monthly', 'paid', 'pending', 'overdue'].includes(
         activeTab
       ) && (
-          <Card>
-            <div className="p-6">
+        <Card>
+          <div className="p-6">
 
-              <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
+            <div className="mb-5 flex flex-col gap-3 md:flex-row md:items-center md:justify-between">
 
-                <div className="relative">
-                  <Search
-                    size={18}
-                    className="absolute left-3 top-3 text-gray-400"
-                  />
+              <div className="relative">
+                <Search
+                  size={18}
+                  className="absolute left-3 top-3 text-gray-400"
+                />
 
-                  <input
-                    value={searchQuery}
-                    onChange={(e) =>
-                      setSearchQuery(e.target.value)
-                    }
-                    placeholder="Search franchise..."
-                    className="rounded-lg border py-2 pl-10 pr-4"
-                  />
-                </div>
-
-                <select
-                  value={statusFilter}
+                <input
+                  value={searchQuery}
                   onChange={(e) =>
-                    setStatusFilter(e.target.value)
+                    setSearchQuery(e.target.value)
                   }
-                  className="rounded-lg border px-4 py-2"
-                >
-                  <option value="ALL">All Status</option>
-                  <option value="PAID">Paid</option>
-                  <option value="PENDING">
-                    Pending
-                  </option>
-                  <option value="OVERDUE">
-                    Overdue
-                  </option>
-                </select>
-
+                  placeholder="Search franchise..."
+                  className="rounded-lg border py-2 pl-10 pr-4"
+                />
               </div>
 
-              <div className="overflow-x-auto">
+              <select
+                value={statusFilter}
+                onChange={(e) =>
+                  setStatusFilter(e.target.value)
+                }
+                className="rounded-lg border px-4 py-2"
+              >
+                <option value="ALL">
+                  All Status
+                </option>
 
-                <table className="w-full text-left">
+                <option value="PAID">
+                  Paid
+                </option>
 
-                  <thead>
-                    <tr className="border-b text-sm text-gray-500">
-                      <th className="p-3">School</th>
-                      <th className="p-3">Billing Month</th>
-                      <th className="p-3">Plan Amount</th>
-                      <th className="p-3">
-                        Extra Royalty
-                      </th>
-                      <th className="p-3">
-                        Total Amount
-                      </th>
-                      <th className="p-3">Due Date</th>
-                      <th className="p-3">Status</th>
-                      <th className="p-3">Action</th>
-                    </tr>
-                  </thead>
+                <option value="PENDING">
+                  Pending
+                </option>
 
-                  <tbody>
+                <option value="OVERDUE">
+                  Overdue
+                </option>
+              </select>
 
-                    {loading ? (
-                      <tr>
-                        <td
-                          colSpan={8}
-                          className="p-8 text-center"
-                        >
-                          Loading...
-                        </td>
-                      </tr>
-                    ) : filteredRoyalties.length === 0 ? (
-                      <tr>
-                        <td
-                          colSpan={8}
-                          className="p-8 text-center text-gray-500"
-                        >
-                          No royalty records found.
-                        </td>
-                      </tr>
-                    ) : (
-                      filteredRoyalties.map(
-                        (royalty) => (
-                          <tr
-                            key={royalty.id}
-                            className="border-b"
-                          >
+              {activeTab === 'monthly' && (
+                <Button onClick={openBillModal}>
+                  <Plus size={16} />
+                  Generate Monthly Bill
+                </Button>
+              )}
 
-                            <td className="p-3">
-                              <div className="font-medium">
-                                {royalty.franchise?.name ||
-                                  'Unknown'}
-                              </div>
-
-                              <div className="text-xs text-gray-500">
-                                {royalty.franchise?.code ||
-                                  '-'}
-                              </div>
-                            </td>
-
-                            <td className="p-3">
-                              {formatDate(
-                                royalty.billingMonth
-                              )}
-                            </td>
-
-                            <td className="p-3">
-                              {formatCurrency(
-                                Number(
-                                  royalty.planAmount
-                                )
-                              )}
-                            </td>
-
-                            <td className="p-3">
-                              <div>
-                                {formatCurrency(
-                                  Number(
-                                    royalty.royaltyAmount
-                                  )
-                                )}
-                              </div>
-
-                              <div className="text-xs text-gray-500">
-                                {royalty.royaltyType ===
-                                  'PERCENTAGE'
-                                  ? `${royalty.royaltyRate}%`
-                                  : 'Fixed'}
-                              </div>
-                            </td>
-
-                            <td className="p-3 font-bold">
-                              {formatCurrency(
-                                Number(
-                                  royalty.totalAmount
-                                )
-                              )}
-                            </td>
-
-                            <td className="p-3">
-                              {formatDate(
-                                royalty.dueDate
-                              )}
-                            </td>
-
-                            <td className="p-3">
-                              {getStatusBadge(
-                                royalty.status
-                              )}
-                            </td>
-
-                            <td className="p-3">
-
-                              {royalty.status ===
-                                'PENDING' && (
-                                  <Button
-                                    onClick={() =>
-                                      updateStatus(
-                                        royalty.id,
-                                        'PAID'
-                                      )
-                                    }
-                                  >
-                                    Mark Paid
-                                  </Button>
-                                )}
-
-                              {royalty.status ===
-                                'OVERDUE' && (
-                                  <Button
-                                    onClick={() =>
-                                      updateStatus(
-                                        royalty.id,
-                                        'PAID'
-                                      )
-                                    }
-                                  >
-                                    Mark Paid
-                                  </Button>
-                                )}
-
-                              {royalty.status ===
-                                'PAID' && (
-                                  <span className="text-sm text-gray-500">
-                                    Completed
-                                  </span>
-                                )}
-
-                            </td>
-
-                          </tr>
-                        )
-                      )
-                    )}
-
-                  </tbody>
-
-                </table>
-              </div>
             </div>
-          </Card>
-        )}
+
+            <div className="overflow-x-auto">
+
+              <table className="w-full text-left">
+
+                <thead>
+                  <tr className="border-b text-sm text-gray-500">
+                    <th className="p-3">School</th>
+                    <th className="p-3">Billing Month</th>
+                    <th className="p-3">Plan Amount</th>
+                    <th className="p-3">
+                      Extra Royalty
+                    </th>
+                    <th className="p-3">
+                      Total Amount
+                    </th>
+                    <th className="p-3">Due Date</th>
+                    <th className="p-3">Status</th>
+                    <th className="p-3">Action</th>
+                  </tr>
+                </thead>
+
+                <tbody>
+
+                  {loading ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="p-8 text-center"
+                      >
+                        Loading...
+                      </td>
+                    </tr>
+                  ) : filteredRoyalties.length === 0 ? (
+                    <tr>
+                      <td
+                        colSpan={8}
+                        className="p-8 text-center text-gray-500"
+                      >
+                        {royalties.length === 0 ? (
+                          <div className="space-y-1">
+                            <p className="font-medium text-gray-600">
+                              No monthly bills have been generated yet.
+                            </p>
+
+                            <p className="text-sm">
+                              Use the &ldquo;Generate Monthly Bill&rdquo;
+                              button to create a bill for a franchise.
+                            </p>
+                          </div>
+                        ) : (
+                          <p>
+                            No royalty records match your
+                            search or filter.
+                          </p>
+                        )}
+                      </td>
+                    </tr>
+                  ) : (
+                    filteredRoyalties.map(
+                      (royalty) => (
+                        <tr
+                          key={royalty.id}
+                          className="border-b"
+                        >
+
+                          <td className="p-3">
+                            <div className="font-medium">
+                              {royalty.franchise?.name ||
+                                'Unknown'}
+                            </div>
+
+                            <div className="text-xs text-gray-500">
+                              {royalty.franchise?.code ||
+                                '-'}
+                            </div>
+                          </td>
+
+                          <td className="p-3">
+                            {formatDate(
+                              royalty.billingMonth
+                            )}
+                          </td>
+
+                          <td className="p-3">
+                            {formatCurrency(
+                              Number(
+                                royalty.planAmount
+                              )
+                            )}
+                          </td>
+
+                          <td className="p-3">
+                            <div>
+                              {formatCurrency(
+                                Number(
+                                  royalty.royaltyAmount
+                                )
+                              )}
+                            </div>
+
+                            <div className="text-xs text-gray-500">
+                              {royalty.royaltyType ===
+                              'PERCENTAGE'
+                                ? `${royalty.royaltyRate}%`
+                                : 'Fixed'}
+                            </div>
+                          </td>
+
+                          <td className="p-3 font-bold">
+                            {formatCurrency(
+                              Number(
+                                royalty.totalAmount
+                              )
+                            )}
+                          </td>
+
+                          <td className="p-3">
+                            {formatDate(
+                              royalty.dueDate
+                            )}
+                          </td>
+
+                          <td className="p-3">
+                            {getStatusBadge(
+                              royalty.status
+                            )}
+                          </td>
+
+                          <td className="p-3">
+
+                            {royalty.status ===
+                              'PENDING' && (
+                                <Button
+                                  onClick={() =>
+                                    updateStatus(
+                                      royalty.id,
+                                      'PAID'
+                                    )
+                                  }
+                                >
+                                  Mark Paid
+                                </Button>
+                              )}
+
+                            {royalty.status ===
+                              'OVERDUE' && (
+                                <Button
+                                  onClick={() =>
+                                    updateStatus(
+                                      royalty.id,
+                                      'PAID'
+                                    )
+                                  }
+                                >
+                                  Mark Paid
+                                </Button>
+                              )}
+
+                            {royalty.status ===
+                              'PAID' && (
+                                <span className="text-sm text-gray-500">
+                                  Completed
+                                </span>
+                              )}
+
+                          </td>
+
+                        </tr>
+                      )
+                    )
+                  )}
+
+                </tbody>
+
+              </table>
+            </div>
+          </div>
+        </Card>
+      )}
 
       {/* ================= REPORTS ================= */}
 
       {activeTab === 'reports' && (
-        <Card>
-          <div className="p-6">
+        <div className="space-y-6">
 
-            <h2 className="mb-6 text-lg font-semibold">
-              Royalty Reports
-            </h2>
+          <Card>
+            <div className="p-6">
 
-            <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
+              <h2 className="mb-6 text-lg font-semibold">
+                Royalty Reports
+              </h2>
 
-              <div>
-                <label className="mb-1 block text-sm">
-                  Franchise
-                </label>
+              <div className="grid grid-cols-1 gap-4 md:grid-cols-3">
 
-                <select
-                  value={reportFranchise}
-                  onChange={(e) =>
-                    setReportFranchise(
-                      e.target.value
-                    )
-                  }
-                  className="w-full rounded-lg border px-3 py-2"
-                >
-                  <option value="">
-                    All Franchises
-                  </option>
+                <div>
+                  <label className="mb-1 block text-sm">
+                    Franchise
+                  </label>
 
-                  {franchises.map((franchise) => (
-                    <option
-                      key={franchise.id}
-                      value={franchise.id}
-                    >
-                      {franchise.name}
+                  <select
+                    value={reportFranchise}
+                    onChange={(e) => {
+                      setReportFranchise(e.target.value);
+                      setReportData(null);
+                    }}
+                    className="w-full rounded-lg border px-3 py-2"
+                  >
+                    <option value="">
+                      All Franchises
                     </option>
-                  ))}
-                </select>
+
+                    {franchises.map((franchise) => (
+                      <option
+                        key={franchise.id}
+                        value={franchise.id}
+                      >
+                        {franchise.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm">
+                    From
+                  </label>
+
+                  <input
+                    type="date"
+                    value={reportFrom}
+                    onChange={(e) => {
+                      setReportFrom(e.target.value);
+                      setReportData(null);
+                    }}
+                    className="w-full rounded-lg border px-3 py-2"
+                  />
+                </div>
+
+                <div>
+                  <label className="mb-1 block text-sm">
+                    To
+                  </label>
+
+                  <input
+                    type="date"
+                    value={reportTo}
+                    onChange={(e) => {
+                      setReportTo(e.target.value);
+                      setReportData(null);
+                    }}
+                    className="w-full rounded-lg border px-3 py-2"
+                  />
+                </div>
+
               </div>
 
-              <div>
-                <label className="mb-1 block text-sm">
-                  From
-                </label>
+              <div className="mt-6">
+                <Button
+                  onClick={generateReport}
+                  disabled={isGeneratingReport}
+                >
+                  <FileText size={16} />
 
-                <input
-                  type="date"
-                  value={reportFrom}
-                  onChange={(e) =>
-                    setReportFrom(e.target.value)
-                  }
-                  className="w-full rounded-lg border px-3 py-2"
-                />
-              </div>
-
-              <div>
-                <label className="mb-1 block text-sm">
-                  To
-                </label>
-
-                <input
-                  type="date"
-                  value={reportTo}
-                  onChange={(e) =>
-                    setReportTo(e.target.value)
-                  }
-                  className="w-full rounded-lg border px-3 py-2"
-                />
+                  {isGeneratingReport
+                    ? 'Generating...'
+                    : 'Generate Report'}
+                </Button>
               </div>
 
             </div>
+          </Card>
 
-            <div className="mt-6">
-              <Button onClick={generateReport}>
-                <FileText size={16} />
-                Generate Report
-              </Button>
+          {reportData && (
+            <div className="space-y-6">
+
+              {/* SUMMARY GRID */}
+
+              <div className="grid grid-cols-2 gap-4 md:grid-cols-4">
+
+                <Card className="border-slate-100 bg-slate-50 p-4">
+                  <p className="text-sm font-medium text-slate-500">
+                    Total Bills
+                  </p>
+
+                  <p className="text-2xl font-bold text-slate-900">
+                    {reportData.summary.totalBills}
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-slate-600">
+                    ₹
+                    {Number(
+                      reportData.summary.totalAmount
+                    ).toLocaleString('en-IN')}
+                  </p>
+                </Card>
+
+                <Card className="border-emerald-100 bg-emerald-50 p-4">
+                  <p className="text-sm font-medium text-emerald-600">
+                    Paid Bills
+                  </p>
+
+                  <p className="text-2xl font-bold text-emerald-700">
+                    {reportData.summary.paidBills}
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-emerald-600">
+                    ₹
+                    {Number(
+                      reportData.summary.paidAmount
+                    ).toLocaleString('en-IN')}
+                  </p>
+                </Card>
+
+                <Card className="border-amber-100 bg-amber-50 p-4">
+                  <p className="text-sm font-medium text-amber-600">
+                    Pending Bills
+                  </p>
+
+                  <p className="text-2xl font-bold text-amber-700">
+                    {reportData.summary.pendingBills}
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-amber-600">
+                    ₹
+                    {Number(
+                      reportData.summary.pendingAmount
+                    ).toLocaleString('en-IN')}
+                  </p>
+                </Card>
+
+                <Card className="border-rose-100 bg-rose-50 p-4">
+                  <p className="text-sm font-medium text-rose-600">
+                    Overdue Bills
+                  </p>
+
+                  <p className="text-2xl font-bold text-rose-700">
+                    {reportData.summary.overdueBills}
+                  </p>
+
+                  <p className="mt-1 text-sm font-bold text-rose-600">
+                    ₹
+                    {Number(
+                      reportData.summary.overdueAmount
+                    ).toLocaleString('en-IN')}
+                  </p>
+                </Card>
+
+              </div>
+
+              {/* REPORT TABLE */}
+
+              <Card className="overflow-hidden">
+                <div className="overflow-x-auto">
+
+                  <table className="w-full text-left text-sm">
+
+                    <thead className="bg-slate-50 text-slate-600">
+                      <tr>
+                        <th className="p-4 font-medium">
+                          Franchise
+                        </th>
+
+                        <th className="p-4 font-medium">
+                          Billing Month
+                        </th>
+
+                        <th className="p-4 font-medium">
+                          Plan Amount
+                        </th>
+
+                        <th className="p-4 font-medium">
+                          Extra Royalty
+                        </th>
+
+                        <th className="p-4 font-medium">
+                          Total Amount
+                        </th>
+
+                        <th className="p-4 font-medium">
+                          Due Date
+                        </th>
+
+                        <th className="p-4 font-medium">
+                          Status
+                        </th>
+                      </tr>
+                    </thead>
+
+                    <tbody className="divide-y divide-slate-100">
+
+                      {reportData.data.length === 0 ? (
+                        <tr>
+                          <td
+                            colSpan={7}
+                            className="p-8 text-center text-slate-500"
+                          >
+                            No royalty bills found for
+                            the selected filters.
+                          </td>
+                        </tr>
+                      ) : (
+                        reportData.data.map(
+                          (bill: any) => (
+                            <tr
+                              key={bill.id}
+                              className="hover:bg-slate-50"
+                            >
+
+                              <td className="p-4">
+                                <div className="font-medium text-slate-900">
+                                  {bill.franchise?.name ||
+                                    'Unknown'}
+                                </div>
+
+                                <div className="text-xs text-slate-500">
+                                  {bill.franchise?.code ||
+                                    ''}
+                                </div>
+                              </td>
+
+                              <td className="p-4 text-slate-600">
+                                {formatDate(
+                                  bill.billingMonth
+                                )}
+                              </td>
+
+                              <td className="p-4 text-slate-600">
+                                ₹
+                                {Number(
+                                  bill.planAmount
+                                ).toLocaleString(
+                                  'en-IN'
+                                )}
+                              </td>
+
+                              <td className="p-4">
+                                <div className="text-slate-600">
+                                  ₹
+                                  {Number(
+                                    bill.royaltyAmount
+                                  ).toLocaleString(
+                                    'en-IN'
+                                  )}
+                                </div>
+
+                                <div className="text-[10px] font-bold uppercase tracking-wider text-slate-400">
+                                  {bill.royaltyType}
+                                </div>
+                              </td>
+
+                              <td className="p-4 font-extrabold text-slate-900">
+                                ₹
+                                {Number(
+                                  bill.totalAmount
+                                ).toLocaleString(
+                                  'en-IN'
+                                )}
+                              </td>
+
+                              <td className="p-4 text-slate-600">
+                                {formatDate(
+                                  bill.dueDate
+                                )}
+                              </td>
+
+                              <td className="p-4">
+                                <Badge
+                                  variant={
+                                    bill.status ===
+                                    'PAID'
+                                      ? 'emerald'
+                                      : bill.status ===
+                                        'PENDING'
+                                      ? 'amber'
+                                      : 'rose'
+                                  }
+                                >
+                                  {bill.status}
+                                </Badge>
+                              </td>
+
+                            </tr>
+                          )
+                        )
+                      )}
+
+                    </tbody>
+
+                  </table>
+                </div>
+              </Card>
+
             </div>
+          )}
 
-          </div>
-        </Card>
+        </div>
       )}
 
       {/* ================= CONFIG MODAL ================= */}
@@ -1218,8 +1529,8 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
                       ...configForm,
                       royaltyType:
                         e.target.value as
-                        | 'FIXED'
-                        | 'PERCENTAGE',
+                          | 'FIXED'
+                          | 'PERCENTAGE',
                     })
                   }
                   className="w-full rounded-lg border px-3 py-2"
@@ -1237,7 +1548,7 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
               <div>
                 <label className="mb-1 block text-sm font-medium">
                   {configForm.royaltyType ===
-                    'PERCENTAGE'
+                  'PERCENTAGE'
                     ? 'Royalty Percentage (%)'
                     : 'Royalty Amount (₹)'}
                 </label>
@@ -1302,8 +1613,146 @@ const RoyaltyPage: React.FC<RoyaltyPageProps> = ({
         </div>
       )}
 
+      {/* ================= GENERATE BILL MODAL ================= */}
+
+      {showBillModal && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
+
+          <div className="w-full max-w-md rounded-xl bg-white p-6 shadow-xl">
+
+            <div className="mb-6 flex items-center justify-between">
+
+              <h2 className="text-xl font-semibold">
+                Generate Monthly Bill
+              </h2>
+
+              <button
+                onClick={() =>
+                  setShowBillModal(false)
+                }
+              >
+                <X size={20} />
+              </button>
+
+            </div>
+
+            <form
+              onSubmit={generateMonthlyBill}
+              className="space-y-4"
+            >
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Franchise / School{' '}
+                  <span className="text-red-500">
+                    *
+                  </span>
+                </label>
+
+                <select
+                  value={billForm.franchiseId}
+                  onChange={(e) =>
+                    setBillForm({
+                      ...billForm,
+                      franchiseId:
+                        e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border px-3 py-2"
+                  required
+                >
+                  <option value="">
+                    Select Franchise
+                  </option>
+
+                  {franchises.map((franchise) => (
+                    <option
+                      key={franchise.id}
+                      value={franchise.id}
+                    >
+                      {franchise.name} (
+                      {franchise.code})
+                    </option>
+                  ))}
+                </select>
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Billing Month{' '}
+                  <span className="text-red-500">
+                    *
+                  </span>
+                </label>
+
+                <input
+                  type="month"
+                  value={billForm.billingMonth}
+                  onChange={(e) =>
+                    setBillForm({
+                      ...billForm,
+                      billingMonth:
+                        e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border px-3 py-2"
+                  required
+                />
+              </div>
+
+              <div>
+                <label className="mb-1 block text-sm font-medium">
+                  Due Date{' '}
+                  <span className="text-red-500">
+                    *
+                  </span>
+                </label>
+
+                <input
+                  type="date"
+                  value={billForm.dueDate}
+                  onChange={(e) =>
+                    setBillForm({
+                      ...billForm,
+                      dueDate:
+                        e.target.value,
+                    })
+                  }
+                  className="w-full rounded-lg border px-3 py-2"
+                  required
+                />
+              </div>
+
+              <div className="flex justify-end gap-3 pt-4">
+
+                <Button
+                  type="button"
+                  onClick={() =>
+                    setShowBillModal(false)
+                  }
+                >
+                  Cancel
+                </Button>
+
+                <Button
+                  type="submit"
+                  disabled={generatingBill}
+                >
+                  {generatingBill
+                    ? 'Generating...'
+                    : 'Generate Bill'}
+                </Button>
+
+              </div>
+
+            </form>
+          </div>
+        </div>
+      )}
+
     </div>
   );
 };
 
 export { RoyaltyPage };
+

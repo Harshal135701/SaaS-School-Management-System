@@ -37,57 +37,66 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
   };
 
   const [contractsList, setContractsList] = useState<Contract[]>([]);
-  const [, setLoading] = useState(true);
+  const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState('');
 
   React.useEffect(() => {
-    const fetchContracts = async () => {
+        const fetchContracts = async () => {
       try {
-        const response = await api.get('/contracts');
+        const response = await api.get('/system-admin/franchises');
 
         if (response.data.success) {
-          const contracts = response.data.data.map((contract: any) => {
-            const today = new Date();
-            const endDate = new Date(contract.endDate);
+          const allContracts: Contract[] = [];
+          
+          response.data.data.forEach((franchise: any) => {
+            if (franchise.contracts && Array.isArray(franchise.contracts)) {
+              franchise.contracts.forEach((contract: any) => {
+                const today = new Date();
+                let status: ContractStatus = 'Active';
+                let daysRemaining = 0;
 
-            const diffTime = endDate.getTime() - today.getTime();
-            const daysRemaining = Math.ceil(
-              diffTime / (1000 * 60 * 60 * 24)
-            );
+                if (!contract.endDate) {
+                  status = 'Expired';
+                } else {
+                  const endDate = new Date(contract.endDate);
+                  if (!isNaN(endDate.getTime())) {
+                    const diffTime = endDate.getTime() - today.getTime();
+                    daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
 
-            let status: ContractStatus;
+                    if (daysRemaining <= 0 || contract.status === 'EXPIRED') {
+                      status = 'Expired';
+                    } else if (daysRemaining <= 60) {
+                      status = 'Expiring Soon';
+                    } else {
+                      status = 'Active';
+                    }
+                  } else {
+                    status = 'Expired';
+                  }
+                }
 
-            if (daysRemaining <= 0 || contract.status === 'EXPIRED') {
-              status = 'Expired';
-            } else if (daysRemaining <= 60) {
-              status = 'Expiring Soon';
-            } else {
-              status = 'Active';
+                allContracts.push({
+                  id: String(contract.id),
+                  contractNumber: contract.agreementNumber || 'N/A',
+                  schoolId: franchise.id,
+                  schoolName: franchise.name || 'Unknown School',
+                  schoolCode: franchise.code || 'N/A',
+                  agreementTitle: contract.agreementType || 'N/A',
+                  startDate: contract.startDate || 'N/A',
+                  endDate: contract.endDate || 'N/A',
+                  durationMonths: 0,
+                  monthlyRoyalty: 0,
+                  plan: franchise.plan?.name || 'N/A',
+                  renewalStatus: contract.status === 'RENEWED' ? 'Auto Renewal' : 'Manual Renewal',
+                  status,
+                  daysRemaining,
+                  documentUrl: contract.documentUrl,
+                });
+              });
             }
-
-            return {
-              id: String(contract.id),
-              contractNumber: contract.agreementNumber,
-              schoolId: contract.franchiseId,
-              schoolName: contract.franchise?.name || 'Unknown School',
-              schoolCode: contract.franchise?.code || 'N/A',
-              agreementTitle: contract.agreementType,
-              startDate: contract.startDate,
-              endDate: contract.endDate,
-              durationMonths: 0,
-              monthlyRoyalty: 0,
-              plan: 'Basic',
-              renewalStatus:
-                contract.status === 'RENEWED'
-                  ? 'Auto Renewal'
-                  : 'Manual Renewal',
-              status,
-              daysRemaining,
-              documentUrl: contract.documentUrl,
-            };
           });
 
-          setContractsList(contracts);
+          setContractsList(allContracts);
         }
       } catch (error) {
         console.error('Failed to fetch contracts:', error);
@@ -128,7 +137,7 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
       const formatDate = (date: Date) =>
         date.toISOString().split('T')[0];
 
-      const response = await api.patch(
+      const response = await api.put(
         `/contracts/${renewingContract.id}/renew`,
         {
           startDate: formatDate(newStartDate),
@@ -144,52 +153,56 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
         setRenewingContract(null);
 
         // Refresh contracts
-        const refreshed = await api.get('/contracts');
+                const refreshed = await api.get('/system-admin/franchises');
 
         if (refreshed.data.success) {
-          const contracts = refreshed.data.data.map((contract: any) => {
-            const today = new Date();
-            const endDate = new Date(contract.endDate);
+          const allContracts: Contract[] = [];
+          refreshed.data.data.forEach((franchise: any) => {
+            if (franchise.contracts && Array.isArray(franchise.contracts)) {
+              franchise.contracts.forEach((contract: any) => {
+                const today = new Date();
+                let status: ContractStatus = 'Active';
+                let daysRemaining = 0;
+                if (!contract.endDate) {
+                  status = 'Expired';
+                } else {
+                  const endDate = new Date(contract.endDate);
+                  if (!isNaN(endDate.getTime())) {
+                    const diffTime = endDate.getTime() - today.getTime();
+                    daysRemaining = Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+                    if (daysRemaining <= 0 || contract.status === 'EXPIRED') {
+                      status = 'Expired';
+                    } else if (daysRemaining <= 60) {
+                      status = 'Expiring Soon';
+                    } else {
+                      status = 'Active';
+                    }
+                  } else {
+                    status = 'Expired';
+                  }
+                }
 
-            const diffTime = endDate.getTime() - today.getTime();
-
-            const daysRemaining = Math.ceil(
-              diffTime / (1000 * 60 * 60 * 24)
-            );
-
-            let status: ContractStatus;
-
-            if (daysRemaining <= 0 || contract.status === 'EXPIRED') {
-              status = 'Expired';
-            } else if (daysRemaining <= 60) {
-              status = 'Expiring Soon';
-            } else {
-              status = 'Active';
+                allContracts.push({
+                  id: String(contract.id),
+                  contractNumber: contract.agreementNumber || 'N/A',
+                  schoolId: franchise.id,
+                  schoolName: franchise.name || 'Unknown School',
+                  schoolCode: franchise.code || 'N/A',
+                  agreementTitle: contract.agreementType || 'N/A',
+                  startDate: contract.startDate || 'N/A',
+                  endDate: contract.endDate || 'N/A',
+                  durationMonths: 0,
+                  monthlyRoyalty: 0,
+                  plan: franchise.plan?.name || 'N/A',
+                  renewalStatus: contract.status === 'RENEWED' ? 'Auto Renewal' : 'Manual Renewal',
+                  status,
+                  daysRemaining,
+                  documentUrl: contract.documentUrl,
+                });
+              });
             }
-
-            return {
-              id: String(contract.id),
-              contractNumber: contract.agreementNumber,
-              schoolId: contract.franchiseId,
-              schoolName: contract.franchise?.name || 'Unknown School',
-              schoolCode: contract.franchise?.code || 'N/A',
-              agreementTitle: contract.agreementType,
-              startDate: contract.startDate,
-              endDate: contract.endDate,
-              durationMonths: 0,
-              monthlyRoyalty: 0,
-              plan: 'Basic',
-              renewalStatus:
-                contract.status === 'RENEWED'
-                  ? 'Auto Renewal'
-                  : 'Manual Renewal',
-              status,
-              daysRemaining,
-              documentUrl: contract.documentUrl,
-            };
           });
-
-          setContractsList(contracts);
+          setContractsList(allContracts);
         }
       }
     } catch (error) {
@@ -213,6 +226,15 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
   const activeCount = contractsList.filter(c => c.status === 'Active').length;
   const expiringCount = contractsList.filter(c => c.status === 'Expiring Soon').length;
   const expiredCount = contractsList.filter(c => c.status === 'Expired').length;
+
+  if (loading) {
+    return (
+      <div className="flex items-center justify-center h-64 text-slate-500 font-semibold">
+        Loading contracts...
+      </div>
+    );
+  }
+
 
   return (
     <div className="space-y-6">
@@ -323,7 +345,15 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-100">
-              {filteredContracts.map((c) => (
+              
+              {filteredContracts.length === 0 ? (
+                <tr>
+                  <td colSpan={10} className="p-8 text-center text-slate-500 font-semibold">
+                    {searchQuery ? 'No contracts match your search' : 'No contracts found'}
+                  </td>
+                </tr>
+              ) : (
+                filteredContracts.map((c) => (
                 <tr key={c.id} className={`hover:bg-slate-50/80 transition-colors ${c.status === 'Expiring Soon' ? 'bg-amber-50/30' : ''
                   }`}>
                   <td className="p-3.5">
@@ -379,7 +409,7 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
                     </Button>
                   </td>
                 </tr>
-              ))}
+              )))}
             </tbody>
           </table>
         </div>

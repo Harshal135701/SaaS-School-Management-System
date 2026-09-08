@@ -11,7 +11,9 @@ import {
   Eye,
   Power,
   Users,
-  AlertTriangle
+  AlertTriangle,
+  Edit,
+  Trash2
 } from 'lucide-react';
 
 interface FranchisesPageProps {
@@ -19,13 +21,17 @@ interface FranchisesPageProps {
   onOpenAddFranchiseModal: () => void;
   onOpenAddAdminModal?: () => void;
   subView?: 'all' | 'admins';
+  onEditFranchise?: (franchise: any) => void;
+  onDeleteFranchise?: (id: string) => void;
 }
 
 export const FranchisesPage: React.FC<FranchisesPageProps> = ({
   onNavigate,
   onOpenAddFranchiseModal,
   onOpenAddAdminModal,
-  subView = 'all'
+  subView = 'all',
+  onEditFranchise,
+  onDeleteFranchise
 }) => {
   const [activeTab, setActiveTab] = useState<'all' | 'admins'>(subView);
 
@@ -383,16 +389,37 @@ export const FranchisesPage: React.FC<FranchisesPageProps> = ({
                         </span>
                       </td>
 
-                      <td className="p-3.5 text-right space-x-1">
+                      <td className="p-3.5 text-right flex items-center justify-end gap-1.5">
                         <Button
                           variant="ghost"
                           size="sm"
                           onClick={() => onNavigate(`/super-admin/franchises/${f.id}`)}
                           leftIcon={<Eye className="w-3.5 h-3.5" />}
                           title="View Details"
+                          className="h-8"
                         >
-                          View
+                          View Details
                         </Button>
+                        
+                        {onEditFranchise && (
+                          <button
+                            onClick={() => onEditFranchise(f)}
+                            className="p-1.5 rounded-lg border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Edit Franchise"
+                          >
+                            <Edit className="w-3.5 h-3.5" />
+                          </button>
+                        )}
+                        
+                        {onDeleteFranchise && (
+                          <button
+                            onClick={() => onDeleteFranchise(f.id)}
+                            className="p-1.5 rounded-lg border bg-slate-50 text-slate-600 border-slate-200 hover:bg-slate-100 transition-colors cursor-pointer"
+                            title="Delete Franchise"
+                          >
+                            <Trash2 className="w-3.5 h-3.5 text-rose-500" />
+                          </button>
+                        )}
 
                         <button
                           onClick={() => setSelectedFranchiseForToggle(f)}
