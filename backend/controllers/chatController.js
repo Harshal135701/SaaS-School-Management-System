@@ -216,6 +216,7 @@ const getConversations = async (req, res) => {
 
 const getMessages = async (req, res) => {
   try {
+    const { Op } = require("sequelize");
     const { Message, Conversation } = require("../models");
 
     const conversation = await Conversation.findOne({
@@ -248,6 +249,13 @@ const getMessages = async (req, res) => {
     const messages = await Message.findAll({
       where: {
         conversationId: conversation.id,
+
+        // Hide messages deleted only for current user
+        [Op.not]: {
+          deletedForMeBy: {
+            [Op.contains]: [req.user.id],
+          },
+        },
       },
       order: [["createdAt", "ASC"]],
     });

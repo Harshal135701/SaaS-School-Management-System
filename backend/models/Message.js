@@ -35,6 +35,28 @@ const Message = sequelize.define(
       defaultValue: false,
       allowNull: false,
     },
+    isEdited: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+
+    editedAt: {
+      type: DataTypes.DATE,
+      allowNull: true,
+    },
+
+    isDeletedForEveryone: {
+      type: DataTypes.BOOLEAN,
+      defaultValue: false,
+      allowNull: false,
+    },
+
+    deletedForMeBy: {
+      type: DataTypes.ARRAY(DataTypes.UUID),
+      defaultValue: [],
+      allowNull: false,
+    },
   },
   {
     tableName: "messages",
