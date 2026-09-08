@@ -39,6 +39,7 @@ import { PrincipalDashboardPage } from './pages/principal/PrincipalDashboardPage
 // Parent Imports
 import { ParentLayout } from './components/layout/ParentLayout';
 import { ParentDashboardPage } from './pages/parent/ParentDashboardPage';
+import { ChatPage } from './pages/chat/ChatPage';
 
 // Super Admin email — the only hardcoded check needed
 
@@ -719,7 +720,9 @@ if (user?.role === 'FRANCHISE_ADMIN') {
       >
         {currentPath === '/teacher/dashboard' || currentPath === '/teacher' ? (
           <TeacherDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
-        ) : (
+          ) : currentPath === '/teacher/chat' ? (
+            <ChatPage user={currentUser} />
+          ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Teacher Portal.
           </div>
@@ -748,7 +751,9 @@ if (user?.role === 'FRANCHISE_ADMIN') {
       >
         {currentPath === '/parent/dashboard' || currentPath === '/parent' ? (
           <ParentDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
-        ) : (
+          ) : currentPath === '/parent/chat' ? (
+            <ChatPage user={currentUser} />
+          ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Parent Portal.
           </div>
