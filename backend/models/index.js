@@ -16,6 +16,10 @@ const Teacher = require("./Teacher");
 const Attendance = require("./Attendance");
 const Homework = require("./Homework");
 const Fee = require("./Fee");
+const FeeCategory = require("./FeeCategory");
+const StudentFee = require("./StudentFee");
+const Installment = require("./Installment");
+const Payment = require("./Payment");
 const Examination = require("./Examination");
 const Book = require("./Book");
 const BookIssue = require("./BookIssue");
@@ -493,12 +497,98 @@ TeacherAssignment.belongsTo(Subject, {
   as: "subject",
 });
 
+// Financial Management
+
+Franchise.hasMany(FeeCategory, {
+  foreignKey: "franchiseId",
+  as: "feeCategories",
+});
+
+FeeCategory.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Franchise.hasMany(StudentFee, {
+  foreignKey: "franchiseId",
+  as: "studentFees",
+});
+
+StudentFee.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Student.hasMany(StudentFee, {
+  foreignKey: "studentId",
+  as: "studentFees",
+});
+
+StudentFee.belongsTo(Student, {
+  foreignKey: "studentId",
+  as: "student",
+});
+
+FeeCategory.hasMany(StudentFee, {
+  foreignKey: "feeCategoryId",
+  as: "studentFees",
+});
+
+StudentFee.belongsTo(FeeCategory, {
+  foreignKey: "feeCategoryId",
+  as: "category",
+});
+
+StudentFee.hasMany(Installment, {
+  foreignKey: "studentFeeId",
+  as: "installments",
+});
+
+Installment.belongsTo(StudentFee, {
+  foreignKey: "studentFeeId",
+  as: "studentFee",
+});
+
+Installment.hasMany(Payment, {
+  foreignKey: "installmentId",
+  as: "payments",
+});
+
+Payment.belongsTo(Installment, {
+  foreignKey: "installmentId",
+  as: "installment",
+});
+
+Student.hasMany(Payment, {
+  foreignKey: "studentId",
+  as: "payments",
+});
+
+Payment.belongsTo(Student, {
+  foreignKey: "studentId",
+  as: "student",
+});
+
+Franchise.hasMany(Payment, {
+  foreignKey: "franchiseId",
+  as: "payments",
+});
+
+Payment.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "payments",
+});
+
 module.exports = {
   sequelize,
   Franchise,
   FranchiseAdmin,
   SystemAdmin,
   Plan,
+  FeeCategory,
+  StudentFee,
+  Installment,
+  Payment,
   Feature,
   Contract,
   TransportRoute,

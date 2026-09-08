@@ -47,6 +47,7 @@ const examResultRoutes = require("./routes/examResultRoutes");
 const classRoutes = require("./routes/classRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
+const feeCategoryRoutes = require("./routes/feeCategoryRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
@@ -83,6 +84,12 @@ app.use("/api/franchise/sections", sectionRoutes);
 app.use("/api/franchise/subjects", subjectRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/franchise/teacher-assignments", teacherAssignmentRoutes);
+
+// FEES MANAGEMENT
+
+app.use("/api/fee-categories", feeCategoryRoutes);
+
+
 // Test route
 app.get("/", (req, res) => {
   res.json({
