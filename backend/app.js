@@ -48,6 +48,7 @@ const classRoutes = require("./routes/classRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
 const feeCategoryRoutes = require("./routes/feeCategoryRoutes");
+const studentFeeRoutes = require("./routes/studentFeeRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
@@ -88,7 +89,7 @@ app.use("/api/franchise/teacher-assignments", teacherAssignmentRoutes);
 // FEES MANAGEMENT
 
 app.use("/api/fee-categories", feeCategoryRoutes);
-
+app.use("/api/student-fees", studentFeeRoutes);
 
 // Test route
 app.get("/", (req, res) => {
