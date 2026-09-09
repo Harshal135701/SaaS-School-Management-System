@@ -1,4 +1,9 @@
-const { StudentFee } = require("../models");
+const {
+  StudentFee,
+  Student,
+  FeeCategory,
+  Installment,
+} = require("../models");
 
 const createStudentFee = async (req, res) => {
   try {
@@ -52,4 +57,40 @@ const createStudentFee = async (req, res) => {
   }
 };
 
-module.exports = { createStudentFee };
+const getStudentFees = async (req, res) => {
+  try {
+    const fees = await StudentFee.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+      },
+      include: [
+        {
+          model: Student,
+          as: "student",
+        },
+        {
+          model: FeeCategory,
+          as: "category",
+        },
+        {
+          model: Installment,
+          as: "installments",
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.json({
+      success: true,
+      data: fees,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch student fees",
+    });
+  }
+};
+
+module.exports = { createStudentFee, getStudentFees };
