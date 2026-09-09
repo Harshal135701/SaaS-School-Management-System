@@ -1,4 +1,10 @@
-const { Installment } = require("../models");
+const {
+  Installment,
+  StudentFee,
+  Student,
+  FeeCategory,
+  Payment,
+} = require("../models");
 
 const createInstallment = async (req, res) => {
   try {
@@ -38,4 +44,46 @@ const createInstallment = async (req, res) => {
   }
 };
 
-module.exports = { createInstallment };
+const getInstallments = async (req, res) => {
+  try {
+    const installments = await Installment.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+      },
+      include: [
+        {
+          model: StudentFee,
+          as: "studentFee",
+          include: [
+            {
+              model: Student,
+              as: "student",
+            },
+            {
+              model: FeeCategory,
+              as: "category",
+            },
+          ],
+        },
+        {
+          model: Payment,
+          as: "payments",
+        },
+      ],
+      order: [["dueDate", "ASC"]],
+    });
+
+    res.json({
+      success: true,
+      data: installments,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch installments",
+    });
+  }
+};
+
+module.exports = { createInstallment,getInstallments };
