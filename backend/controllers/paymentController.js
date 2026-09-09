@@ -1,8 +1,9 @@
 const {
-    Payment,
-    Installment,
-    StudentFee,
-    sequelize,
+  Payment,
+  Installment,
+  StudentFee,
+  Student,
+  FeeCategory,
 } = require("../models");
 
 const createPayment = async (req, res) => {
@@ -155,7 +156,55 @@ const createPayment = async (req, res) => {
     }
 };
 
-module.exports = { createPayment };
+
+const getPayments = async (req, res) => {
+  try {
+    const payments = await Payment.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+      },
+      include: [
+        {
+          model: Student,
+          as: "student",
+        },
+        {
+          model: Installment,
+          as: "installment",
+          include: [
+            {
+              model: StudentFee,
+              as: "studentFee",
+              include: [
+                {
+                  model: FeeCategory,
+                  as: "category",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["paymentDate", "DESC"]],
+    });
+
+    res.json({
+      success: true,
+      data: payments,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch payments",
+    });
+  }
+};
+
+module.exports = {
+  createPayment,
+  getPayments,
+};
 
 
 // Start transaction → payment operation is treated as one safe unit.
