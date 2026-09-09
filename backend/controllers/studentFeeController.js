@@ -3,6 +3,7 @@ const {
   Student,
   FeeCategory,
   Installment,
+  Payment,
 } = require("../models");
 
 const createStudentFee = async (req, res) => {
@@ -75,6 +76,12 @@ const getStudentFees = async (req, res) => {
         {
           model: Installment,
           as: "installments",
+          include: [
+            {
+              model: Payment,
+              as: "payments",
+            },
+          ],
         },
       ],
       order: [["createdAt", "DESC"]],
@@ -93,4 +100,63 @@ const getStudentFees = async (req, res) => {
   }
 };
 
-module.exports = { createStudentFee, getStudentFees };
+const getFeeSummary = async (req, res) => {
+  try {
+    const fees = await StudentFee.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+      },
+      include: [
+        {
+          model: Installment,
+          as: "installments",
+          include: [
+            {
+              model: Payment,
+              as: "payments",
+            },
+          ],
+        },
+      ],
+    });
+
+    let totalFee = 0;
+    let discount = 0;
+    let payable = 0;
+    let paid = 0;
+
+    fees.forEach((fee) => {
+      totalFee += Number(fee.originalAmount);
+      discount +=
+        Number(fee.originalAmount) -
+        Number(fee.finalAmount);
+      payable += Number(fee.finalAmount);
+
+      fee.installments?.forEach((installment) => {
+        installment.payments?.forEach((payment) => {
+          paid += Number(payment.amount);
+        });
+      });
+    });
+
+    res.json({
+      success: true,
+      data: {
+        totalFee,
+        discount,
+        payable,
+        paid,
+        pending: payable - paid,
+      },
+    });
+  } catch (error) {
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch fee summary",
+    });
+  }
+};
+
+module.exports = { createStudentFee, getStudentFees,getFeeSummary };
