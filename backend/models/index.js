@@ -4,6 +4,7 @@ const Franchise = require("./Franchise");
 const FranchiseAdmin = require("./FranchiseAdmin");
 const SystemAdmin = require("./SystemAdmin");
 const TeacherAssignment = require("./TeacherAssignment");
+const SalaryPayment = require("./SalaryPayment");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const SalaryAdvance = require("./SalaryAdvance");
@@ -652,6 +653,36 @@ MonthlySalary.belongsTo(Franchise, {
   as: "franchise",
 });
 
+MonthlySalary.hasOne(SalaryPayment, {
+  foreignKey: "salaryId",
+  as: "payment",
+});
+
+SalaryPayment.belongsTo(MonthlySalary, {
+  foreignKey: "salaryId",
+  as: "salary",
+});
+
+Teacher.hasMany(SalaryPayment, {
+  foreignKey: "teacherId",
+  as: "salaryPayments",
+});
+
+SalaryPayment.belongsTo(Teacher, {
+  foreignKey: "teacherId",
+  as: "teacher",
+});
+
+Franchise.hasMany(SalaryPayment, {
+  foreignKey: "franchiseId",
+  as: "salaryPayments",
+});
+
+SalaryPayment.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -680,6 +711,7 @@ module.exports = {
   Conversation,
   BookIssue,
   PasswordResetOTP,
+  SalaryPayment,
   Message,
   RoyaltyConfiguration,
   MonthlyRoyalty,

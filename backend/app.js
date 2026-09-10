@@ -25,6 +25,7 @@ const monthlyRoyaltyRoutes = require("./routes/monthlyRoyaltyRoutes");
 const contractRoutes = require("./routes/contractRoutes");
 const systemSettingsRoutes = require("./routes/systemSettingsRoutes");
 const planRoutes = require("./routes/planRoutes");
+const salaryPaymentRoutes = require("./routes/salaryPaymentRoutes");
 const franchiseAuthRoutes = require("./routes/franchiseAuthRoutes");
 const monthlySalaryRoutes = require("./routes/monthlySalaryRoutes");
 const franchiseTestRoutes = require("./routes/franchiseTestRoutes");
@@ -104,6 +105,7 @@ app.use("/api/payments", paymentRoutes);
 app.use("/api/salary-profiles", salaryProfileRoutes);
 app.use("/api/salary-advances", salaryAdvanceRoutes);
 app.use("/api/monthly-salaries", monthlySalaryRoutes);
+app.use("/api/salary-payments", salaryPaymentRoutes);
 
 // Test route
 app.get("/", (req, res) => {
