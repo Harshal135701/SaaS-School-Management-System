@@ -16,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Here all the apis init
+const salaryProfileRoutes = require("./routes/salaryProfileRoutes");
 const teacherAssignmentRoutes = require("./routes/teacherAssignmentRoutes");
 const authRoutes = require("./routes/authRoutes");
 const systemAdminRoutes = require("./routes/systemAdminRoutes");
@@ -42,6 +43,7 @@ const parentAuthRoutes = require("./routes/parentAuthRoutes");
 const parentRoutes = require("./routes/parentRoutes");
 const teacherAuthRoutes = require("./routes/teacherAuthRoutes");
 const chatRoutes = require("./routes/chatRoutes");
+const salaryAdvanceRoutes = require("./routes/salaryAdvanceRoutes");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const examResultRoutes = require("./routes/examResultRoutes");
 const classRoutes = require("./routes/classRoutes");
@@ -87,13 +89,19 @@ app.use("/api/franchise/sections", sectionRoutes);
 app.use("/api/franchise/subjects", subjectRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/franchise/teacher-assignments", teacherAssignmentRoutes);
-
-// FEES MANAGEMENT
+ 
+//STUDENT FEES MANAGEMENT
 
 app.use("/api/fee-categories", feeCategoryRoutes);
 app.use("/api/student-fees", studentFeeRoutes);
 app.use("/api/installments", installmentRoutes);
 app.use("/api/payments", paymentRoutes);
+
+// TEACHERS FEE MANAGEMENT
+
+
+app.use("/api/salary-profiles", salaryProfileRoutes);
+app.use("/api/salary-advances", salaryAdvanceRoutes);
 
 // Test route
 app.get("/", (req, res) => {
