@@ -57,21 +57,31 @@ const generateMonthlySalary = async (req, res) => {
     let advanceDeduction = 0;
 
     for (const advance of advances) {
+      let recovery = 0;
+
       if (advance.recoveryType === "FULL") {
-        advanceDeduction += Number(advance.remainingAmount);
+        recovery = Number(advance.remainingAmount);
       } else if (advance.recoveryType === "FIXED") {
-        advanceDeduction += Math.min(
+        recovery = Math.min(
           Number(advance.recoveryValue),
           Number(advance.remainingAmount)
         );
       } else if (advance.recoveryType === "PERCENTAGE") {
-        advanceDeduction += Math.min(
-          (Number(profile.basicSalary) *
-            Number(advance.recoveryValue)) /
-            100,
+        recovery = Math.min(
+          (Number(profile.basicSalary) * Number(advance.recoveryValue)) / 100,
           Number(advance.remainingAmount)
         );
       }
+
+      advanceDeduction += recovery;
+
+      const newRemainingAmount =
+        Number(advance.remainingAmount) - recovery;
+
+      await advance.update({
+        remainingAmount: newRemainingAmount,
+        status: newRemainingAmount === 0 ? "COMPLETED" : "ACTIVE",
+      });
     }
 
     const basicSalary = Number(profile.basicSalary);
