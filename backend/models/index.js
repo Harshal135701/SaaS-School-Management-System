@@ -12,6 +12,7 @@ const Plan = require("./Plan");
 const SalaryProfile = require("./SalaryProfile");
 const PasswordResetOTP = require("./PasswordResetOTP");
 const TransportRoute = require("./TransportRoute");
+const MonthlySalary = require("./MonthlySalary");
 const Student = require("./Student");
 const Feature = require("./Feature");
 const Teacher = require("./Teacher");
@@ -621,6 +622,36 @@ SalaryAdvance.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Teacher.hasMany(MonthlySalary, {
+  foreignKey: "teacherId",
+  as: "monthlySalaries",
+});
+
+MonthlySalary.belongsTo(Teacher, {
+  foreignKey: "teacherId",
+  as: "teacher",
+});
+
+SalaryProfile.hasMany(MonthlySalary, {
+  foreignKey: "salaryProfileId",
+  as: "monthlySalaries",
+});
+
+MonthlySalary.belongsTo(SalaryProfile, {
+  foreignKey: "salaryProfileId",
+  as: "salaryProfile",
+});
+
+Franchise.hasMany(MonthlySalary, {
+  foreignKey: "franchiseId",
+  as: "monthlySalaries",
+});
+
+MonthlySalary.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -643,6 +674,7 @@ module.exports = {
   ConversationParticipant,
   Vehicle,
   Student,
+  MonthlySalary,
   Examination,
   Homework,
   Conversation,

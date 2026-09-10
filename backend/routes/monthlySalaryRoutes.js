@@ -2,15 +2,15 @@ const express = require("express");
 const router = express.Router();
 
 const {
-  createSalaryAdvance,
-  getSalaryAdvances,
-} = require("../controllers/salaryAdvanceController");
+  generateMonthlySalary,
+  getMonthlySalaries,
+} = require("../controllers/monthlySalaryController");
 
 const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
 
 router.use(franchiseProtect);
 
-router.post("/", createSalaryAdvance);
-router.get("/", getSalaryAdvances);
+router.post("/generate", generateMonthlySalary);
+router.get("/", getMonthlySalaries);
 
 module.exports = router;

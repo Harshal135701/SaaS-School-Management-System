@@ -63,6 +63,37 @@ const createSalaryAdvance = async (req, res) => {
   }
 };
 
+const getSalaryAdvances = async (req, res) => {
+  try {
+    const advances = await SalaryAdvance.findAll({
+      where: {
+        franchiseId: req.user.franchiseId,
+      },
+      include: [
+        {
+          model: Teacher,
+          as: "teacher",
+          attributes: ["id", "name", "email"],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    res.json({
+      success: true,
+      data: advances,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to fetch salary advances",
+    });
+  }
+};
+
+
 module.exports = {
   createSalaryAdvance,
+  getSalaryAdvances
 };
