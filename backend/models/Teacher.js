@@ -98,6 +98,17 @@ const Teacher = sequelize.define(
       defaultValue: "ACTIVE",
       allowNull: false,
     },
+
+    panNumber: {
+      type: DataTypes.STRING,
+      allowNull: false,
+      unique: true,
+    },
+
+    aadhaarNumber: {
+      type: DataTypes.STRING,
+      allowNull: true,
+    },
   },
   {
     tableName: "teachers",

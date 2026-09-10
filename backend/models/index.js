@@ -6,8 +6,10 @@ const SystemAdmin = require("./SystemAdmin");
 const TeacherAssignment = require("./TeacherAssignment");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
+const SalaryAdvance = require("./SalaryAdvance");
 const Contract = require("./Contract");
 const Plan = require("./Plan");
+const SalaryProfile = require("./SalaryProfile");
 const PasswordResetOTP = require("./PasswordResetOTP");
 const TransportRoute = require("./TransportRoute");
 const Student = require("./Student");
@@ -579,6 +581,46 @@ Payment.belongsTo(Franchise, {
   as: "payments",
 });
 
+Teacher.hasOne(SalaryProfile, {
+  foreignKey: "teacherId",
+  as: "salaryProfile",
+});
+
+SalaryProfile.belongsTo(Teacher, {
+  foreignKey: "teacherId",
+  as: "teacher",
+});
+
+Franchise.hasMany(SalaryProfile, {
+  foreignKey: "franchiseId",
+  as: "salaryProfiles",
+});
+
+SalaryProfile.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Teacher.hasMany(SalaryAdvance, {
+  foreignKey: "teacherId",
+  as: "salaryAdvances",
+});
+
+SalaryAdvance.belongsTo(Teacher, {
+  foreignKey: "teacherId",
+  as: "teacher",
+});
+
+Franchise.hasMany(SalaryAdvance, {
+  foreignKey: "franchiseId",
+  as: "salaryAdvances",
+});
+
+SalaryAdvance.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -588,8 +630,10 @@ module.exports = {
   FeeCategory,
   StudentFee,
   Installment,
+  SalaryAdvance,
   Payment,
   Feature,
+  SalaryProfile,
   Contract,
   TransportRoute,
   Class,
