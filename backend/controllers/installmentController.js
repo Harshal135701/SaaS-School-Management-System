@@ -86,4 +86,76 @@ const getInstallments = async (req, res) => {
   }
 };
 
-module.exports = { createInstallment,getInstallments };
+const updateInstallment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { amount, dueDate } = req.body;
+
+    const installment = await Installment.findOne({
+      where: {
+        id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!installment) {
+      return res.status(404).json({
+        success: false,
+        message: "Installment not found",
+      });
+    }
+
+    if (amount !== undefined) installment.amount = amount;
+    if (dueDate !== undefined) installment.dueDate = dueDate;
+
+    await installment.save();
+
+    res.json({
+      success: true,
+      message: "Installment updated successfully",
+      data: installment,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update installment",
+    });
+  }
+};
+
+const deleteInstallment = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const installment = await Installment.findOne({
+      where: {
+        id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!installment) {
+      return res.status(404).json({
+        success: false,
+        message: "Installment not found",
+      });
+    }
+
+    await installment.destroy();
+
+    res.json({
+      success: true,
+      message: "Installment deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete installment",
+    });
+  }
+};
+
+module.exports = { createInstallment,getInstallments,updateInstallment,
+deleteInstallment, };

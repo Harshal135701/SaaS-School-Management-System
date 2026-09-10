@@ -159,4 +159,98 @@ const getFeeSummary = async (req, res) => {
   }
 };
 
-module.exports = { createStudentFee, getStudentFees,getFeeSummary };
+const updateStudentFee = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const { originalAmount, discountPercent, remarks } = req.body;
+
+    const fee = await StudentFee.findOne({
+      where: {
+        id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!fee) {
+      return res.status(404).json({
+        success: false,
+        message: "Student fee not found",
+      });
+    }
+
+    const amount =
+      originalAmount !== undefined
+        ? Number(originalAmount)
+        : Number(fee.originalAmount);
+
+    const discount =
+      discountPercent !== undefined
+        ? Number(discountPercent)
+        : Number(fee.discountPercent);
+
+    if (discount < 0 || discount > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Discount must be between 0 and 100",
+      });
+    }
+
+    fee.originalAmount = amount;
+    fee.discountPercent = discount;
+    fee.finalAmount = amount - (amount * discount) / 100;
+
+    if (remarks !== undefined) fee.remarks = remarks;
+
+    await fee.save();
+
+    res.json({
+      success: true,
+      message: "Student fee updated successfully",
+      data: fee,
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to update student fee",
+    });
+  }
+};
+
+const deleteStudentFee = async (req, res) => {
+  try {
+    const { id } = req.params;
+
+    const fee = await StudentFee.findOne({
+      where: {
+        id,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!fee) {
+      return res.status(404).json({
+        success: false,
+        message: "Student fee not found",
+      });
+    }
+
+    await fee.destroy();
+
+    res.json({
+      success: true,
+      message: "Student fee deleted successfully",
+    });
+  } catch (error) {
+    console.error(error);
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete student fee",
+    });
+  }
+};
+
+module.exports = {
+  createStudentFee, getStudentFees, getFeeSummary, updateStudentFee,
+  deleteStudentFee,
+};
