@@ -201,9 +201,82 @@ const getPayments = async (req, res) => {
   }
 };
 
+
+const deletePayment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
+  try {
+    const { id } = req.params;
+
+    const payment = await Payment.findOne({
+      where: {
+        id,
+        franchiseId: req.user.franchiseId,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!payment) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Payment not found",
+      });
+    }
+
+    const installment = await Installment.findByPk(
+      payment.installmentId,
+      {
+        transaction,
+        lock: transaction.LOCK.UPDATE,
+      }
+    );
+
+    await payment.destroy({ transaction });
+
+    const totalPaid = await Payment.sum("amount", {
+      where: {
+        installmentId: payment.installmentId,
+      },
+      transaction,
+    });
+
+    const paid = Number(totalPaid || 0);
+
+    if (paid === 0) {
+      installment.status = "PENDING";
+    } else if (paid >= Number(installment.amount)) {
+      installment.status = "PAID";
+    } else {
+      installment.status = "PARTIAL";
+    }
+
+    await installment.save({ transaction });
+
+    await transaction.commit();
+
+    res.json({
+      success: true,
+      message: "Payment deleted and installment status updated",
+    });
+  } catch (error) {
+    await transaction.rollback();
+
+    console.error(error);
+
+    res.status(500).json({
+      success: false,
+      message: "Failed to delete payment",
+    });
+  }
+};
+
 module.exports = {
   createPayment,
   getPayments,
+  deletePayment,
 };
 
 

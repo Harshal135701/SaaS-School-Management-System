@@ -4,12 +4,18 @@ const router = express.Router();
 const {
   createPayment,
   getPayments,
+  deletePayment,
 } = require("../controllers/paymentController");
+
 const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
 
 router.use(franchiseProtect);
 
-router.post("/", createPayment);
 router.get("/", getPayments);
+
+router.post("/", createPayment);
+
+router.delete("/:id", deletePayment);
+
 
 module.exports = router;
