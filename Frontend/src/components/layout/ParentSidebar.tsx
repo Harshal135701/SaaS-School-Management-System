@@ -4,7 +4,8 @@ import { Avatar } from '../ui/Avatar';
 import { Tooltip } from '../ui/Tooltip';
 import { 
   LayoutDashboard, 
-  GraduationCap, 
+  GraduationCap,
+  MessageSquare, 
   User, 
   LogOut,
   ChevronLeft,
@@ -44,7 +45,14 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
     {
       title: 'MY CHILD',
       items: [
-        { id: 'p_student_overview', label: 'Student Overview', icon: GraduationCap, path: '/parent/student-overview' }
+        { id: 'p_student_overview', label: 'Student Overview', icon: GraduationCap,
+  MessageSquare, path: '/parent/student-overview' }
+      ]
+    },
+    {
+      title: 'COMMUNICATION',
+      items: [
+        { id: 'p_messages', label: 'Messages', icon: MessageSquare, path: '/parent/chat' }
       ]
     }
   ];

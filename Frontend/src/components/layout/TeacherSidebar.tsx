@@ -14,7 +14,8 @@ import {
   X,
   User,
   ChevronUp,
-  GraduationCap
+  GraduationCap,
+  MessageSquare
 } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 import { Tooltip } from '../ui/Tooltip';
@@ -55,6 +56,12 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
         { id: 't_examinations', label: 'Examinations', icon: FileText, path: '/teacher/examinations' },
         { id: 't_assignments', label: 'Homework / Assignments', icon: BookMarked, path: '/teacher/assignments' },
         { id: 't_timetable', label: 'Timetable', icon: Clock, path: '/teacher/timetable' }
+      ]
+    },
+    {
+      title: 'COMMUNICATION',
+      items: [
+        { id: 't_messages', label: 'Messages', icon: MessageSquare, path: '/teacher/chat' }
       ]
     }
   ];
