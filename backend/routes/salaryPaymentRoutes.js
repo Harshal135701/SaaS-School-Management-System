@@ -6,11 +6,14 @@ const {
   getSalaryPayments,
 } = require("../controllers/salaryPaymentController");
 
+const { getSalarySlip } = require("../controllers/salarySlipController");
+
 const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
 
 router.use(franchiseProtect);
 
 router.post("/", createSalaryPayment);
+router.get("/slip/:salaryId", getSalarySlip);
 router.get("/", getSalaryPayments);
 
 module.exports = router;
