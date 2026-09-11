@@ -203,7 +203,9 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
   ];
 
   const handleStatCardDetails = (id: string) => {
-    if (id === 'stat_timetable' && onNavigate) {
+    if (id === 'stat_classes' && onNavigate) {
+      onNavigate('/teacher/classes');
+    } else if (id === 'stat_timetable' && onNavigate) {
       onNavigate('/teacher/timetable');
     } else if (id === 'stat_assignments' && onNavigate) {
       onNavigate('/teacher/assignments');
