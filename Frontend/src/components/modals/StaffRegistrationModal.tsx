@@ -26,6 +26,8 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
     fullName: '',
     email: '',
     phone: '',
+    panNumber: '',
+    aadhaarNumber: '',
     role: 'Teacher',
     department: 'Mathematics',
     sendEmailNotification: true,
@@ -111,6 +113,8 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
       fullName: '',
       email: '',
       phone: '',
+      panNumber: '',
+      aadhaarNumber: '',
       role: 'Teacher',
       department: 'Mathematics',
       sendEmailNotification: true,
@@ -166,6 +170,8 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
         name: formData.fullName.trim(),
         email: formData.email.trim(),
         phone: formData.phone?.trim() || null,
+        panNumber: formData.panNumber?.trim() || null,
+        aadhaarNumber: formData.aadhaarNumber?.trim() || null,
         password: formData.password,
 
         // Backend expects role values such as TEACHER
@@ -290,6 +296,32 @@ export const StaffRegistrationModal: React.FC<StaffRegistrationModalProps> = ({
                 setFormData({
                   ...formData,
                   phone: e.target.value
+                })
+              }
+            />
+          </div>
+
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+            <Input
+              label="PAN CARD NUMBER"
+              placeholder="e.g. ABCDE1234F"
+              value={formData.panNumber || ''}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  panNumber: e.target.value
+                })
+              }
+            />
+
+            <Input
+              label="AADHAAR CARD NUMBER"
+              placeholder="e.g. 1234 5678 9012"
+              value={formData.aadhaarNumber || ''}
+              onChange={e =>
+                setFormData({
+                  ...formData,
+                  aadhaarNumber: e.target.value
                 })
               }
             />

@@ -85,6 +85,8 @@ export interface StaffRegistrationInput {
   fullName: string;
   email: string;
   phone: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
   role: UserRole;
   department: string;
   sendEmailNotification: boolean;

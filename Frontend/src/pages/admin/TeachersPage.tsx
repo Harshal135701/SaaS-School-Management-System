@@ -23,6 +23,8 @@ interface Teacher {
   name: string;
   email?: string;
   phone?: string;
+  panNumber?: string;
+  aadhaarNumber?: string;
   subject?: string;
   department?: string;
   status?: 'ACTIVE' | 'INACTIVE';
@@ -44,6 +46,8 @@ interface TeacherForm {
   name: string;
   email: string;
   phone: string;
+  panNumber: string;
+  aadhaarNumber: string;
   subject: string;
   department: string;
   password: string;
@@ -56,6 +60,8 @@ const emptyForm: TeacherForm = {
   name: '',
   email: '',
   phone: '',
+  panNumber: '',
+  aadhaarNumber: '',
   subject: '',
   department: '',
   password: '',
@@ -161,6 +167,8 @@ export const TeachersPage: React.FC = () => {
       name: teacher.name || '',
       email: teacher.email || '',
       phone: teacher.phone || '',
+      panNumber: teacher.panNumber || '',
+      aadhaarNumber: teacher.aadhaarNumber || '',
       subject: teacher.subject || '',
       department: teacher.department || '',
       password: '',
@@ -243,6 +251,8 @@ export const TeachersPage: React.FC = () => {
         name: string;
         email: string;
         phone?: string;
+        panNumber?: string | null;
+        aadhaarNumber?: string | null;
         subject?: string;
         department?: string;
         password?: string;
@@ -250,6 +260,8 @@ export const TeachersPage: React.FC = () => {
         name: form.name.trim(),
         email: form.email.trim(),
         phone: form.phone.trim() || undefined,
+        panNumber: form.panNumber.trim() || null,
+        aadhaarNumber: form.aadhaarNumber.trim() || null,
         subject: form.subject.trim() || undefined,
         department: form.department.trim() || undefined,
       };
@@ -589,6 +601,36 @@ export const TeachersPage: React.FC = () => {
                     onChange={handleChange}
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
                     placeholder="+91 98765 00000"
+                  />
+                </div>
+
+                {/* PAN CARD NUMBER */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                    PAN CARD NUMBER <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
+
+                  <input
+                    name="panNumber"
+                    value={form.panNumber}
+                    onChange={handleChange}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    placeholder="e.g. ABCDE1234F"
+                  />
+                </div>
+
+                {/* AADHAAR CARD NUMBER */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                    AADHAAR CARD NUMBER <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
+
+                  <input
+                    name="aadhaarNumber"
+                    value={form.aadhaarNumber}
+                    onChange={handleChange}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    placeholder="e.g. 1234 5678 9012"
                   />
                 </div>
 
