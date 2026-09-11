@@ -1,9 +1,12 @@
 const {
   SalaryPayment,
   MonthlySalary,
+  sequelize,
 } = require("../models");
 
 const createSalaryPayment = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const {
       salaryId,
@@ -15,6 +18,8 @@ const createSalaryPayment = async (req, res) => {
     } = req.body;
 
     if (!salaryId || !amount || !paymentDate || !paymentMethod) {
+      await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message:
@@ -27,9 +32,13 @@ const createSalaryPayment = async (req, res) => {
         id: salaryId,
         franchiseId: req.user.franchiseId,
       },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!salary) {
+      await transaction.rollback();
+
       return res.status(404).json({
         success: false,
         message: "Monthly salary not found",
@@ -37,6 +46,8 @@ const createSalaryPayment = async (req, res) => {
     }
 
     if (salary.status === "PAID") {
+      await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Salary is already paid",
@@ -44,6 +55,8 @@ const createSalaryPayment = async (req, res) => {
     }
 
     if (Number(amount) !== Number(salary.netSalary)) {
+      await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Payment amount must match net salary",
@@ -51,27 +64,36 @@ const createSalaryPayment = async (req, res) => {
     }
 
     const year = new Date().getFullYear();
+    const timestamp = Date.now();
 
-    const paymentNumber = `PAY-${year}-${Date.now()}`;
-    const receiptNumber = `SAL-${year}-${Date.now()}`;
+    const paymentNumber = `PAY-${year}-${timestamp}`;
+    const receiptNumber = `SAL-${year}-${timestamp}`;
 
-    const payment = await SalaryPayment.create({
-      franchiseId: req.user.franchiseId,
-      salaryId,
-      teacherId: salary.teacherId,
-      amount,
-      paymentDate,
-      paymentMethod,
-      referenceNumber,
-      paymentNumber,
-      receiptNumber,
-      paidBy: req.user.name || "Franchise Admin",
-      remarks,
-    });
+    const payment = await SalaryPayment.create(
+      {
+        franchiseId: req.user.franchiseId,
+        salaryId,
+        teacherId: salary.teacherId,
+        amount,
+        paymentDate,
+        paymentMethod,
+        referenceNumber,
+        paymentNumber,
+        receiptNumber,
+        paidBy: req.user.name || "Franchise Admin",
+        remarks,
+      },
+      { transaction }
+    );
 
-    await salary.update({
-      status: "PAID",
-    });
+    await salary.update(
+      {
+        status: "PAID",
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
 
     res.status(201).json({
       success: true,
@@ -79,7 +101,10 @@ const createSalaryPayment = async (req, res) => {
       data: payment,
     });
   } catch (error) {
+    await transaction.rollback();
+
     console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to record salary payment",
@@ -108,6 +133,7 @@ const getSalaryPayments = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch salary payments",
@@ -116,5 +142,7 @@ const getSalaryPayments = async (req, res) => {
 };
 
 module.exports = {
-  createSalaryPayment,getSalaryPayments
+  createSalaryPayment,
+  getSalaryPayments,
 };
+

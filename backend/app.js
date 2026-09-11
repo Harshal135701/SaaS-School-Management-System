@@ -16,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Here all the apis init
+const payrollRoutes = require("./routes/payrollRoutes");
 const salaryProfileRoutes = require("./routes/salaryProfileRoutes");
 const teacherAssignmentRoutes = require("./routes/teacherAssignmentRoutes");
 const authRoutes = require("./routes/authRoutes");
@@ -106,6 +107,7 @@ app.use("/api/salary-profiles", salaryProfileRoutes);
 app.use("/api/salary-advances", salaryAdvanceRoutes);
 app.use("/api/monthly-salaries", monthlySalaryRoutes);
 app.use("/api/salary-payments", salaryPaymentRoutes);
+app.use("/api/payroll", payrollRoutes);
 
 // Test route
 app.get("/", (req, res) => {

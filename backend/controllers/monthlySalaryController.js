@@ -3,13 +3,18 @@ const {
   SalaryProfile,
   SalaryAdvance,
   Teacher,
+  sequelize,
 } = require("../models");
 
 const generateMonthlySalary = async (req, res) => {
+  const transaction = await sequelize.transaction();
+
   try {
     const { teacherId, salaryMonth } = req.body;
 
     if (!teacherId || !salaryMonth) {
+      await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Teacher and salary month are required",
@@ -25,6 +30,8 @@ const generateMonthlySalary = async (req, res) => {
     });
 
     if (!profile) {
+      await transaction.rollback();
+
       return res.status(404).json({
         success: false,
         message: "Active salary profile not found",
@@ -40,6 +47,8 @@ const generateMonthlySalary = async (req, res) => {
     });
 
     if (existingSalary) {
+      await transaction.rollback();
+
       return res.status(400).json({
         success: false,
         message: "Salary already generated for this month",
@@ -52,6 +61,7 @@ const generateMonthlySalary = async (req, res) => {
         franchiseId: req.user.franchiseId,
         status: "ACTIVE",
       },
+      transaction,
     });
 
     let advanceDeduction = 0;
@@ -68,7 +78,9 @@ const generateMonthlySalary = async (req, res) => {
         );
       } else if (advance.recoveryType === "PERCENTAGE") {
         recovery = Math.min(
-          (Number(profile.basicSalary) * Number(advance.recoveryValue)) / 100,
+          (Number(profile.basicSalary) *
+            Number(advance.recoveryValue)) /
+            100,
           Number(advance.remainingAmount)
         );
       }
@@ -78,10 +90,13 @@ const generateMonthlySalary = async (req, res) => {
       const newRemainingAmount =
         Number(advance.remainingAmount) - recovery;
 
-      await advance.update({
-        remainingAmount: newRemainingAmount,
-        status: newRemainingAmount === 0 ? "COMPLETED" : "ACTIVE",
-      });
+      await advance.update(
+        {
+          remainingAmount: newRemainingAmount,
+          status: newRemainingAmount === 0 ? "COMPLETED" : "ACTIVE",
+        },
+        { transaction }
+      );
     }
 
     const basicSalary = Number(profile.basicSalary);
@@ -91,17 +106,22 @@ const generateMonthlySalary = async (req, res) => {
     const netSalary =
       basicSalary + allowances - deductions - advanceDeduction;
 
-    const salary = await MonthlySalary.create({
-      franchiseId: req.user.franchiseId,
-      teacherId,
-      salaryProfileId: profile.id,
-      salaryMonth,
-      basicSalary,
-      allowances,
-      deductions,
-      advanceDeduction,
-      netSalary,
-    });
+    const salary = await MonthlySalary.create(
+      {
+        franchiseId: req.user.franchiseId,
+        teacherId,
+        salaryProfileId: profile.id,
+        salaryMonth,
+        basicSalary,
+        allowances,
+        deductions,
+        advanceDeduction,
+        netSalary,
+      },
+      { transaction }
+    );
+
+    await transaction.commit();
 
     res.status(201).json({
       success: true,
@@ -109,7 +129,10 @@ const generateMonthlySalary = async (req, res) => {
       data: salary,
     });
   } catch (error) {
+    await transaction.rollback();
+
     console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to generate monthly salary",
@@ -139,6 +162,7 @@ const getMonthlySalaries = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to fetch monthly salaries",
@@ -150,3 +174,4 @@ module.exports = {
   generateMonthlySalary,
   getMonthlySalaries,
 };
+
