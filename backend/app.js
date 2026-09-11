@@ -56,6 +56,7 @@ const feeCategoryRoutes = require("./routes/feeCategoryRoutes");
 const studentFeeRoutes = require("./routes/studentFeeRoutes");
 const installmentRoutes = require("./routes/installmentRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const teacherExpenseDashboardRoutes = require("./routes/teacherExpenseDashboardRoutes");
 const financialDashboardRoutes = require("./routes/financialDashboardRoutes");
 // using all apis for calling
 
@@ -109,6 +110,7 @@ app.use("/api/salary-advances", salaryAdvanceRoutes);
 app.use("/api/monthly-salaries", monthlySalaryRoutes);
 app.use("/api/salary-payments", salaryPaymentRoutes);
 app.use("/api/payroll", payrollRoutes);
+app.use("/api/franchise/teacher-expenses",teacherExpenseDashboardRoutes);
 
 // Test route
 app.get("/", (req, res) => {
