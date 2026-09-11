@@ -56,6 +56,7 @@ const feeCategoryRoutes = require("./routes/feeCategoryRoutes");
 const studentFeeRoutes = require("./routes/studentFeeRoutes");
 const installmentRoutes = require("./routes/installmentRoutes");
 const paymentRoutes = require("./routes/paymentRoutes");
+const financialDashboardRoutes = require("./routes/financialDashboardRoutes");
 // using all apis for calling
 
 app.use("/api/auth", authRoutes);
@@ -99,7 +100,7 @@ app.use("/api/fee-categories", feeCategoryRoutes);
 app.use("/api/student-fees", studentFeeRoutes);
 app.use("/api/installments", installmentRoutes);
 app.use("/api/payments", paymentRoutes);
-
+app.use("/api/franchise/financial-dashboard", financialDashboardRoutes);
 // TEACHERS FEE MANAGEMENT
 
 

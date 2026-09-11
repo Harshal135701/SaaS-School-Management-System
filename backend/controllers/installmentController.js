@@ -22,11 +22,51 @@ const createInstallment = async (req, res) => {
       });
     }
 
+    const studentFee = await StudentFee.findOne({
+      where: {
+        id: studentFeeId,
+        franchiseId: req.user.franchiseId,
+      },
+    });
+
+    if (!studentFee) {
+      return res.status(404).json({
+        success: false,
+        message: "Student fee not found",
+      });
+    }
+
+    const existingInstallments = await Installment.findAll({
+      where: {
+        studentFeeId,
+        franchiseId: req.user.franchiseId,
+      },
+      attributes: ["amount"],
+    });
+
+    const existingTotal = existingInstallments.reduce(
+      (sum, installment) => sum + Number(installment.amount || 0),
+      0
+    );
+
+    const newAmount = Number(amount);
+    const finalAmount = Number(studentFee.finalAmount);
+
+    if (existingTotal + newAmount > finalAmount) {
+      return res.status(400).json({
+        success: false,
+        message: `Installment amount exceeds remaining fee. Remaining amount: ₹${Math.max(
+          finalAmount - existingTotal,
+          0
+        )}`,
+      });
+    }
+
     const installment = await Installment.create({
       franchiseId: req.user.franchiseId,
       studentFeeId,
       installmentNumber,
-      amount,
+      amount: newAmount,
       dueDate,
     });
 
@@ -37,12 +77,14 @@ const createInstallment = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to create installment",
     });
   }
 };
+
 
 const getInstallments = async (req, res) => {
   try {
@@ -86,6 +128,7 @@ const getInstallments = async (req, res) => {
   }
 };
 
+
 const updateInstallment = async (req, res) => {
   try {
     const { id } = req.params;
@@ -105,8 +148,56 @@ const updateInstallment = async (req, res) => {
       });
     }
 
-    if (amount !== undefined) installment.amount = amount;
-    if (dueDate !== undefined) installment.dueDate = dueDate;
+    if (amount !== undefined) {
+      const studentFee = await StudentFee.findOne({
+        where: {
+          id: installment.studentFeeId,
+          franchiseId: req.user.franchiseId,
+        },
+      });
+
+      if (!studentFee) {
+        return res.status(404).json({
+          success: false,
+          message: "Student fee not found",
+        });
+      }
+
+      const otherInstallments = await Installment.findAll({
+        where: {
+          studentFeeId: installment.studentFeeId,
+          franchiseId: req.user.franchiseId,
+        },
+        attributes: ["id", "amount"],
+      });
+
+      const otherTotal = otherInstallments.reduce(
+        (sum, item) =>
+          item.id === installment.id
+            ? sum
+            : sum + Number(item.amount || 0),
+        0
+      );
+
+      const newAmount = Number(amount);
+      const finalAmount = Number(studentFee.finalAmount);
+
+      if (otherTotal + newAmount > finalAmount) {
+        return res.status(400).json({
+          success: false,
+          message: `Installment amount exceeds remaining fee. Remaining amount: ₹${Math.max(
+            finalAmount - otherTotal,
+            0
+          )}`,
+        });
+      }
+
+      installment.amount = newAmount;
+    }
+
+    if (dueDate !== undefined) {
+      installment.dueDate = dueDate;
+    }
 
     await installment.save();
 
@@ -117,12 +208,15 @@ const updateInstallment = async (req, res) => {
     });
   } catch (error) {
     console.error(error);
+
     res.status(500).json({
       success: false,
       message: "Failed to update installment",
     });
   }
 };
+
+
 
 const deleteInstallment = async (req, res) => {
   try {
