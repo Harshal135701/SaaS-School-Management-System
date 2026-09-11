@@ -101,3 +101,92 @@ export interface QuickActionItem {
   color: string;
   actionKey: string;
 }
+
+export type PaymentMethod =
+  | 'CASH'
+  | 'UPI'
+  | 'CARD'
+  | 'BANK_TRANSFER'
+  | 'CHEQUE'
+  | 'OTHER';
+
+export type InstallmentStatus = 'PENDING' | 'PARTIAL' | 'PAID' | 'OVERDUE';
+
+export interface FeeCategory {
+  id: string;
+  franchiseId: string;
+  name: string;
+  description?: string | null;
+  isActive: boolean;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export interface StudentFee {
+  id: string;
+  franchiseId: string;
+  studentId: string;
+  feeCategoryId: string;
+  originalAmount: number | string;
+  discountPercent: number | string;
+  finalAmount: number | string;
+  remarks?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  student?: {
+    id: string;
+    name: string;
+    email?: string | null;
+    phone?: string | null;
+    admissionNumber?: string | null;
+    rollNumber?: string | null;
+    classId?: string | null;
+    sectionId?: string | null;
+  };
+  category?: FeeCategory;
+  installments?: Installment[];
+}
+
+export interface Installment {
+  id: string;
+  franchiseId: string;
+  studentFeeId: string;
+  installmentNumber: number;
+  amount: number | string;
+  dueDate: string;
+  status: InstallmentStatus;
+  createdAt?: string;
+  updatedAt?: string;
+  studentFee?: StudentFee;
+  payments?: Payment[];
+}
+
+export interface Payment {
+  id: string;
+  franchiseId: string;
+  studentId: string;
+  installmentId: string;
+  amount: number | string;
+  paymentDate: string;
+  paymentMethod: PaymentMethod;
+  referenceNumber: string;
+  receiptNumber: string;
+  receivedBy: string;
+  remarks?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  student?: {
+    id: string;
+    name: string;
+    email?: string | null;
+  };
+  installment?: Installment;
+}
+
+export interface FeeSummary {
+  totalFee: number;
+  discount: number;
+  payable: number;
+  paid: number;
+  pending: number;
+}
