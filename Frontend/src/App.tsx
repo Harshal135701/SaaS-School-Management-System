@@ -10,8 +10,19 @@ import { DashboardLayout } from './components/layout/DashboardLayout';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
 import { StudentsPage } from './pages/admin/StudentsPage';
 import { TeachersPage } from './pages/admin/TeachersPage';
+import { ParentsPage } from './pages/admin/ParentsPage';
+import { ClassesPage } from './pages/admin/ClassesPage';
+import { ExaminationPage } from './pages/admin/ExaminationPage';
+import { FeesPage } from './pages/admin/FeesPage';
+import { AttendancePage } from './pages/admin/AttendancePage';
+import { HomeworkPage } from './pages/admin/HomeworkPage';
+import { TimetablePage } from './pages/admin/TimetablePage';
 import { SettingsPage } from './pages/admin/SettingsPage';
+import { SubjectsPage } from './pages/admin/SubjectsPage';
+import { LibraryPage } from './pages/admin/LibraryPage';
+import { TransportPage } from './pages/admin/TransportPage';
 import { StaffRegistrationModal } from './components/modals/StaffRegistrationModal';
+import { Bell, BarChart3, CalendarOff, MessageSquare } from 'lucide-react';
 import type { StaffRegistrationInput, UserRole } from './types';
 
 // Super Admin Imports
@@ -720,9 +731,21 @@ if (user?.role === 'FRANCHISE_ADMIN') {
       >
         {currentPath === '/teacher/dashboard' || currentPath === '/teacher' ? (
           <TeacherDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
-          ) : currentPath === '/teacher/chat' ? (
-            <ChatPage user={currentUser} />
-          ) : (
+        ) : currentPath === '/teacher/chat' ? (
+          <ChatPage user={currentUser} />
+        ) : currentPath === '/teacher/timetable' ? (
+          <TimetablePage />
+        ) : currentPath === '/teacher/assignments' ? (
+          <HomeworkPage />
+        ) : currentPath === '/teacher/attendance' ? (
+          <AttendancePage />
+        ) : currentPath === '/teacher/examinations' ? (
+          <ExaminationPage />
+        ) : currentPath === '/teacher/classes' ? (
+          <ClassesPage />
+        ) : currentPath === '/teacher/students' ? (
+          <StudentsPage />
+        ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Teacher Portal.
           </div>
@@ -779,13 +802,120 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         return <StudentsPage />;
       case '/admin/teachers':
         return <TeachersPage />;
+      case '/admin/parents':
+        return <ParentsPage />;
+      case '/admin/classes':
+        return <ClassesPage />;
+      case '/admin/examinations':
+        return <ExaminationPage />;
+      case '/admin/fees':
+        return <FeesPage />;
+      case '/admin/attendance':
+        return <AttendancePage />;
+      case '/admin/homework':
+        return <HomeworkPage />;
+      case '/admin/timetable':
+        return <TimetablePage />;
+      case '/admin/subjects':
+        return <SubjectsPage />;
+      case '/admin/library':
+        return <LibraryPage />;
+      case '/admin/transport':
+        return <TransportPage />;
+      case '/admin/chat':
+        return <ChatPage user={currentUser} />;
       case '/admin/settings':
         return <SettingsPage />;
+      case '/admin/leaves':
+        return (
+          <div className="space-y-6">
+            <div className="p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm text-center max-w-2xl mx-auto my-12">
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <CalendarOff className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Leave Management</h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Staff and student leave tracking and approval workflow. Backend leave management service is not yet provisioned.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCurrentPath('/admin/dashboard')}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      case '/admin/notifications':
+        return (
+          <div className="space-y-6">
+            <div className="p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm text-center max-w-2xl mx-auto my-12">
+              <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <MessageSquare className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Automated Notifications</h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Automated SMS, push notifications, and parent alerts. Dedicated notification delivery engine is not yet provisioned in the backend.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCurrentPath('/admin/dashboard')}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      case '/admin/notices':
+        return (
+          <div className="space-y-6">
+            <div className="p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm text-center max-w-2xl mx-auto my-12">
+              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <Bell className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">School Notices & Circulars</h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Official circulars and announcements management. Backend notification and circulars service is not yet provisioned.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCurrentPath('/admin/dashboard')}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
+      case '/admin/reports':
+        return (
+          <div className="space-y-6">
+            <div className="p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm text-center max-w-2xl mx-auto my-12">
+              <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <BarChart3 className="w-8 h-8" />
+              </div>
+              <h2 className="text-xl font-bold text-slate-800 mb-2">Analytics & Reports</h2>
+              <p className="text-sm text-slate-500 mb-6">
+                Comprehensive reporting and data exports. Dedicated report generation service is not yet provisioned in the backend.
+              </p>
+              <button
+                type="button"
+                onClick={() => setCurrentPath('/admin/dashboard')}
+                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
+              >
+                Back to Dashboard
+              </button>
+            </div>
+          </div>
+        );
       case '/admin/dashboard':
       default:
         return (
           <AdminDashboardPage
             onOpenStaffModal={() => setIsStaffModalOpen(true)}
+            onNavigate={(path) => setCurrentPath(path)}
             // Pass the logged-in franchise data so the dashboard is personalized
             franchise={loggedInFranchise}
           />

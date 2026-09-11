@@ -1,5 +1,4 @@
-import React, { useState } from 'react';
-import { Badge } from '../ui/Badge';
+import React, { useState, useEffect } from 'react';
 import { 
   Search, 
   Bell, 
@@ -7,6 +6,7 @@ import {
   Menu, 
   Calendar 
 } from 'lucide-react';
+import api from '../../services/api';
 
 interface TopHeaderProps {
   onToggleMobileSidebar: () => void;
@@ -15,14 +15,43 @@ interface TopHeaderProps {
 }
 
 export const TopHeader: React.FC<TopHeaderProps> = ({
-  onToggleMobileSidebar
+  onToggleMobileSidebar,
+  onNavigate
 }) => {
   const [selectedSession, setSelectedSession] = useState('2026–27');
   const [showNotifications, setShowNotifications] = useState(false);
   const [showMessages, setShowMessages] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
+  const [recentChats, setRecentChats] = useState<any[]>([]);
+  const [loadingChats, setLoadingChats] = useState(false);
 
   const sessions = ['2026–27', '2025–26', '2024–25'];
+
+  const fetchRecentChats = async () => {
+    try {
+      setLoadingChats(true);
+      const res = await api.get('/franchise/chat/my').catch(() => ({ data: { success: false, data: [] } }));
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setRecentChats(res.data.data);
+      } else {
+        setRecentChats([]);
+      }
+    } catch {
+      setRecentChats([]);
+    } finally {
+      setLoadingChats(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchRecentChats();
+  }, []);
+
+  const handleOpenChat = () => {
+    setShowMessages(false);
+    const isTeacher = window.location.pathname.startsWith('/teacher');
+    onNavigate(isTeacher ? '/teacher/chat' : '/admin/chat');
+  };
 
   return (
     <header className="h-16 md:h-20 bg-white/80 backdrop-blur-md border-b border-slate-200/80 sticky top-0 z-20 px-4 md:px-8 flex items-center justify-between gap-4">
@@ -68,7 +97,7 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
           </div>
         </div>
 
-        {/* Notification Bell */}
+        {/* Notification Bell (Truthful: no fake pulse dot) */}
         <div className="relative">
           <button
             onClick={() => {
@@ -79,7 +108,6 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             aria-label="Notifications"
           >
             <Bell className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white animate-pulse" />
           </button>
 
           {/* Notification Popover */}
@@ -87,40 +115,32 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h4 className="text-sm font-bold text-slate-900">Notifications</h4>
-                <Badge variant="blue" size="sm">3 New</Badge>
+                <span className="text-[11px] text-slate-400 font-semibold">0 New</span>
               </div>
-              <div className="space-y-3 py-3">
-                <div className="flex items-start gap-2.5 text-xs">
-                  <div className="w-2 h-2 rounded-full bg-blue-600 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="font-semibold text-slate-800">New student registration received</p>
-                    <span className="text-[10px] text-slate-400">10 minutes ago</span>
-                  </div>
-                </div>
-                <div className="flex items-start gap-2.5 text-xs">
-                  <div className="w-2 h-2 rounded-full bg-emerald-600 mt-1.5 shrink-0" />
-                  <div>
-                    <p className="font-semibold text-slate-800">Quarter 2 Fee report generated</p>
-                    <span className="text-[10px] text-slate-400">1 hour ago</span>
-                  </div>
-                </div>
+              <div className="py-6 text-center text-xs text-slate-500">
+                <Bell className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                <p className="font-semibold text-slate-700">No notifications available</p>
+                <p className="text-[11px] text-slate-400 mt-0.5">You're all caught up!</p>
               </div>
             </div>
           )}
         </div>
 
-        {/* Messages Icon */}
+        {/* Messages Icon (Truthful: badge only if real chats exist) */}
         <div className="relative">
           <button
             onClick={() => {
               setShowMessages(!showMessages);
               setShowNotifications(false);
+              if (!showMessages) fetchRecentChats();
             }}
             className="relative p-2.5 text-slate-600 hover:text-slate-900 hover:bg-slate-100 rounded-xl transition-colors cursor-pointer"
             aria-label="Messages"
           >
             <MessageSquare className="w-5 h-5" />
-            <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
+            {recentChats.length > 0 && (
+              <span className="absolute top-2 right-2 w-2 h-2 rounded-full bg-blue-600 ring-2 ring-white" />
+            )}
           </button>
 
           {/* Messages Popover */}
@@ -128,11 +148,45 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
             <div className="absolute right-0 mt-2 w-80 bg-white rounded-2xl shadow-2xl border border-slate-100 p-4 z-50 animate-in fade-in slide-in-from-top-2">
               <div className="flex items-center justify-between pb-3 border-b border-slate-100">
                 <h4 className="text-sm font-bold text-slate-900">Staff Communications</h4>
-                <span className="text-xs text-blue-600 font-semibold cursor-pointer">New Chat</span>
+                <button
+                  onClick={handleOpenChat}
+                  className="text-xs text-blue-600 font-semibold hover:underline cursor-pointer"
+                >
+                  Open Chat
+                </button>
               </div>
-              <div className="py-3 text-xs text-slate-500 text-center">
-                Dr. Ramesh Sharma sent a message: "Q1 Syllabus review complete."
-              </div>
+              {loadingChats ? (
+                <div className="py-6 text-xs text-slate-400 text-center">Loading communications...</div>
+              ) : recentChats.length === 0 ? (
+                <div className="py-6 text-center text-xs text-slate-500">
+                  <MessageSquare className="w-7 h-7 text-slate-300 mx-auto mb-2" />
+                  <p className="font-semibold text-slate-700">No recent messages</p>
+                  <p className="text-[11px] text-slate-400 mt-0.5">Start communicating in Staff Chat</p>
+                  <button
+                    onClick={handleOpenChat}
+                    className="mt-3 px-3 py-1.5 text-xs font-semibold text-blue-600 bg-blue-50 hover:bg-blue-100 rounded-xl transition-colors"
+                  >
+                    Go to Chat
+                  </button>
+                </div>
+              ) : (
+                <div className="divide-y divide-slate-100 max-h-60 overflow-y-auto">
+                  {recentChats.slice(0, 5).map((chat) => (
+                    <div
+                      key={chat.id}
+                      onClick={handleOpenChat}
+                      className="py-2.5 px-1 hover:bg-slate-50 rounded-lg cursor-pointer transition-colors"
+                    >
+                      <p className="text-xs font-bold text-slate-800 truncate">
+                        {chat.user?.name || chat.name || 'Staff Member'}
+                      </p>
+                      <p className="text-[11px] text-slate-500 truncate mt-0.5">
+                        {chat.lastMessage?.content || 'Click to view conversation'}
+                      </p>
+                    </div>
+                  ))}
+                </div>
+              )}
             </div>
           )}
         </div>

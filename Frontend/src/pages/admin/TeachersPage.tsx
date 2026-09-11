@@ -28,6 +28,18 @@ interface Teacher {
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
+interface ClassItem {
+  id: string;
+  name: string;
+  code?: string;
+}
+
+interface SectionItem {
+  id: string;
+  name: string;
+  classId: string;
+}
+
 interface TeacherForm {
   name: string;
   email: string;
@@ -36,6 +48,8 @@ interface TeacherForm {
   department: string;
   password: string;
   confirmPassword: string;
+  classId?: string;
+  sectionId?: string;
 }
 
 const emptyForm: TeacherForm = {
@@ -46,10 +60,16 @@ const emptyForm: TeacherForm = {
   department: '',
   password: '',
   confirmPassword: '',
+  classId: '',
+  sectionId: '',
 };
 
 export const TeachersPage: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [sections, setSections] = useState<SectionItem[]>([]);
+  const [assignments, setAssignments] = useState<any[]>([]);
+
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -65,16 +85,28 @@ export const TeachersPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const res = await api.get('/franchise/teachers', {
-        params: {
-          limit: 100,
-        },
-      });
+      const [teachersRes, classesRes, assignmentsRes] = await Promise.all([
+        api.get('/franchise/teachers', {
+          params: {
+            limit: 100,
+          },
+        }),
+        api.get('/franchise/classes').catch(() => ({ data: { success: false, data: [] } })),
+        api.get('/franchise/teacher-assignments').catch(() => ({ data: { success: false, data: [] } })),
+      ]);
 
-      if (res.data?.success) {
-        setTeachers(res.data.data || []);
+      if (teachersRes.data?.success) {
+        setTeachers(teachersRes.data.data || []);
       } else {
         setError('Failed to fetch teachers.');
+      }
+
+      if (classesRes.data?.success && Array.isArray(classesRes.data.data)) {
+        setClasses(classesRes.data.data);
+      }
+
+      if (assignmentsRes.data?.success && Array.isArray(assignmentsRes.data.data)) {
+        setAssignments(assignmentsRes.data.data);
       }
     } catch (err) {
       console.error('Error fetching teachers:', err);
@@ -88,9 +120,28 @@ export const TeachersPage: React.FC = () => {
     fetchTeachers();
   }, [fetchTeachers]);
 
+  const fetchSectionsForClass = async (classId: string) => {
+    if (!classId) {
+      setSections([]);
+      return;
+    }
+    try {
+      const res = await api.get('/franchise/sections', { params: { classId } });
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setSections(res.data.data);
+      } else {
+        setSections([]);
+      }
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
+
   const openAddModal = () => {
     setEditingTeacher(null);
     setForm({ ...emptyForm });
+    setSections([]);
     setError(null);
     setShowPassword(false);
     setIsModalOpen(true);
@@ -98,6 +149,13 @@ export const TeachersPage: React.FC = () => {
 
   const openEditModal = (teacher: Teacher) => {
     setEditingTeacher(teacher);
+
+    const existingAssignment = assignments.find((a) => a.teacherId === teacher.id);
+    if (existingAssignment?.classId) {
+      fetchSectionsForClass(existingAssignment.classId);
+    } else {
+      setSections([]);
+    }
 
     setForm({
       name: teacher.name || '',
@@ -107,6 +165,8 @@ export const TeachersPage: React.FC = () => {
       department: teacher.department || '',
       password: '',
       confirmPassword: '',
+      classId: existingAssignment?.classId || '',
+      sectionId: existingAssignment?.sectionId || '',
     });
 
     setError(null);
@@ -120,12 +180,13 @@ export const TeachersPage: React.FC = () => {
     setIsModalOpen(false);
     setEditingTeacher(null);
     setForm({ ...emptyForm });
+    setSections([]);
     setError(null);
     setShowPassword(false);
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
   ) => {
     const { name, value } = e.target;
 
@@ -133,6 +194,15 @@ export const TeachersPage: React.FC = () => {
       ...prev,
       [name]: value,
     }));
+
+    if (name === 'classId') {
+      fetchSectionsForClass(value);
+      setForm((prev) => ({
+        ...prev,
+        classId: value,
+        sectionId: '',
+      }));
+    }
   };
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -164,6 +234,11 @@ export const TeachersPage: React.FC = () => {
       setSaving(true);
       setError(null);
 
+      if (form.classId && !form.sectionId) {
+        setError('Please select a section for the assigned class, or leave class empty.');
+        return;
+      }
+
       const payload: {
         name: string;
         email: string;
@@ -183,13 +258,43 @@ export const TeachersPage: React.FC = () => {
         payload.password = form.password;
       }
 
+      let savedTeacherId = editingTeacher?.id;
+
       if (editingTeacher) {
         await api.put(
           `/franchise/teachers/${editingTeacher.id}`,
           payload
         );
       } else {
-        await api.post('/franchise/teachers', payload);
+        const createRes = await api.post('/franchise/teachers', payload);
+        savedTeacherId = createRes.data?.data?.id;
+      }
+
+      if (savedTeacherId) {
+        const existingAssignment = assignments.find((a) => a.teacherId === savedTeacherId);
+        if (form.classId && form.sectionId) {
+          if (existingAssignment) {
+            await api.put(`/franchise/teacher-assignments/${existingAssignment.id}`, {
+              teacherId: savedTeacherId,
+              classId: form.classId,
+              sectionId: form.sectionId,
+            }).catch((assignErr) => {
+              console.warn('Failed to update teacher assignment:', assignErr);
+            });
+          } else {
+            await api.post('/franchise/teacher-assignments', {
+              teacherId: savedTeacherId,
+              classId: form.classId,
+              sectionId: form.sectionId,
+            }).catch((assignErr) => {
+              console.warn('Failed to create teacher assignment:', assignErr);
+            });
+          }
+        } else if (!form.classId && existingAssignment) {
+          await api.delete(`/franchise/teacher-assignments/${existingAssignment.id}`).catch((delErr) => {
+            console.warn('Failed to remove teacher assignment:', delErr);
+          });
+        }
       }
 
       closeModal();
@@ -335,6 +440,17 @@ export const TeachersPage: React.FC = () => {
                       teacher.department ||
                       'Teacher'}
                   </span>
+
+                  {assignments
+                    .filter((a) => a.teacherId === teacher.id)
+                    .map((a) => (
+                      <span
+                        key={a.id}
+                        className="inline-flex items-center text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-100 mt-1.5 mr-1"
+                      >
+                        {a.class?.name || 'Class'} - {a.section?.name || 'Sec'}
+                      </span>
+                    ))}
                 </div>
 
                 <div className="space-y-1.5 text-xs text-slate-500 pt-2 border-t border-slate-100">
@@ -504,6 +620,49 @@ export const TeachersPage: React.FC = () => {
                     className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
                     placeholder="e.g. Mathematics Department"
                   />
+                </div>
+
+                {/* ASSIGNED CLASS (OPTIONAL) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                    Assigned Class <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
+                  <select
+                    name="classId"
+                    value={form.classId}
+                    onChange={handleChange}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                  >
+                    <option value="">-- None / Select Class --</option>
+                    {classes.map((cls) => (
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ASSIGNED SECTION (OPTIONAL) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                    Assigned Section <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
+                  <select
+                    name="sectionId"
+                    value={form.sectionId}
+                    onChange={handleChange}
+                    disabled={!form.classId}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    <option value="">
+                      {!form.classId ? '-- Select Class First --' : '-- Select Section --'}
+                    </option>
+                    {sections.map((sec) => (
+                      <option key={sec.id} value={sec.id}>
+                        {sec.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* PASSWORD */}

@@ -17,21 +17,40 @@ interface Teacher {
   subject?: string;
 }
 
+interface ClassItem {
+  id: string;
+  name: string;
+  code?: string;
+  numericValue?: number | null;
+}
+
+interface SectionItem {
+  id: string;
+  name: string;
+  classId: string;
+}
+
 interface Homework {
   id: string;
   teacherId: string;
+  classId?: string;
+  sectionId?: string;
   title: string;
   description?: string;
   subject: string;
   dueDate: string;
   status?: string;
   teacher?: Teacher;
+  class?: { id: string; name: string; code?: string };
+  section?: { id: string; name: string };
   createdAt?: string;
   updatedAt?: string;
 }
 
 interface FormData {
   teacherId: string;
+  classId: string;
+  sectionId: string;
   title: string;
   description: string;
   subject: string;
@@ -41,6 +60,8 @@ interface FormData {
 
 const initialForm: FormData = {
   teacherId: '',
+  classId: '',
+  sectionId: '',
   title: '',
   description: '',
   subject: '',
@@ -57,6 +78,8 @@ const statusOptions = [
 export const HomeworkPage: React.FC = () => {
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [sections, setSections] = useState<SectionItem[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,7 +92,7 @@ export const HomeworkPage: React.FC = () => {
   const [form, setForm] = useState<FormData>(initialForm);
 
   // ============================================================
-  // FETCH HOMEWORK + TEACHERS
+  // FETCH HOMEWORK + TEACHERS + CLASSES
   // ============================================================
 
   const fetchData = async () => {
@@ -77,13 +100,15 @@ export const HomeworkPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [homeworkRes, teachersRes] = await Promise.all([
+      const [homeworkRes, teachersRes, classesRes] = await Promise.all([
         api.get('/franchise/homework'),
-        api.get('/franchise/teachers'),
+        api.get('/franchise/teachers', { params: { limit: 100 } }),
+        api.get('/franchise/classes'),
       ]);
 
       console.log('Homework response:', homeworkRes.data);
       console.log('Teachers response:', teachersRes.data);
+      console.log('Classes response:', classesRes.data);
 
       setHomeworks(homeworkRes.data?.data || []);
 
@@ -92,6 +117,20 @@ export const HomeworkPage: React.FC = () => {
         teachersRes.data?.teachers ||
         []
       );
+
+      if (classesRes.data?.success && Array.isArray(classesRes.data.data)) {
+        const sorted = [...classesRes.data.data].sort((a: ClassItem, b: ClassItem) => {
+          const numA = a.numericValue;
+          const numB = b.numericValue;
+          if (numA !== null && numA !== undefined && numB !== null && numB !== undefined) {
+            return numA - numB;
+          }
+          if (numA !== null && numA !== undefined) return -1;
+          if (numB !== null && numB !== undefined) return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        setClasses(sorted);
+      }
     } catch (err) {
       console.error('Homework fetch error:', err);
 
@@ -106,6 +145,24 @@ export const HomeworkPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const fetchSectionsForClass = async (classId: string) => {
+    if (!classId) {
+      setSections([]);
+      return;
+    }
+    try {
+      const res = await api.get('/franchise/sections', { params: { classId } });
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setSections(res.data.data);
+      } else {
+        setSections([]);
+      }
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
 
   // ============================================================
   // FORM CHANGE
@@ -122,6 +179,15 @@ export const HomeworkPage: React.FC = () => {
       ...prev,
       [name]: value,
     }));
+
+    if (name === 'classId') {
+      fetchSectionsForClass(value);
+      setForm((prev) => ({
+        ...prev,
+        classId: value,
+        sectionId: '',
+      }));
+    }
   };
 
   // ============================================================
@@ -131,6 +197,7 @@ export const HomeworkPage: React.FC = () => {
   const openCreateModal = () => {
     setEditingId(null);
     setForm(initialForm);
+    setSections([]);
     setIsModalOpen(true);
   };
 
@@ -141,8 +208,16 @@ export const HomeworkPage: React.FC = () => {
   const openEditModal = (item: Homework) => {
     setEditingId(item.id);
 
+    if (item.classId) {
+      fetchSectionsForClass(item.classId);
+    } else {
+      setSections([]);
+    }
+
     setForm({
       teacherId: item.teacherId,
+      classId: item.classId || '',
+      sectionId: item.sectionId || '',
       title: item.title,
       description: item.description || '',
       subject: item.subject,
@@ -166,12 +241,14 @@ export const HomeworkPage: React.FC = () => {
 
     if (
       !form.teacherId ||
+      !form.classId ||
+      !form.sectionId ||
       !form.title ||
       !form.subject ||
       !form.dueDate
     ) {
       alert(
-        'Please fill all required fields.'
+        'Please fill all required fields: Teacher, Class, Section, Title, Subject, and Due Date.'
       );
       return;
     }
@@ -181,6 +258,8 @@ export const HomeworkPage: React.FC = () => {
 
       const payload = {
         teacherId: form.teacherId,
+        classId: form.classId,
+        sectionId: form.sectionId,
         title: form.title,
         description: form.description,
         subject: form.subject,
@@ -521,6 +600,34 @@ export const HomeworkPage: React.FC = () => {
 
                 </div>
 
+                {/* CLASS & SECTION */}
+
+                {(item.class?.name || item.section?.name) && (
+
+                  <div className="flex items-center gap-2">
+
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+
+                      <BookOpen className="w-4 h-4" />
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-[11px] text-slate-400 font-semibold">
+                        Class & Section
+                      </p>
+
+                      <p className="text-sm font-bold text-slate-700">
+                        {item.class?.name || 'Class'}{item.section?.name ? ` • ${item.section.name}` : ''}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                )}
+
                 {/* DUE DATE */}
 
                 <div className="flex items-center gap-2">
@@ -693,7 +800,8 @@ export const HomeworkPage: React.FC = () => {
                     name="teacherId"
                     value={form.teacherId}
                     onChange={handleChange}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
                   >
 
                     <option value="">
@@ -716,6 +824,75 @@ export const HomeworkPage: React.FC = () => {
 
                       )
                     )}
+
+                  </select>
+
+                </div>
+
+                {/* CLASS */}
+
+                <div>
+
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Class *
+                  </label>
+
+                  <select
+                    name="classId"
+                    value={form.classId}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
+                  >
+
+                    <option value="">
+                      Select class
+                    </option>
+
+                    {classes.map((cls) => (
+
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name} {cls.code ? `(${cls.code})` : ''}
+                      </option>
+
+                    ))}
+
+                  </select>
+
+                </div>
+
+                {/* SECTION */}
+
+                <div>
+
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Section *
+                  </label>
+
+                  <select
+                    name="sectionId"
+                    value={form.sectionId}
+                    onChange={handleChange}
+                    disabled={!form.classId || sections.length === 0}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+
+                    <option value="">
+                      {!form.classId
+                        ? 'Select class first'
+                        : sections.length === 0
+                        ? 'No sections available'
+                        : 'Select section'}
+                    </option>
+
+                    {sections.map((sec) => (
+
+                      <option key={sec.id} value={sec.id}>
+                        {sec.name}
+                      </option>
+
+                    ))}
 
                   </select>
 
