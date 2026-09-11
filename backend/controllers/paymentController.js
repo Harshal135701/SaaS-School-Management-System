@@ -3,6 +3,7 @@ const {
   Installment,
   StudentFee,
   Student,
+  sequelize,
   FeeCategory,
 } = require("../models");
 
