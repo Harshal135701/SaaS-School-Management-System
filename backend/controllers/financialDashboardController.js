@@ -13,11 +13,18 @@ const getFinancialDashboard = async (req, res) => {
     const students = await Student.findAll({
       where: { franchiseId },
       attributes: ["id", "name"],
+
       include: [
         {
           model: StudentFee,
           as: "studentFees",
-          attributes: ["id", "originalAmount", "finalAmount"],
+          attributes: [
+            "id",
+            "originalAmount",
+            "discountPercent",
+            "finalAmount",
+          ],
+
           include: [
             {
               model: FeeCategory,
@@ -34,26 +41,41 @@ const getFinancialDashboard = async (req, res) => {
                 "dueDate",
                 "status",
               ],
+
               include: [
                 {
                   model: Payment,
                   as: "payments",
-                  attributes: ["amount", "paymentDate"],
+                  attributes: [
+                    "amount",
+                    "paymentDate",
+                    "paymentMethod",
+                    "referenceNumber",
+                    "receiptNumber",
+                  ],
                 },
               ],
             },
           ],
         },
       ],
+
       order: [["name", "ASC"]],
     });
 
     let totalExpectedRevenue = 0;
     let totalCollected = 0;
+    let totalPending = 0;
+    let totalOverdue = 0;
+
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
 
     const studentWise = students.map((student) => {
       let totalFee = 0;
       let paid = 0;
+      let studentPending = 0;
+      let studentOverdue = 0;
 
       const pendingInstallments = [];
       const feeBreakdown = [];
@@ -76,47 +98,79 @@ const getFinancialDashboard = async (req, res) => {
                 0
               ) || 0;
 
-            paid += installmentPaid;
+            const installmentPending = Number(
+              Math.max(
+                installmentAmount - installmentPaid,
+                0
+              ).toFixed(2)
+            );
 
-            if (installmentPaid < installmentAmount) {
-              pendingInstallments.push(installment);
+            paid += installmentPaid;
+            studentPending += installmentPending;
+
+            const dueDate = new Date(installment.dueDate);
+            dueDate.setHours(0, 0, 0, 0);
+
+            const isOverdue =
+              installmentPending > 0 && dueDate < today;
+
+            if (isOverdue) {
+              studentOverdue += installmentPending;
+              totalOverdue += installmentPending;
+            }
+
+            if (installmentPending > 0) {
+              pendingInstallments.push({
+                installmentId: installment.id,
+                installmentNumber:
+                  installment.installmentNumber,
+                amount: installmentAmount,
+                paid: Number(installmentPaid.toFixed(2)),
+                pending: installmentPending,
+                dueDate: installment.dueDate,
+                status: isOverdue
+                  ? "OVERDUE"
+                  : installment.status,
+              });
             }
 
             return {
               installmentId: installment.id,
-              installmentNumber: installment.installmentNumber,
+              installmentNumber:
+                installment.installmentNumber,
               amount: installmentAmount,
-              paid: installmentPaid,
-              pending: Math.max(
-                installmentAmount - installmentPaid,
-                0
-              ),
+              paid: Number(installmentPaid.toFixed(2)),
+              pending: installmentPending,
               dueDate: installment.dueDate,
-              status: installment.status,
+              status: isOverdue
+                ? "OVERDUE"
+                : installment.status,
             };
           }) || [];
 
         feeBreakdown.push({
           feeId: fee.id,
           category: fee.category?.name || "Other",
-          originalAmount: Number(fee.originalAmount || 0),
+
+          originalAmount: Number(
+            fee.originalAmount || 0
+          ),
+
+          discountPercent: Number(
+            fee.discountPercent || 0
+          ),
+
           finalAmount,
-          discountPercent:
-            Number(fee.originalAmount || 0) > 0
-              ? Number(
-                  (
-                    ((Number(fee.originalAmount) - finalAmount) /
-                      Number(fee.originalAmount)) *
-                    100
-                  ).toFixed(2)
-                )
-              : 0,
+
           installments,
         });
       });
 
+      const studentPaid = Number(paid.toFixed(2));
+
       totalExpectedRevenue += totalFee;
-      totalCollected += paid;
+      totalCollected += studentPaid;
+      totalPending += studentPending;
 
       pendingInstallments.sort(
         (a, b) =>
@@ -126,31 +180,57 @@ const getFinancialDashboard = async (req, res) => {
       return {
         studentId: student.id,
         studentName: student.name,
-        totalFee,
-        paid,
-        pending: Math.max(totalFee - paid, 0),
+
+        totalFee: Number(totalFee.toFixed(2)),
+        paid: studentPaid,
+
+        pending: Number(
+          studentPending.toFixed(2)
+        ),
+
+        overdue: Number(
+          studentOverdue.toFixed(2)
+        ),
+
         nextDueDate:
           pendingInstallments.length > 0
             ? pendingInstallments[0].dueDate
             : null,
+
         feeBreakdown,
+
+        pendingInstallments,
       };
     });
 
-    const pending = Math.max(
-      totalExpectedRevenue - totalCollected,
-      0
+    totalExpectedRevenue = Number(
+      totalExpectedRevenue.toFixed(2)
     );
 
-    res.json({
+    totalCollected = Number(
+      totalCollected.toFixed(2)
+    );
+
+    totalPending = Number(
+      totalPending.toFixed(2)
+    );
+
+    totalOverdue = Number(
+      totalOverdue.toFixed(2)
+    );
+
+    return res.status(200).json({
       success: true,
+
       data: {
         summary: {
           totalExpectedRevenue,
           totalCollected,
-          pending,
+          pending: totalPending,
+          overdue: totalOverdue,
           netRevenue: totalCollected,
         },
+
         students: studentWise,
       },
     });
@@ -160,9 +240,10 @@ const getFinancialDashboard = async (req, res) => {
       error
     );
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
-      message: "Failed to fetch financial dashboard",
+      message:
+        "Failed to fetch financial dashboard",
     });
   }
 };
@@ -170,8 +251,4 @@ const getFinancialDashboard = async (req, res) => {
 module.exports = {
   getFinancialDashboard,
 };
-
-
-
-
 

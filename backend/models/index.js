@@ -3,6 +3,8 @@ const { sequelize } = require("../config/database");
 const Franchise = require("./Franchise");
 const FranchiseAdmin = require("./FranchiseAdmin");
 const SystemAdmin = require("./SystemAdmin");
+const Watchman = require("./Watchman")(sequelize);
+const WatchmanExpense = require("./WatchmanExpense")(sequelize);
 const TeacherAssignment = require("./TeacherAssignment");
 const SalaryPayment = require("./SalaryPayment");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
@@ -580,7 +582,17 @@ Franchise.hasMany(Payment, {
 
 Payment.belongsTo(Franchise, {
   foreignKey: "franchiseId",
-  as: "payments",
+  as: "franchise",
+});
+
+Franchise.hasMany(Installment, {
+  foreignKey: "franchiseId",
+  as: "installments",
+});
+
+Installment.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
 });
 
 Teacher.hasOne(SalaryProfile, {
@@ -683,6 +695,36 @@ SalaryPayment.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Watchman.hasMany(WatchmanExpense, {
+  foreignKey: "watchmanId",
+  as: "expenses",
+});
+
+WatchmanExpense.belongsTo(Watchman, {
+  foreignKey: "watchmanId",
+  as: "watchman",
+});
+
+Franchise.hasMany(Watchman, {
+  foreignKey: "franchiseId",
+  as: "watchmen",
+});
+
+Watchman.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Franchise.hasMany(WatchmanExpense, {
+  foreignKey: "franchiseId",
+  as: "watchmanExpenses",
+});
+
+WatchmanExpense.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -718,6 +760,8 @@ module.exports = {
   ExamResult,
   Timetable,
   Parent,
+  Watchman,
+  WatchmanExpense,
   Teacher,
   Fee,
   TeacherAssignment,

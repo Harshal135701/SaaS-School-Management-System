@@ -3,21 +3,56 @@ const { FeeCategory } = require("../models");
 const createFeeCategory = async (req, res) => {
   try {
     const { name, description } = req.body;
+    const franchiseId = req.user.franchiseId;
 
-    if (!name) {
+    const cleanName = String(name || "").trim();
+    const cleanDescription =
+      description !== undefined
+        ? String(description).trim()
+        : null;
+
+    if (!cleanName) {
       return res.status(400).json({
         success: false,
         message: "Fee category name is required",
       });
     }
 
-    const category = await FeeCategory.create({
-      franchiseId: req.user.franchiseId,
-      name,
-      description,
+    if (cleanName.length > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Fee category name cannot exceed 100 characters",
+      });
+    }
+
+    if (cleanDescription && cleanDescription.length > 500) {
+      return res.status(400).json({
+        success: false,
+        message: "Description cannot exceed 500 characters",
+      });
+    }
+
+    const existingCategory = await FeeCategory.findOne({
+      where: {
+        franchiseId,
+        name: cleanName,
+      },
     });
 
-    res.status(201).json({
+    if (existingCategory) {
+      return res.status(409).json({
+        success: false,
+        message: "Fee category already exists",
+      });
+    }
+
+    const category = await FeeCategory.create({
+      franchiseId,
+      name: cleanName,
+      description: cleanDescription,
+    });
+
+    return res.status(201).json({
       success: true,
       message: "Fee category created successfully",
       data: category,
@@ -25,7 +60,7 @@ const createFeeCategory = async (req, res) => {
   } catch (error) {
     console.error("Create fee category error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to create fee category",
     });
@@ -42,14 +77,14 @@ const getFeeCategories = async (req, res) => {
       order: [["createdAt", "DESC"]],
     });
 
-    res.status(200).json({
+    return res.status(200).json({
       success: true,
       data: categories,
     });
   } catch (error) {
     console.error("Get fee categories error:", error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to fetch fee categories",
     });
@@ -60,3 +95,4 @@ module.exports = {
   createFeeCategory,
   getFeeCategories,
 };
+
