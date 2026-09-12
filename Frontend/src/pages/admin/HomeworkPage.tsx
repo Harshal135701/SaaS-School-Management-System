@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Plus,
   BookOpen,
@@ -8,6 +8,7 @@ import {
   Trash2,
   X,
   FileText,
+  Search,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -75,7 +76,11 @@ const statusOptions = [
   'CANCELLED',
 ];
 
-export const HomeworkPage: React.FC = () => {
+interface HomeworkPageProps {
+  user?: any;
+}
+
+export const HomeworkPage: React.FC<HomeworkPageProps> = ({ user }) => {
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
@@ -101,24 +106,54 @@ export const HomeworkPage: React.FC = () => {
       setError(null);
 
       const [homeworkRes, teachersRes, classesRes] = await Promise.all([
-        api.get('/franchise/homework'),
-        api.get('/franchise/teachers', { params: { limit: 100 } }),
-        api.get('/franchise/classes'),
+        api.get('/franchise/homework').catch((err) => {
+          console.error('Homework fetch error:', err);
+          return { data: { success: false, data: [] } };
+        }),
+        api.get('/franchise/teachers', { params: { limit: 100 } }).catch((err) => {
+          console.warn('Teachers fetch warning (may require elevated permissions):', err?.response?.status || err);
+          return { data: { success: false, data: [] } };
+        }),
+        api.get('/franchise/classes').catch((err) => {
+          console.warn('Classes fetch warning (requires franchise admin):', err?.response?.status || err);
+          return { data: { success: false, data: [] } };
+        }),
       ]);
 
-      console.log('Homework response:', homeworkRes.data);
-      console.log('Teachers response:', teachersRes.data);
-      console.log('Classes response:', classesRes.data);
+      const loadedHomeworks: Homework[] = homeworkRes.data?.data || [];
+      setHomeworks(loadedHomeworks);
 
-      setHomeworks(homeworkRes.data?.data || []);
+      // Populate teachers
+      const loadedTeachers: Teacher[] =
+        teachersRes.data?.data || teachersRes.data?.teachers || [];
 
-      setTeachers(
-        teachersRes.data?.data ||
-        teachersRes.data?.teachers ||
-        []
-      );
+      if (loadedTeachers.length > 0) {
+        setTeachers(loadedTeachers);
+      } else if (user) {
+        setTeachers([
+          {
+            id: user.id,
+            name: user.name || 'Teacher',
+            subject: user.subject,
+          },
+        ]);
+      } else {
+        // Fallback: extract distinct teachers from loaded homework
+        const teacherMap = new Map<string, Teacher>();
+        loadedHomeworks.forEach((h) => {
+          if (h.teacher?.id && h.teacher?.name) {
+            teacherMap.set(h.teacher.id, {
+              id: h.teacher.id,
+              name: h.teacher.name,
+              subject: h.teacher.subject,
+            });
+          }
+        });
+        setTeachers(Array.from(teacherMap.values()));
+      }
 
-      if (classesRes.data?.success && Array.isArray(classesRes.data.data)) {
+      // Populate classes
+      if (classesRes.data?.success && Array.isArray(classesRes.data.data) && classesRes.data.data.length > 0) {
         const sorted = [...classesRes.data.data].sort((a: ClassItem, b: ClassItem) => {
           const numA = a.numericValue;
           const numB = b.numericValue;
@@ -130,13 +165,23 @@ export const HomeworkPage: React.FC = () => {
           return (a.name || '').localeCompare(b.name || '');
         });
         setClasses(sorted);
+      } else {
+        // Fallback: extract distinct classes from loaded homework
+        const classMap = new Map<string, ClassItem>();
+        loadedHomeworks.forEach((h) => {
+          if (h.class?.id && h.class?.name) {
+            classMap.set(h.class.id, {
+              id: h.class.id,
+              name: h.class.name,
+              code: h.class.code,
+            });
+          }
+        });
+        setClasses(Array.from(classMap.values()));
       }
     } catch (err) {
       console.error('Homework fetch error:', err);
-
-      setError(
-        'Failed to load homework. Please try again.'
-      );
+      setError('Failed to load homework. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -152,11 +197,22 @@ export const HomeworkPage: React.FC = () => {
       return;
     }
     try {
-      const res = await api.get('/franchise/sections', { params: { classId } });
-      if (res.data?.success && Array.isArray(res.data.data)) {
+      const res = await api.get('/franchise/sections', { params: { classId } }).catch(() => null);
+      if (res?.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
         setSections(res.data.data);
       } else {
-        setSections([]);
+        // Fallback: extract matching sections from loaded homework
+        const secMap = new Map<string, SectionItem>();
+        homeworks.forEach((h) => {
+          if (h.classId === classId && h.section?.id && h.section?.name) {
+            secMap.set(h.section.id, {
+              id: h.section.id,
+              name: h.section.name,
+              classId: h.classId,
+            });
+          }
+        });
+        setSections(Array.from(secMap.values()));
       }
     } catch (err) {
       console.error('Failed to load sections:', err);
@@ -194,9 +250,36 @@ export const HomeworkPage: React.FC = () => {
   // OPEN CREATE MODAL
   // ============================================================
 
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ALL');
+
+  const filteredHomeworks = useMemo(() => {
+    return homeworks.filter((item) => {
+      if (statusFilter !== 'ALL' && (item.status || 'ACTIVE').toUpperCase() !== statusFilter) {
+        return false;
+      }
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (item.title || '').toLowerCase().includes(q) ||
+        (item.subject || '').toLowerCase().includes(q) ||
+        (item.teacher?.name || '').toLowerCase().includes(q) ||
+        (item.class?.name || '').toLowerCase().includes(q) ||
+        (item.section?.name || '').toLowerCase().includes(q)
+      );
+    });
+  }, [homeworks, statusFilter, searchQuery]);
+
+  // ============================================================
+  // OPEN CREATE MODAL
+  // ============================================================
+
   const openCreateModal = () => {
     setEditingId(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      teacherId: user?.id || (teachers.length > 0 ? teachers[0].id : ''),
+    });
     setSections([]);
     setIsModalOpen(true);
   };
@@ -239,8 +322,10 @@ export const HomeworkPage: React.FC = () => {
   ) => {
     e.preventDefault();
 
+    const effectiveTeacherId = form.teacherId || user?.id || (teachers.length === 1 ? teachers[0].id : '');
+
     if (
-      !form.teacherId ||
+      !effectiveTeacherId ||
       !form.classId ||
       !form.sectionId ||
       !form.title ||
@@ -257,7 +342,7 @@ export const HomeworkPage: React.FC = () => {
       setSaving(true);
 
       const payload = {
-        teacherId: form.teacherId,
+        teacherId: effectiveTeacherId,
         classId: form.classId,
         sectionId: form.sectionId,
         title: form.title,
@@ -437,6 +522,41 @@ export const HomeworkPage: React.FC = () => {
       </div>
 
       {/* ======================================================
+          SEARCH & FILTER TOOLBAR
+      ====================================================== */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search title, subject, teacher, class..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs md:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all placeholder:text-slate-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+          {(['ALL', 'ACTIVE', 'COMPLETED', 'CANCELLED'] as const).map((status) => {
+            const isActive = statusFilter === status;
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                }`}
+              >
+                {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ======================================================
           ERROR
       ====================================================== */}
 
@@ -466,7 +586,7 @@ export const HomeworkPage: React.FC = () => {
 
         </div>
 
-      ) : homeworks.length === 0 ? (
+      ) : filteredHomeworks.length === 0 ? (
 
         /* ====================================================
            EMPTY STATE
@@ -481,20 +601,36 @@ export const HomeworkPage: React.FC = () => {
           </div>
 
           <h2 className="mt-5 text-lg font-extrabold text-slate-900">
-            No homework yet
+            {searchQuery || statusFilter !== 'ALL'
+              ? 'No matching assignments found'
+              : 'No homework yet'}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Create your first homework assignment to get started.
+            {searchQuery || statusFilter !== 'ALL'
+              ? 'Try resetting the filters or modifying your search query.'
+              : 'Create your first homework assignment to get started.'}
           </p>
 
-          <button
-            onClick={openCreateModal}
-            className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Create Homework
-          </button>
+          {searchQuery || statusFilter !== 'ALL' ? (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('ALL');
+              }}
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition-all"
+            >
+              Reset Filters
+            </button>
+          ) : (
+            <button
+              onClick={openCreateModal}
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Create Homework
+            </button>
+          )}
 
         </div>
 
@@ -506,7 +642,7 @@ export const HomeworkPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-          {homeworks.map((item) => (
+          {filteredHomeworks.map((item) => (
 
             <div
               key={item.id}

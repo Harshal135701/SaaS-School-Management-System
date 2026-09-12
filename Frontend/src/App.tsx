@@ -38,6 +38,7 @@ import type { Franchise } from './types/superAdmin';
 // Teacher Imports
 import { TeacherLayout } from './components/layout/TeacherLayout';
 import { TeacherDashboardPage } from './pages/teacher/TeacherDashboardPage';
+import { TeacherClassesPage } from './pages/teacher/TeacherClassesPage';
 
 // HOD Imports
 import { HODLayout } from './components/layout/HODLayout';
@@ -736,13 +737,13 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         ) : currentPath === '/teacher/timetable' ? (
           <TimetablePage />
         ) : currentPath === '/teacher/assignments' ? (
-          <HomeworkPage />
+          <HomeworkPage user={currentUser} />
         ) : currentPath === '/teacher/attendance' ? (
           <AttendancePage />
         ) : currentPath === '/teacher/examinations' ? (
           <ExaminationPage />
         ) : currentPath === '/teacher/classes' ? (
-          <ClassesPage />
+          <TeacherClassesPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
         ) : currentPath === '/teacher/students' ? (
           <StudentsPage />
         ) : (
@@ -813,7 +814,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
       case '/admin/attendance':
         return <AttendancePage />;
       case '/admin/homework':
-        return <HomeworkPage />;
+        return <HomeworkPage user={currentUser} />;
       case '/admin/timetable':
         return <TimetablePage />;
       case '/admin/subjects':
