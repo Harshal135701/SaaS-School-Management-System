@@ -773,7 +773,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {currentPath === '/parent/dashboard' || currentPath === '/parent' ? (
+        {currentPath === '/parent/dashboard' || currentPath === '/parent' || currentPath === '/parent/student-overview' ? (
           <ParentDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
           ) : currentPath === '/parent/chat' ? (
             <ChatPage user={currentUser} />
