@@ -16,6 +16,7 @@ app.use(cors());
 app.use(express.json());
 
 // Here all the apis init
+const noticeRoutes = require("./routes/noticeRoutes");
 const payrollRoutes = require("./routes/payrollRoutes");
 const salaryProfileRoutes = require("./routes/salaryProfileRoutes");
 const teacherAssignmentRoutes = require("./routes/teacherAssignmentRoutes");
@@ -95,6 +96,7 @@ app.use("/api/franchise/sections", sectionRoutes);
 app.use("/api/franchise/subjects", subjectRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/franchise/teacher-assignments", teacherAssignmentRoutes);
+app.use("/api/franchise/notices", noticeRoutes);
  
 //STUDENT FEES MANAGEMENT
 
