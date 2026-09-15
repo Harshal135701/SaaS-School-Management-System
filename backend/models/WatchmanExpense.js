@@ -1,3 +1,4 @@
+
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
@@ -61,26 +62,16 @@ module.exports = (sequelize) => {
       receiptNumber: {
         type: DataTypes.STRING,
         allowNull: true,
-        unique: true,
       },
 
       referenceNumber: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-
-      referenceNumber: {
-        type: DataTypes.STRING,
-        allowNull: true,
-      },
-
-      receiptNumber: {
         type: DataTypes.STRING,
         allowNull: true,
       },
 
       status: {
         type: DataTypes.ENUM("PENDING", "PAID"),
+        allowNull: false,
         defaultValue: "PENDING",
       },
 
@@ -102,12 +93,4 @@ module.exports = (sequelize) => {
 
   return WatchmanExpense;
 };
-
-
-
-
-
-
-
-
 
