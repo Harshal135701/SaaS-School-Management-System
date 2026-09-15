@@ -8,6 +8,7 @@ const WatchmanExpense = require("./WatchmanExpense")(sequelize);
 const TeacherAssignment = require("./TeacherAssignment");
 const SalaryPayment = require("./SalaryPayment");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
+const Notice = require("./Notice");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const SalaryAdvance = require("./SalaryAdvance");
 const Contract = require("./Contract");
@@ -725,6 +726,16 @@ WatchmanExpense.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Franchise.hasMany(Notice, {
+  foreignKey: "franchiseId",
+  as: "notices",
+});
+
+Notice.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -746,6 +757,7 @@ module.exports = {
   Book,
   ConversationParticipant,
   Vehicle,
+  Notice, 
   Student,
   MonthlySalary,
   Examination,
