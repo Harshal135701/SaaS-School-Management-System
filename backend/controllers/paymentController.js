@@ -3,10 +3,29 @@ const {
   Installment,
   StudentFee,
   Student,
-  sequelize,
   FeeCategory,
+  sequelize,
 } = require("../models");
 
+const PDFDocument = require("pdfkit");
+
+
+const isValidAmount = (value) => {
+  const num = Number(value);
+  return (
+    Number.isFinite(num) &&
+    num > 0 &&
+    Number.isInteger(num * 100)
+  );
+};
+
+const isValidDate = (value) => {
+  if (!value) return false;
+  const date = new Date(value);
+  return !Number.isNaN(date.getTime());
+};
+
+// CREATE PAYMENT
 const createPayment = async (req, res) => {
   const transaction = await sequelize.transaction();
 
@@ -17,70 +36,82 @@ const createPayment = async (req, res) => {
       amount,
       paymentMethod,
       receiptNumber,
-      receivedBy,
       remarks,
+      paymentDate,
     } = req.body;
 
-    // Validate required fields
+    const franchiseId = req.user.franchiseId;
+    const receivedBy = req.user.id;
+
     if (
       !studentId ||
       !installmentId ||
-      !amount ||
+      amount === undefined ||
       !paymentMethod ||
-      !receiptNumber ||
-      !receivedBy
+      !receiptNumber
     ) {
       await transaction.rollback();
 
       return res.status(400).json({
-        success: false,
-        message: "Required payment fields are missing",
+        message:
+          "studentId, installmentId, amount, paymentMethod and receiptNumber are required",
       });
     }
 
-    // Validate payment amount
-    if (Number(amount) <= 0) {
+    const cleanReceiptNumber = String(receiptNumber).trim();
+
+    if (!cleanReceiptNumber) {
       await transaction.rollback();
 
       return res.status(400).json({
-        success: false,
-        message: "Payment amount must be greater than 0",
+        message: "receiptNumber cannot be empty",
       });
     }
 
-    const franchiseId = req.user.franchiseId;
+    if (!isValidAmount(amount)) {
+      await transaction.rollback();
 
-    // Lock reference generation for this franchise
+      return res.status(400).json({
+        message:
+          "amount must be a valid positive amount with max 2 decimals",
+      });
+    }
+
+    if (paymentDate && !isValidDate(paymentDate)) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        message: "Invalid paymentDate",
+      });
+    }
+
+    const validMethods = [
+      "CASH",
+      "UPI",
+      "CARD",
+      "BANK_TRANSFER",
+      "CHEQUE",
+      "OTHER",
+    ];
+
+    if (!validMethods.includes(paymentMethod)) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        message: "Invalid payment method",
+      });
+    }
+
+    // Lock payment numbering for this franchise
     await sequelize.query(
-      `SELECT pg_advisory_xact_lock(hashtext(:franchiseId))`,
+      "SELECT pg_advisory_xact_lock(hashtext(:franchiseId))",
       {
         replacements: { franchiseId },
         transaction,
       }
     );
 
-    // Find last payment for this franchise
-    const lastPayment = await Payment.findOne({
-      where: { franchiseId },
-      order: [["createdAt", "DESC"]],
-      transaction,
-      lock: transaction.LOCK.UPDATE,
-    });
-
-    // Generate next reference number
-    let nextNumber = 1;
-
-    if (lastPayment?.referenceNumber) {
-      const match = lastPayment.referenceNumber.match(/\d+$/);
-
-      if (match) {
-        nextNumber = Number(match[0]) + 1;
-      }
-    }
-
-    const referenceNumber = `REF-${String(nextNumber).padStart(3, "0")}`;
-
-    // Validate installment + student
+    // Get installment and verify student + franchise
     const installment = await Installment.findOne({
       where: {
         id: installmentId,
@@ -90,7 +121,10 @@ const createPayment = async (req, res) => {
         {
           model: StudentFee,
           as: "studentFee",
-          where: { studentId },
+          where: {
+            studentId,
+            franchiseId,
+          },
         },
       ],
       transaction,
@@ -101,30 +135,76 @@ const createPayment = async (req, res) => {
       await transaction.rollback();
 
       return res.status(404).json({
-        success: false,
-        message: "Invalid installment or student",
+        message: "Installment not found for this student",
       });
     }
 
-    // Calculate total already paid
-    const totalPaid = await Payment.sum("amount", {
-      where: { installmentId },
+    const student = await Student.findOne({
+      where: {
+        id: studentId,
+        franchiseId,
+      },
       transaction,
     });
 
-    // Calculate remaining amount
-    const remainingAmount =
-      Number(installment.amount) - Number(totalPaid || 0);
+    if (!student) {
+      await transaction.rollback();
 
-    // Prevent overpayment
-    if (Number(amount) > remainingAmount) {
+      return res.status(404).json({
+        message: "Student not found in this franchise",
+      });
+    }
+
+    // Calculate already paid amount
+    const existingPayments = await Payment.sum("amount", {
+      where: {
+        installmentId,
+        franchiseId,
+      },
+      transaction,
+    });
+
+    const alreadyPaid = Number(existingPayments || 0);
+    const installmentAmount = Number(installment.amount);
+    const paymentAmount = Number(amount);
+
+    const remaining = Number(
+      (installmentAmount - alreadyPaid).toFixed(2)
+    );
+
+    if (paymentAmount > remaining) {
       await transaction.rollback();
 
       return res.status(400).json({
-        success: false,
-        message: `Payment exceeds remaining amount: ${remainingAmount}`,
+        message: `Payment exceeds remaining installment amount (${remaining.toFixed(
+          2
+        )})`,
       });
     }
+
+    // Generate franchise-wise sequential reference number
+    const lastPayment = await Payment.findOne({
+      where: { franchiseId },
+      order: [["createdAt", "DESC"]],
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    let nextNumber = 1;
+
+    if (lastPayment?.referenceNumber) {
+      const match =
+        lastPayment.referenceNumber.match(/(\d+)$/);
+
+      if (match) {
+        nextNumber = Number(match[1]) + 1;
+      }
+    }
+
+    const referenceNumber = `REF-${String(nextNumber).padStart(
+      3,
+      "0"
+    )}`;
 
     // Create payment
     const payment = await Payment.create(
@@ -132,34 +212,36 @@ const createPayment = async (req, res) => {
         franchiseId,
         studentId,
         installmentId,
-        amount,
+        amount: paymentAmount.toFixed(2),
+        paymentDate: paymentDate || new Date(),
         paymentMethod,
         referenceNumber,
-        receiptNumber,
+        receiptNumber: cleanReceiptNumber,
         receivedBy,
         remarks,
       },
       { transaction }
     );
 
-    // Calculate new total paid
-    const newTotalPaid =
-      Number(totalPaid || 0) + Number(amount);
-
     // Update installment status
-    if (newTotalPaid >= Number(installment.amount)) {
-      installment.status = "PAID";
-    } else if (newTotalPaid > 0) {
-      installment.status = "PARTIAL";
+    const totalPaid = Number(
+      (alreadyPaid + paymentAmount).toFixed(2)
+    );
+
+    let status = "PARTIAL";
+
+    if (totalPaid >= installmentAmount) {
+      status = "PAID";
     }
 
-    await installment.save({ transaction });
+    await installment.update(
+      { status },
+      { transaction }
+    );
 
-    // Commit transaction
     await transaction.commit();
 
     return res.status(201).json({
-      success: true,
       message: "Payment recorded successfully",
       data: payment,
     });
@@ -169,18 +251,20 @@ const createPayment = async (req, res) => {
     console.error("Create payment error:", error);
 
     return res.status(500).json({
-      success: false,
       message: "Failed to record payment",
+      error: error.message,
     });
   }
 };
 
+// GET ALL PAYMENTS
 const getPayments = async (req, res) => {
   try {
+    const franchiseId = req.user.franchiseId;
+
     const payments = await Payment.findAll({
-      where: {
-        franchiseId: req.user.franchiseId,
-      },
+      where: { franchiseId },
+
       include: [
         {
           model: Student,
@@ -203,105 +287,350 @@ const getPayments = async (req, res) => {
           ],
         },
       ],
+
       order: [["paymentDate", "DESC"]],
     });
 
-    return res.json({
-      success: true,
+    return res.status(200).json({
+      message: "Payments fetched successfully",
       data: payments,
     });
   } catch (error) {
     console.error("Get payments error:", error);
 
     return res.status(500).json({
-      success: false,
       message: "Failed to fetch payments",
+      error: error.message,
     });
   }
 };
 
-const deletePayment = async (req, res) => {
-  const transaction = await sequelize.transaction();
-
+// GET PAYMENT RECEIPT
+const getPaymentReceipt = async (req, res) => {
   try {
     const { id } = req.params;
+    const franchiseId = req.user.franchiseId;
 
-    // Find payment belonging to current franchise
     const payment = await Payment.findOne({
       where: {
         id,
-        franchiseId: req.user.franchiseId,
+        franchiseId,
       },
-      transaction,
-      lock: transaction.LOCK.UPDATE,
+
+      include: [
+        {
+          model: Student,
+          as: "student",
+        },
+        {
+          model: Installment,
+          as: "installment",
+
+          include: [
+            {
+              model: StudentFee,
+              as: "studentFee",
+
+              include: [
+                {
+                  model: FeeCategory,
+                  as: "category",
+                },
+              ],
+            },
+          ],
+        },
+      ],
     });
 
     if (!payment) {
-      await transaction.rollback();
-
       return res.status(404).json({
-        success: false,
         message: "Payment not found",
       });
     }
 
-    // Find related installment
-    const installment = await Installment.findByPk(
-      payment.installmentId,
-      {
-        transaction,
-        lock: transaction.LOCK.UPDATE,
-      }
-    );
+    const installment = payment.installment;
+    const studentFee = installment?.studentFee;
 
-    if (!installment) {
-      await transaction.rollback();
+    return res.status(200).json({
+      message: "Payment receipt details fetched successfully",
 
+      data: {
+        receiptNumber: payment.receiptNumber,
+        referenceNumber: payment.referenceNumber,
+
+        paymentDate: payment.paymentDate,
+        paymentMethod: payment.paymentMethod,
+
+        amount: Number(payment.amount),
+
+        student: payment.student
+          ? {
+            id: payment.student.id,
+            name:
+              payment.student.name ||
+              payment.student.fullName ||
+              null,
+          }
+          : null,
+
+        fee: studentFee
+          ? {
+            id: studentFee.id,
+            category:
+              studentFee.category?.name || null,
+            originalAmount: Number(
+              studentFee.originalAmount
+            ),
+            discountPercent: Number(
+              studentFee.discountPercent
+            ),
+            finalAmount: Number(
+              studentFee.finalAmount
+            ),
+          }
+          : null,
+
+        installment: installment
+          ? {
+            id: installment.id,
+            installmentNumber:
+              installment.installmentNumber,
+            amount: Number(installment.amount),
+            dueDate: installment.dueDate,
+            status: installment.status,
+          }
+          : null,
+
+        remarks: payment.remarks || null,
+        receivedBy: payment.receivedBy,
+      },
+    });
+  } catch (error) {
+    console.error("Get payment receipt error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch payment receipt",
+      error: error.message,
+    });
+  }
+};
+
+
+const generatePaymentReceiptPDF = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const franchiseId = req.user.franchiseId;
+
+    const payment = await Payment.findOne({
+      where: { id, franchiseId },
+      include: [
+        {
+          model: Student,
+          as: "student",
+        },
+        {
+          model: Installment,
+          as: "installment",
+          include: [
+            {
+              model: StudentFee,
+              as: "studentFee",
+              include: [
+                {
+                  model: FeeCategory,
+                  as: "category",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+    });
+
+    if (!payment) {
       return res.status(404).json({
-        success: false,
-        message: "Installment not found",
+        message: "Payment not found",
       });
     }
 
-    // Delete payment
-    await payment.destroy({ transaction });
+    const student = payment.student;
+    const installment = payment.installment;
+    const studentFee = installment?.studentFee;
 
-    // Recalculate total paid
-    const totalPaid = await Payment.sum("amount", {
-      where: {
-        installmentId: payment.installmentId,
-      },
-      transaction,
+    const doc = new PDFDocument({
+      size: "A4",
+      margin: 50,
     });
 
-    const paid = Number(totalPaid || 0);
+    res.setHeader(
+      "Content-Type",
+      "application/pdf"
+    );
 
-    // Recalculate installment status
-    if (paid === 0) {
-      installment.status = "PENDING";
-    } else if (paid >= Number(installment.amount)) {
-      installment.status = "PAID";
-    } else {
-      installment.status = "PARTIAL";
+    res.setHeader(
+      "Content-Disposition",
+      `inline; filename="receipt-${payment.receiptNumber}.pdf"`
+    );
+
+    doc.pipe(res);
+
+    // Header
+    doc
+      .fontSize(22)
+      .font("Helvetica-Bold")
+      .text("FEE PAYMENT RECEIPT", {
+        align: "center",
+      });
+
+    doc.moveDown();
+
+    doc
+      .fontSize(11)
+      .font("Helvetica")
+      .text(`Receipt No: ${payment.receiptNumber}`)
+      .text(`Reference No: ${payment.referenceNumber}`)
+      .text(
+        `Payment Date: ${new Date(
+          payment.paymentDate
+        ).toLocaleDateString("en-IN")}`
+      );
+
+    doc.moveDown();
+
+    doc
+      .fontSize(14)
+      .font("Helvetica-Bold")
+      .text("Student Details");
+
+    doc.moveDown(0.5);
+
+    doc
+      .fontSize(11)
+      .font("Helvetica")
+      .text(
+        `Student: ${student?.name ||
+        student?.fullName ||
+        "N/A"
+        }`
+      )
+      .text(`Student ID: ${student?.id || "N/A"}`);
+
+    doc.moveDown();
+
+    doc
+      .fontSize(14)
+      .font("Helvetica-Bold")
+      .text("Fee Details");
+
+    doc.moveDown(0.5);
+
+    doc
+      .fontSize(11)
+      .font("Helvetica")
+      .text(
+        `Category: ${studentFee?.category?.name ||
+        "Other"
+        }`
+      )
+      .text(
+        `Installment: ${installment?.installmentNumber || "N/A"
+        }`
+      )
+      .text(
+        `Installment Amount: ₹${Number(
+          installment?.amount || 0
+        ).toFixed(2)}`
+      )
+      .text(
+        `Paid Amount: ₹${Number(
+          payment.amount || 0
+        ).toFixed(2)}`
+      )
+      .text(
+        `Payment Method: ${payment.paymentMethod}`
+      );
+
+    doc.moveDown();
+
+    doc
+      .fontSize(16)
+      .font("Helvetica-Bold")
+      .text(
+        `Amount Received: ₹${Number(
+          payment.amount
+        ).toFixed(2)}`,
+        {
+          align: "right",
+        }
+      );
+
+    doc.moveDown();
+
+    if (payment.remarks) {
+      doc
+        .fontSize(11)
+        .font("Helvetica")
+        .text(`Remarks: ${payment.remarks}`);
     }
 
-    await installment.save({ transaction });
+    doc.moveDown(3);
 
-    // Commit transaction
-    await transaction.commit();
+    doc
+      .fontSize(10)
+      .text(
+        "This is a computer-generated payment receipt.",
+        {
+          align: "center",
+        }
+      );
 
-    return res.json({
-      success: true,
-      message: "Payment deleted and installment status updated",
+    doc.end();
+  } catch (error) {
+    console.error(
+      "Generate receipt PDF error:",
+      error
+    );
+
+    if (!res.headersSent) {
+      return res.status(500).json({
+        message:
+          "Failed to generate payment receipt",
+      });
+    }
+  }
+};
+
+// DELETE PAYMENT
+// Payments must not be physically deleted.
+const deletePayment = async (req, res) => {
+  try {
+    const { id } = req.params;
+    const franchiseId = req.user.franchiseId;
+
+    const payment = await Payment.findOne({
+      where: {
+        id,
+        franchiseId,
+      },
+    });
+
+    if (!payment) {
+      return res.status(404).json({
+        message: "Payment not found",
+      });
+    }
+
+    return res.status(400).json({
+      message:
+        "Payments cannot be deleted. Use a payment reversal/void process instead.",
     });
   } catch (error) {
-    await transaction.rollback();
-
     console.error("Delete payment error:", error);
 
     return res.status(500).json({
-      success: false,
-      message: "Failed to delete payment",
+      message: "Failed to process payment deletion",
+      error: error.message,
     });
   }
 };
@@ -309,6 +638,14 @@ const deletePayment = async (req, res) => {
 module.exports = {
   createPayment,
   getPayments,
+  getPaymentReceipt,
   deletePayment,
+  generatePaymentReceiptPDF,
 };
+
+
+
+
+
+
 
