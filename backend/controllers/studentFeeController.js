@@ -355,23 +355,13 @@ const deleteStudentFee = async (req, res) => {
     const { id } = req.params;
     const franchiseId = req.user.franchiseId;
 
+    // 1. Lock ONLY the StudentFee row.
+    // No JOINs here, so PostgreSQL can safely apply FOR UPDATE.
     const studentFee = await StudentFee.findOne({
       where: {
         id,
         franchiseId,
       },
-      include: [
-        {
-          model: Installment,
-          as: "installments",
-          include: [
-            {
-              model: Payment,
-              as: "payments",
-            },
-          ],
-        },
-      ],
       transaction,
       lock: transaction.LOCK.UPDATE,
     });
@@ -384,10 +374,33 @@ const deleteStudentFee = async (req, res) => {
       });
     }
 
-    const hasPayments = studentFee.installments?.some(
-      (installment) => installment.payments?.length > 0
-    );
+    // 2. Check installments separately.
+    const installments = await Installment.findAll({
+      where: {
+        studentFeeId: studentFee.id,
+      },
+      transaction,
+    });
 
+    // 3. Check payment history separately.
+    let hasPayments = false;
+
+    if (installments.length > 0) {
+      const installmentIds = installments.map(
+        (installment) => installment.id
+      );
+
+      const paymentCount = await Payment.count({
+        where: {
+          installmentId: installmentIds,
+        },
+        transaction,
+      });
+
+      hasPayments = paymentCount > 0;
+    }
+
+    // 4. Never allow deletion when payment history exists.
     if (hasPayments) {
       await transaction.rollback();
 
@@ -397,7 +410,10 @@ const deleteStudentFee = async (req, res) => {
       });
     }
 
-    await studentFee.destroy({ transaction });
+    // 5. No payment history -> allow deletion.
+    await studentFee.destroy({
+      transaction,
+    });
 
     await transaction.commit();
 
