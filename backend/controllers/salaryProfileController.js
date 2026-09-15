@@ -2,12 +2,35 @@ const { SalaryProfile, Teacher } = require("../models");
 
 const createSalaryProfile = async (req, res) => {
   try {
-    const { teacherId, basicSalary, allowances = 0, deductions = 0 } = req.body;
+    const {
+      teacherId,
+      basicSalary,
+      allowances = 0,
+      deductions = 0,
+    } = req.body;
 
-    if (!teacherId || !basicSalary) {
+    if (!teacherId || basicSalary == null) {
       return res.status(400).json({
         success: false,
         message: "Teacher and basic salary are required",
+      });
+    }
+
+    const basic = Number(basicSalary);
+    const allow = Number(allowances);
+    const deduct = Number(deductions);
+
+    if (
+      !Number.isFinite(basic) ||
+      !Number.isFinite(allow) ||
+      !Number.isFinite(deduct) ||
+      basic <= 0 ||
+      allow < 0 ||
+      deduct < 0
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid salary amounts",
       });
     }
 
@@ -25,22 +48,45 @@ const createSalaryProfile = async (req, res) => {
       });
     }
 
+    if (teacher.status !== "ACTIVE") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create salary profile for an inactive teacher",
+      });
+    }
+
+    const existingProfile = await SalaryProfile.findOne({
+      where: {
+        teacherId,
+        franchiseId: req.user.franchiseId,
+        isActive: true,
+      },
+    });
+
+    if (existingProfile) {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher already has an active salary profile",
+      });
+    }
+
     const profile = await SalaryProfile.create({
       franchiseId: req.user.franchiseId,
       teacherId,
-      basicSalary,
-      allowances,
-      deductions,
+      basicSalary: basic,
+      allowances: allow,
+      deductions: deduct,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Salary profile created successfully",
       data: profile,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to create salary profile",
     });

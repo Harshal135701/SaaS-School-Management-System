@@ -13,14 +13,69 @@ const createSalaryAdvance = async (req, res) => {
 
     if (
       !teacherId ||
-      !amount ||
+      amount == null ||
       !recoveryType ||
-      !recoveryValue ||
+      recoveryValue == null ||
       !startMonth
     ) {
       return res.status(400).json({
         success: false,
         message: "All required fields must be provided",
+      });
+    }
+
+    const advanceAmount = Number(amount);
+    const recovery = Number(recoveryValue);
+
+    if (!Number.isFinite(advanceAmount) || advanceAmount <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Advance amount must be greater than 0",
+      });
+    }
+
+    if (!Number.isFinite(recovery) || recovery <= 0) {
+      return res.status(400).json({
+        success: false,
+        message: "Recovery value must be greater than 0",
+      });
+    }
+
+    if (!["FULL", "FIXED", "PERCENTAGE"].includes(recoveryType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid recovery type",
+      });
+    }
+
+    if (recoveryType === "PERCENTAGE" && recovery > 100) {
+      return res.status(400).json({
+        success: false,
+        message: "Percentage recovery cannot exceed 100",
+      });
+    }
+
+    if (
+      recoveryType === "FIXED" &&
+      recovery > advanceAmount
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Fixed recovery cannot exceed advance amount",
+      });
+    }
+
+    if (recoveryType === "FULL" && recovery !== 1) {
+      return res.status(400).json({
+        success: false,
+        message: "FULL recovery must use recoveryValue 1",
+      });
+    }
+
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(startMonth)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid start month. Use YYYY-MM-DD format",
       });
     }
 
@@ -38,25 +93,33 @@ const createSalaryAdvance = async (req, res) => {
       });
     }
 
+    if (teacher.status !== "ACTIVE") {
+      return res.status(400).json({
+        success: false,
+        message: "Cannot create salary advance for an inactive teacher",
+      });
+    }
+
     const advance = await SalaryAdvance.create({
       franchiseId: req.user.franchiseId,
       teacherId,
-      amount,
-      remainingAmount: amount,
+      amount: advanceAmount,
+      remainingAmount: advanceAmount,
       recoveryType,
-      recoveryValue,
+      recoveryValue: recovery,
       startMonth,
-      remarks,
+      remarks: remarks?.trim() || null,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Salary advance created successfully",
       data: advance,
     });
   } catch (error) {
     console.error(error);
-    res.status(500).json({
+
+    return res.status(500).json({
       success: false,
       message: "Failed to create salary advance",
     });
