@@ -42,3 +42,9 @@ const ExamResult = sequelize.define(
 );
 
 module.exports = ExamResult;
+
+
+
+
+
+

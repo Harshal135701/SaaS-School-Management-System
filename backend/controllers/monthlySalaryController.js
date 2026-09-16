@@ -21,12 +21,50 @@ const generateMonthlySalary = async (req, res) => {
       });
     }
 
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(salaryMonth)) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Invalid salary month. Use YYYY-MM-DD format",
+      });
+    }
+
+    const teacher = await Teacher.findOne({
+      where: {
+        id: teacherId,
+        franchiseId: req.user.franchiseId,
+      },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
+    });
+
+    if (!teacher) {
+      await transaction.rollback();
+
+      return res.status(404).json({
+        success: false,
+        message: "Teacher not found",
+      });
+    }
+
+    if (teacher.status !== "ACTIVE") {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Cannot generate salary for an inactive teacher",
+      });
+    }
+
     const profile = await SalaryProfile.findOne({
       where: {
         teacherId,
         franchiseId: req.user.franchiseId,
         isActive: true,
       },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (!profile) {
@@ -44,6 +82,8 @@ const generateMonthlySalary = async (req, res) => {
         franchiseId: req.user.franchiseId,
         salaryMonth,
       },
+      transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     if (existingSalary) {
@@ -60,8 +100,12 @@ const generateMonthlySalary = async (req, res) => {
         teacherId,
         franchiseId: req.user.franchiseId,
         status: "ACTIVE",
+        startMonth: {
+          [require("sequelize").Op.lte]: salaryMonth,
+        },
       },
       transaction,
+      lock: transaction.LOCK.UPDATE,
     });
 
     let advanceDeduction = 0;
@@ -93,7 +137,10 @@ const generateMonthlySalary = async (req, res) => {
       await advance.update(
         {
           remainingAmount: newRemainingAmount,
-          status: newRemainingAmount === 0 ? "COMPLETED" : "ACTIVE",
+          status:
+            newRemainingAmount <= 0
+              ? "COMPLETED"
+              : "ACTIVE",
         },
         { transaction }
       );
@@ -103,8 +150,21 @@ const generateMonthlySalary = async (req, res) => {
     const allowances = Number(profile.allowances);
     const deductions = Number(profile.deductions);
 
+    const grossSalary = basicSalary + allowances;
+
     const netSalary =
-      basicSalary + allowances - deductions - advanceDeduction;
+      grossSalary -
+      deductions -
+      advanceDeduction;
+
+    if (netSalary < 0) {
+      await transaction.rollback();
+
+      return res.status(400).json({
+        success: false,
+        message: "Salary cannot be negative after deductions",
+      });
+    }
 
     const salary = await MonthlySalary.create(
       {
@@ -123,7 +183,7 @@ const generateMonthlySalary = async (req, res) => {
 
     await transaction.commit();
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Monthly salary generated successfully",
       data: salary,
@@ -133,7 +193,7 @@ const generateMonthlySalary = async (req, res) => {
 
     console.error(error);
 
-    res.status(500).json({
+    return res.status(500).json({
       success: false,
       message: "Failed to generate monthly salary",
     });
