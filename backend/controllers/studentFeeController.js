@@ -432,10 +432,191 @@ const deleteStudentFee = async (req, res) => {
   }
 };
 
+// GET ALL STUDENTS WITH FEE SUMMARY
+const getStudentsFeeSummary = async (req, res) => {
+  try {
+    const franchiseId = req.user.franchiseId;
+
+    const students = await Student.findAll({
+      where: { franchiseId },
+      include: [
+        {
+          model: StudentFee,
+          as: "studentFees",
+          include: [
+            {
+              model: FeeCategory,
+              as: "category",
+            },
+            {
+              model: Installment,
+              as: "installments",
+              include: [
+                {
+                  model: Payment,
+                  as: "payments",
+                },
+              ],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "DESC"]],
+    });
+
+    const data = students.map((student) => {
+      let totalPayable = 0;
+      let totalPaid = 0;
+
+      student.studentFees?.forEach((fee) => {
+        totalPayable += Number(fee.finalAmount);
+
+        fee.installments?.forEach((installment) => {
+          installment.payments?.forEach((payment) => {
+            totalPaid += Number(payment.amount);
+          });
+        });
+      });
+
+      totalPayable = Number(totalPayable.toFixed(2));
+      totalPaid = Number(totalPaid.toFixed(2));
+
+      const totalPending = Number(
+        Math.max(totalPayable - totalPaid, 0).toFixed(2)
+      );
+
+      let status = "PENDING";
+
+      if (totalPayable > 0 && totalPaid >= totalPayable) {
+        status = "PAID";
+      } else if (totalPaid > 0) {
+        status = "PARTIAL";
+      }
+
+      return {
+        student: student,
+        totalPayable,
+        totalPaid,
+        totalPending,
+        status,
+      };
+    });
+
+    return res.status(200).json({
+      message: "Students fee summary fetched successfully",
+      data,
+    });
+  } catch (error) {
+    console.error("Get students fee summary error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch students fee summary",
+      error: error.message,
+    });
+  }
+};
+
+
+// GET SINGLE STUDENT FEE DETAILS
+const getStudentFeeDetails = async (req, res) => {
+  try {
+    const { studentId } = req.params;
+    const franchiseId = req.user.franchiseId;
+
+    const student = await Student.findOne({
+      where: {
+        id: studentId,
+        franchiseId,
+      },
+      include: [
+        {
+          model: StudentFee,
+          as: "studentFees",
+          include: [
+            {
+              model: FeeCategory,
+              as: "category",
+            },
+            {
+              model: Installment,
+              as: "installments",
+              include: [
+                {
+                  model: Payment,
+                  as: "payments",
+                },
+              ],
+            },
+          ],
+          order: [["createdAt", "DESC"]],
+        },
+      ],
+    });
+
+    if (!student) {
+      return res.status(404).json({
+        message: "Student not found in this franchise",
+      });
+    }
+
+    let totalOriginal = 0;
+    let totalDiscount = 0;
+    let totalPayable = 0;
+    let totalPaid = 0;
+
+    student.studentFees?.forEach((fee) => {
+      const original = Number(fee.originalAmount);
+      const finalAmount = Number(fee.finalAmount);
+
+      totalOriginal += original;
+      totalDiscount += original - finalAmount;
+      totalPayable += finalAmount;
+
+      fee.installments?.forEach((installment) => {
+        installment.payments?.forEach((payment) => {
+          totalPaid += Number(payment.amount);
+        });
+      });
+    });
+
+    totalOriginal = Number(totalOriginal.toFixed(2));
+    totalDiscount = Number(totalDiscount.toFixed(2));
+    totalPayable = Number(totalPayable.toFixed(2));
+    totalPaid = Number(totalPaid.toFixed(2));
+
+    const totalPending = Number(
+      Math.max(totalPayable - totalPaid, 0).toFixed(2)
+    );
+
+    return res.status(200).json({
+      message: "Student fee details fetched successfully",
+      data: {
+        student,
+        summary: {
+          totalOriginal,
+          totalDiscount,
+          totalPayable,
+          totalPaid,
+          totalPending,
+        },
+      },
+    });
+  } catch (error) {
+    console.error("Get student fee details error:", error);
+
+    return res.status(500).json({
+      message: "Failed to fetch student fee details",
+      error: error.message,
+    });
+  }
+};
+
 module.exports = {
   createStudentFee,
   getStudentFees,
   getFeeSummary,
   updateStudentFee,
   deleteStudentFee,
+  getStudentFeeDetails,
+  getStudentsFeeSummary,
 };
