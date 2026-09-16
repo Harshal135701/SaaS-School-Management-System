@@ -18,7 +18,8 @@ import {
   FileText, 
   ClipboardList, 
   CalendarOff, 
-  CreditCard, 
+  CreditCard,
+  Banknote, 
   Library, 
   Bus, 
   Bell, 
@@ -94,6 +95,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'OPERATIONS',
       items: [
         { id: 'fees', label: 'Fees', icon: CreditCard, path: '/admin/fees' },
+          { id: 'salary', label: 'Salary', icon: Banknote, path: '/admin/salary' },
         { id: 'library', label: 'Library', icon: Library, path: '/admin/library' },
         { id: 'transport', label: 'Transport', icon: Bus, path: '/admin/transport' },
         { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' },
