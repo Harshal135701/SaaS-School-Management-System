@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   Plus,
   BookOpen,
@@ -8,6 +8,7 @@ import {
   Trash2,
   X,
   FileText,
+  Search,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -17,21 +18,40 @@ interface Teacher {
   subject?: string;
 }
 
+interface ClassItem {
+  id: string;
+  name: string;
+  code?: string;
+  numericValue?: number | null;
+}
+
+interface SectionItem {
+  id: string;
+  name: string;
+  classId: string;
+}
+
 interface Homework {
   id: string;
   teacherId: string;
+  classId?: string;
+  sectionId?: string;
   title: string;
   description?: string;
   subject: string;
   dueDate: string;
   status?: string;
   teacher?: Teacher;
+  class?: { id: string; name: string; code?: string };
+  section?: { id: string; name: string };
   createdAt?: string;
   updatedAt?: string;
 }
 
 interface FormData {
   teacherId: string;
+  classId: string;
+  sectionId: string;
   title: string;
   description: string;
   subject: string;
@@ -41,6 +61,8 @@ interface FormData {
 
 const initialForm: FormData = {
   teacherId: '',
+  classId: '',
+  sectionId: '',
   title: '',
   description: '',
   subject: '',
@@ -54,9 +76,15 @@ const statusOptions = [
   'CANCELLED',
 ];
 
-export const HomeworkPage: React.FC = () => {
+interface HomeworkPageProps {
+  user?: any;
+}
+
+export const HomeworkPage: React.FC<HomeworkPageProps> = ({ user }) => {
   const [homeworks, setHomeworks] = useState<Homework[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [sections, setSections] = useState<SectionItem[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -69,7 +97,7 @@ export const HomeworkPage: React.FC = () => {
   const [form, setForm] = useState<FormData>(initialForm);
 
   // ============================================================
-  // FETCH HOMEWORK + TEACHERS
+  // FETCH HOMEWORK + TEACHERS + CLASSES
   // ============================================================
 
   const fetchData = async () => {
@@ -77,27 +105,83 @@ export const HomeworkPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [homeworkRes, teachersRes] = await Promise.all([
-        api.get('/franchise/homework'),
-        api.get('/franchise/teachers'),
+      const [homeworkRes, teachersRes, classesRes] = await Promise.all([
+        api.get('/franchise/homework').catch((err) => {
+          console.error('Homework fetch error:', err);
+          return { data: { success: false, data: [] } };
+        }),
+        api.get('/franchise/teachers', { params: { limit: 100 } }).catch((err) => {
+          console.warn('Teachers fetch warning (may require elevated permissions):', err?.response?.status || err);
+          return { data: { success: false, data: [] } };
+        }),
+        api.get('/franchise/classes').catch((err) => {
+          console.warn('Classes fetch warning (requires franchise admin):', err?.response?.status || err);
+          return { data: { success: false, data: [] } };
+        }),
       ]);
 
-      console.log('Homework response:', homeworkRes.data);
-      console.log('Teachers response:', teachersRes.data);
+      const loadedHomeworks: Homework[] = homeworkRes.data?.data || [];
+      setHomeworks(loadedHomeworks);
 
-      setHomeworks(homeworkRes.data?.data || []);
+      // Populate teachers
+      const loadedTeachers: Teacher[] =
+        teachersRes.data?.data || teachersRes.data?.teachers || [];
 
-      setTeachers(
-        teachersRes.data?.data ||
-        teachersRes.data?.teachers ||
-        []
-      );
+      if (loadedTeachers.length > 0) {
+        setTeachers(loadedTeachers);
+      } else if (user) {
+        setTeachers([
+          {
+            id: user.id,
+            name: user.name || 'Teacher',
+            subject: user.subject,
+          },
+        ]);
+      } else {
+        // Fallback: extract distinct teachers from loaded homework
+        const teacherMap = new Map<string, Teacher>();
+        loadedHomeworks.forEach((h) => {
+          if (h.teacher?.id && h.teacher?.name) {
+            teacherMap.set(h.teacher.id, {
+              id: h.teacher.id,
+              name: h.teacher.name,
+              subject: h.teacher.subject,
+            });
+          }
+        });
+        setTeachers(Array.from(teacherMap.values()));
+      }
+
+      // Populate classes
+      if (classesRes.data?.success && Array.isArray(classesRes.data.data) && classesRes.data.data.length > 0) {
+        const sorted = [...classesRes.data.data].sort((a: ClassItem, b: ClassItem) => {
+          const numA = a.numericValue;
+          const numB = b.numericValue;
+          if (numA !== null && numA !== undefined && numB !== null && numB !== undefined) {
+            return numA - numB;
+          }
+          if (numA !== null && numA !== undefined) return -1;
+          if (numB !== null && numB !== undefined) return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        setClasses(sorted);
+      } else {
+        // Fallback: extract distinct classes from loaded homework
+        const classMap = new Map<string, ClassItem>();
+        loadedHomeworks.forEach((h) => {
+          if (h.class?.id && h.class?.name) {
+            classMap.set(h.class.id, {
+              id: h.class.id,
+              name: h.class.name,
+              code: h.class.code,
+            });
+          }
+        });
+        setClasses(Array.from(classMap.values()));
+      }
     } catch (err) {
       console.error('Homework fetch error:', err);
-
-      setError(
-        'Failed to load homework. Please try again.'
-      );
+      setError('Failed to load homework. Please try again.');
     } finally {
       setLoading(false);
     }
@@ -106,6 +190,35 @@ export const HomeworkPage: React.FC = () => {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const fetchSectionsForClass = async (classId: string) => {
+    if (!classId) {
+      setSections([]);
+      return;
+    }
+    try {
+      const res = await api.get('/franchise/sections', { params: { classId } }).catch(() => null);
+      if (res?.data?.success && Array.isArray(res.data.data) && res.data.data.length > 0) {
+        setSections(res.data.data);
+      } else {
+        // Fallback: extract matching sections from loaded homework
+        const secMap = new Map<string, SectionItem>();
+        homeworks.forEach((h) => {
+          if (h.classId === classId && h.section?.id && h.section?.name) {
+            secMap.set(h.section.id, {
+              id: h.section.id,
+              name: h.section.name,
+              classId: h.classId,
+            });
+          }
+        });
+        setSections(Array.from(secMap.values()));
+      }
+    } catch (err) {
+      console.error('Failed to load sections:', err);
+      setSections([]);
+    }
+  };
 
   // ============================================================
   // FORM CHANGE
@@ -122,7 +235,40 @@ export const HomeworkPage: React.FC = () => {
       ...prev,
       [name]: value,
     }));
+
+    if (name === 'classId') {
+      fetchSectionsForClass(value);
+      setForm((prev) => ({
+        ...prev,
+        classId: value,
+        sectionId: '',
+      }));
+    }
   };
+
+  // ============================================================
+  // OPEN CREATE MODAL
+  // ============================================================
+
+  const [searchQuery, setSearchQuery] = useState('');
+  const [statusFilter, setStatusFilter] = useState<'ALL' | 'ACTIVE' | 'COMPLETED' | 'CANCELLED'>('ALL');
+
+  const filteredHomeworks = useMemo(() => {
+    return homeworks.filter((item) => {
+      if (statusFilter !== 'ALL' && (item.status || 'ACTIVE').toUpperCase() !== statusFilter) {
+        return false;
+      }
+      if (!searchQuery.trim()) return true;
+      const q = searchQuery.toLowerCase();
+      return (
+        (item.title || '').toLowerCase().includes(q) ||
+        (item.subject || '').toLowerCase().includes(q) ||
+        (item.teacher?.name || '').toLowerCase().includes(q) ||
+        (item.class?.name || '').toLowerCase().includes(q) ||
+        (item.section?.name || '').toLowerCase().includes(q)
+      );
+    });
+  }, [homeworks, statusFilter, searchQuery]);
 
   // ============================================================
   // OPEN CREATE MODAL
@@ -130,7 +276,11 @@ export const HomeworkPage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingId(null);
-    setForm(initialForm);
+    setForm({
+      ...initialForm,
+      teacherId: user?.id || (teachers.length > 0 ? teachers[0].id : ''),
+    });
+    setSections([]);
     setIsModalOpen(true);
   };
 
@@ -141,8 +291,16 @@ export const HomeworkPage: React.FC = () => {
   const openEditModal = (item: Homework) => {
     setEditingId(item.id);
 
+    if (item.classId) {
+      fetchSectionsForClass(item.classId);
+    } else {
+      setSections([]);
+    }
+
     setForm({
       teacherId: item.teacherId,
+      classId: item.classId || '',
+      sectionId: item.sectionId || '',
       title: item.title,
       description: item.description || '',
       subject: item.subject,
@@ -164,14 +322,18 @@ export const HomeworkPage: React.FC = () => {
   ) => {
     e.preventDefault();
 
+    const effectiveTeacherId = form.teacherId || user?.id || (teachers.length === 1 ? teachers[0].id : '');
+
     if (
-      !form.teacherId ||
+      !effectiveTeacherId ||
+      !form.classId ||
+      !form.sectionId ||
       !form.title ||
       !form.subject ||
       !form.dueDate
     ) {
       alert(
-        'Please fill all required fields.'
+        'Please fill all required fields: Teacher, Class, Section, Title, Subject, and Due Date.'
       );
       return;
     }
@@ -180,7 +342,9 @@ export const HomeworkPage: React.FC = () => {
       setSaving(true);
 
       const payload = {
-        teacherId: form.teacherId,
+        teacherId: effectiveTeacherId,
+        classId: form.classId,
+        sectionId: form.sectionId,
         title: form.title,
         description: form.description,
         subject: form.subject,
@@ -358,6 +522,41 @@ export const HomeworkPage: React.FC = () => {
       </div>
 
       {/* ======================================================
+          SEARCH & FILTER TOOLBAR
+      ====================================================== */}
+      <div className="bg-white rounded-2xl border border-slate-200/80 p-4 shadow-sm flex flex-col sm:flex-row items-center justify-between gap-4">
+        <div className="relative w-full sm:w-80">
+          <Search className="w-4 h-4 text-slate-400 absolute left-3.5 top-1/2 -translate-y-1/2" />
+          <input
+            type="text"
+            placeholder="Search title, subject, teacher, class..."
+            value={searchQuery}
+            onChange={(e) => setSearchQuery(e.target.value)}
+            className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 text-xs md:text-sm font-medium focus:outline-none focus:ring-2 focus:ring-blue-100 focus:border-blue-500 transition-all placeholder:text-slate-400"
+          />
+        </div>
+
+        <div className="flex items-center gap-1.5 overflow-x-auto w-full sm:w-auto pb-1 sm:pb-0 scrollbar-none">
+          {(['ALL', 'ACTIVE', 'COMPLETED', 'CANCELLED'] as const).map((status) => {
+            const isActive = statusFilter === status;
+            return (
+              <button
+                key={status}
+                onClick={() => setStatusFilter(status)}
+                className={`px-3 py-1.5 rounded-xl text-xs font-bold whitespace-nowrap transition-all ${
+                  isActive
+                    ? 'bg-blue-600 text-white shadow-sm shadow-blue-500/20'
+                    : 'bg-slate-100 text-slate-600 hover:bg-slate-200/70'
+                }`}
+              >
+                {status === 'ALL' ? 'All' : status.charAt(0) + status.slice(1).toLowerCase()}
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
+      {/* ======================================================
           ERROR
       ====================================================== */}
 
@@ -387,7 +586,7 @@ export const HomeworkPage: React.FC = () => {
 
         </div>
 
-      ) : homeworks.length === 0 ? (
+      ) : filteredHomeworks.length === 0 ? (
 
         /* ====================================================
            EMPTY STATE
@@ -402,20 +601,36 @@ export const HomeworkPage: React.FC = () => {
           </div>
 
           <h2 className="mt-5 text-lg font-extrabold text-slate-900">
-            No homework yet
+            {searchQuery || statusFilter !== 'ALL'
+              ? 'No matching assignments found'
+              : 'No homework yet'}
           </h2>
 
           <p className="mt-1 text-sm text-slate-500">
-            Create your first homework assignment to get started.
+            {searchQuery || statusFilter !== 'ALL'
+              ? 'Try resetting the filters or modifying your search query.'
+              : 'Create your first homework assignment to get started.'}
           </p>
 
-          <button
-            onClick={openCreateModal}
-            className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700"
-          >
-            <Plus className="w-4 h-4" />
-            Create Homework
-          </button>
+          {searchQuery || statusFilter !== 'ALL' ? (
+            <button
+              onClick={() => {
+                setSearchQuery('');
+                setStatusFilter('ALL');
+              }}
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-sm font-bold hover:bg-slate-200 transition-all"
+            >
+              Reset Filters
+            </button>
+          ) : (
+            <button
+              onClick={openCreateModal}
+              className="mt-5 inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-blue-600 text-white text-sm font-bold hover:bg-blue-700 transition-all"
+            >
+              <Plus className="w-4 h-4" />
+              Create Homework
+            </button>
+          )}
 
         </div>
 
@@ -427,7 +642,7 @@ export const HomeworkPage: React.FC = () => {
 
         <div className="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-3 gap-6">
 
-          {homeworks.map((item) => (
+          {filteredHomeworks.map((item) => (
 
             <div
               key={item.id}
@@ -520,6 +735,34 @@ export const HomeworkPage: React.FC = () => {
                   </div>
 
                 </div>
+
+                {/* CLASS & SECTION */}
+
+                {(item.class?.name || item.section?.name) && (
+
+                  <div className="flex items-center gap-2">
+
+                    <div className="w-8 h-8 rounded-lg bg-blue-50 text-blue-600 flex items-center justify-center">
+
+                      <BookOpen className="w-4 h-4" />
+
+                    </div>
+
+                    <div>
+
+                      <p className="text-[11px] text-slate-400 font-semibold">
+                        Class & Section
+                      </p>
+
+                      <p className="text-sm font-bold text-slate-700">
+                        {item.class?.name || 'Class'}{item.section?.name ? ` • ${item.section.name}` : ''}
+                      </p>
+
+                    </div>
+
+                  </div>
+
+                )}
 
                 {/* DUE DATE */}
 
@@ -693,7 +936,8 @@ export const HomeworkPage: React.FC = () => {
                     name="teacherId"
                     value={form.teacherId}
                     onChange={handleChange}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
                   >
 
                     <option value="">
@@ -716,6 +960,75 @@ export const HomeworkPage: React.FC = () => {
 
                       )
                     )}
+
+                  </select>
+
+                </div>
+
+                {/* CLASS */}
+
+                <div>
+
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Class *
+                  </label>
+
+                  <select
+                    name="classId"
+                    value={form.classId}
+                    onChange={handleChange}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white"
+                  >
+
+                    <option value="">
+                      Select class
+                    </option>
+
+                    {classes.map((cls) => (
+
+                      <option key={cls.id} value={cls.id}>
+                        {cls.name} {cls.code ? `(${cls.code})` : ''}
+                      </option>
+
+                    ))}
+
+                  </select>
+
+                </div>
+
+                {/* SECTION */}
+
+                <div>
+
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Section *
+                  </label>
+
+                  <select
+                    name="sectionId"
+                    value={form.sectionId}
+                    onChange={handleChange}
+                    disabled={!form.classId || sections.length === 0}
+                    required
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 bg-white disabled:bg-slate-100 disabled:text-slate-400"
+                  >
+
+                    <option value="">
+                      {!form.classId
+                        ? 'Select class first'
+                        : sections.length === 0
+                        ? 'No sections available'
+                        : 'Select section'}
+                    </option>
+
+                    {sections.map((sec) => (
+
+                      <option key={sec.id} value={sec.id}>
+                        {sec.name}
+                      </option>
+
+                    ))}
 
                   </select>
 

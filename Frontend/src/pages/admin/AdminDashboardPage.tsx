@@ -52,100 +52,126 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           studentsRes,
           teachersRes,
           parentsRes,
+          classesRes,
           attendanceRes,
           feesRes,
         ] = await Promise.all([
           api.get('/franchise/students'),
-          api.get('/franchise/teachers'),
+          api.get('/franchise/teachers', { params: { limit: 100 } }),
           api.get('/franchise/parents'),
+          api.get('/franchise/classes'),
           api.get('/franchise/attendance'),
           api.get('/franchise/fees'),
         ]);
 
         const totalStudents =
-          studentsRes.data?.pagination?.total ||
-          studentsRes.data?.data?.length ||
+          studentsRes.data?.pagination?.total ??
+          studentsRes.data?.data?.length ??
           0;
 
-        const totalTeachers =
-          teachersRes.data?.pagination?.total ||
-          teachersRes.data?.data?.length ||
+        const teachersData: any[] = teachersRes.data?.data || [];
+        const totalStaffInDb =
+          teachersRes.data?.pagination?.total ??
+          teachersData.length ??
           0;
+
+        // Teaching staff count (staffType === 'TEACHING' or academic roles)
+        const teachingStaffCount = teachersData.filter(
+          (t: any) =>
+            t.staffType === 'TEACHING' ||
+            (t.role && ['TEACHER', 'HOD', 'PRINCIPAL'].includes(t.role)) ||
+            !t.staffType
+        ).length;
+
+        // Non-teaching staff count (staffType === 'NON_TEACHING' or administrative roles)
+        const nonTeachingStaffCount = teachersData.filter(
+          (t: any) =>
+            t.staffType === 'NON_TEACHING' ||
+            (t.role && ['ACCOUNTANT', 'DATA_ENTRY', 'SUPPORT'].includes(t.role))
+        ).length;
+
+        // Total Staff = Teacher count + Non-teaching staff count
+        const totalStaff =
+          teachersData.length > 0
+            ? teachingStaffCount + nonTeachingStaffCount
+            : totalStaffInDb;
+
+        const totalTeachersAndStaff = totalStaffInDb;
 
         const totalParents =
-          parentsRes.data?.pagination?.total ||
-          parentsRes.data?.data?.length ||
+          parentsRes.data?.pagination?.total ??
+          parentsRes.data?.data?.length ??
           0;
 
-        setLiveStudentCount(totalStudents);
-        setLiveTeacherCount(totalTeachers);
+        const totalClasses = Array.isArray(classesRes.data?.data)
+          ? classesRes.data.data.length
+          : 0;
 
-        /*
-         * STAFF + TEACHERS ARE COMBINED.
-         * We intentionally do NOT show a separate Staff card.
-         */
+        setLiveStudentCount(totalStudents);
+        setLiveTeacherCount(totalTeachersAndStaff);
+
         const stats: StatItem[] = [
-  {
-    id: 'stat_students',
-    title: 'TOTAL STUDENTS',
-    value: totalStudents.toLocaleString(),
-    change: '+0%',
-    isPositive: true,
-    subtext: 'Live count',
-    iconName: 'GraduationCap',
-    color: 'blue',
-  },
-  {
-    id: 'stat_teachers_staff',
-    title: 'TEACHERS & STAFF',
-    value: totalTeachers.toLocaleString(),
-    change: '+0%',
-    isPositive: true,
-    subtext: 'Live count',
-    iconName: 'Presentation',
-    color: 'purple',
-  },
-  {
-    id: 'stat_parents',
-    title: 'TOTAL PARENTS',
-    value: totalParents.toLocaleString(),
-    change: '+0%',
-    isPositive: true,
-    subtext: 'Live count',
-    iconName: 'Users',
-    color: 'emerald',
-  },
-  {
-    id: 'stat_staff',
-    title: 'TOTAL STAFF',
-    value: '—',
-    change: '0%',
-    isPositive: true,
-    subtext: 'Not available',
-    iconName: 'Briefcase',
-    color: 'amber',
-  },
-  {
-    id: 'stat_classes',
-    title: 'TOTAL CLASSES',
-    value: '—',
-    change: '0%',
-    isPositive: true,
-    subtext: 'Not available',
-    iconName: 'Building2',
-    color: 'amber',
-  },
-  {
-    id: 'stat_admissions',
-    title: 'PENDING ADMISSIONS',
-    value: '—',
-    change: '0%',
-    isPositive: true,
-    subtext: 'Not available',
-    iconName: 'UserPlus',
-    color: 'rose',
-  },
-];
+          {
+            id: 'stat_students',
+            title: 'TOTAL STUDENTS',
+            value: totalStudents.toLocaleString(),
+            change: '+0%',
+            isPositive: true,
+            subtext: 'Live count',
+            iconName: 'GraduationCap',
+            color: 'blue',
+          },
+          {
+            id: 'stat_teachers_staff',
+            title: 'TEACHERS & STAFF',
+            value: totalTeachersAndStaff.toLocaleString(),
+            change: '+0%',
+            isPositive: true,
+            subtext: 'Live count',
+            iconName: 'Presentation',
+            color: 'purple',
+          },
+          {
+            id: 'stat_parents',
+            title: 'TOTAL PARENTS',
+            value: totalParents.toLocaleString(),
+            change: '+0%',
+            isPositive: true,
+            subtext: 'Live count',
+            iconName: 'Users',
+            color: 'emerald',
+          },
+          {
+            id: 'stat_staff',
+            title: 'TOTAL STAFF',
+            value: totalStaff.toLocaleString(),
+            change: '+0%',
+            isPositive: true,
+            subtext: 'Live count',
+            iconName: 'Briefcase',
+            color: 'amber',
+          },
+          {
+            id: 'stat_classes',
+            title: 'TOTAL CLASSES',
+            value: totalClasses.toLocaleString(),
+            change: '+0%',
+            isPositive: true,
+            subtext: 'Live count',
+            iconName: 'Building2',
+            color: 'amber',
+          },
+          {
+            id: 'stat_admissions',
+            title: 'PENDING ADMISSIONS',
+            value: '—',
+            change: '0%',
+            isPositive: true,
+            subtext: 'Not available',
+            iconName: 'UserPlus',
+            color: 'rose',
+          },
+        ];
 
         setDashboardStats(stats);
 
@@ -183,6 +209,10 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
    */
   const handleQuickAction = (actionKey: string) => {
     switch (actionKey) {
+      case 'provision_staff':
+        onOpenStaffModal();
+        break;
+
       case 'add_student':
         onNavigate?.('/admin/students');
         break;
@@ -196,27 +226,50 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         break;
 
       case 'create_notice':
-        console.log('Create Notice clicked');
+        onNavigate?.('/admin/notices');
         break;
 
       case 'create_exam':
-        console.log('Create Exam clicked');
+        onNavigate?.('/admin/examinations');
         break;
 
       case 'record_payment':
-        console.log('Record Payment clicked');
+        onNavigate?.('/admin/fees');
         break;
 
       case 'create_class':
-        console.log('Create Class clicked');
+        onNavigate?.('/admin/classes');
         break;
 
       case 'generate_report':
-        console.log('Generate Report clicked');
+        onNavigate?.('/admin/reports');
         break;
 
       default:
         console.log('Unknown quick action:', actionKey);
+    }
+  };
+
+  const handleViewDetails = (statId: string) => {
+    switch (statId) {
+      case 'stat_students':
+        onNavigate?.('/admin/students');
+        break;
+      case 'stat_teachers_staff':
+      case 'stat_staff':
+        onNavigate?.('/admin/teachers');
+        break;
+      case 'stat_parents':
+        onNavigate?.('/admin/parents');
+        break;
+      case 'stat_classes':
+        onNavigate?.('/admin/classes');
+        break;
+      case 'stat_admissions':
+        // Pending admissions data/endpoint is not provisioned on the backend.
+        break;
+      default:
+        console.log('Unknown stat details ID:', statId);
     }
   };
 
@@ -239,42 +292,51 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
             <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-emerald-400/20 backdrop-blur-md font-semibold text-emerald-200 border border-emerald-300/30">
               <CheckCircle2 className="w-3.5 h-3.5" />
-              Academic Session 2026–27
+              Academic Session 2026-27
             </span>
-
-            {schoolCode && (
-              <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-full bg-white/10 backdrop-blur-md font-semibold text-white/80 border border-white/20">
-                {schoolCode}
-              </span>
-            )}
 
           </div>
 
           <div>
+
             <h1 className="text-2xl md:text-3xl lg:text-4xl font-extrabold tracking-tight text-white leading-tight">
-              Welcome, {adminName} 👋
+              Good morning, {adminName} 👋
             </h1>
 
-            <p className="text-xs md:text-sm font-medium text-blue-100/90 mt-1 max-w-xl leading-relaxed">
-              Here's what's happening at{' '}
-              <strong className="text-white font-bold">
-                {schoolName}
-              </strong>{' '}
-              today. Overall attendance recorded so far.
-            </p>
+            <div className="text-xs md:text-sm font-medium text-blue-100/90 mt-1 max-w-xl leading-relaxed flex flex-col gap-1">
+
+              <div className="flex items-center gap-2 flex-wrap">
+
+                {schoolCode && (
+                  <span className="bg-white/20 px-2.5 py-0.5 rounded-full text-white font-bold text-xs tracking-wide">
+                    {schoolCode}
+                  </span>
+                )}
+
+                <span>• Franchise Administration</span>
+
+              </div>
+
+              <p className="text-blue-100/80 text-xs mt-1">
+                Here is a summary of real-time operations, attendance, and fee collections for{' '}
+                <strong className="text-white font-semibold">{schoolName}</strong>.
+              </p>
+
+            </div>
+
           </div>
 
-          <div className="flex flex-wrap items-center gap-3 pt-2">
+          <div className="pt-2 flex flex-wrap gap-4 text-xs font-semibold text-white/90">
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
-              <TrendingUp className="w-3.5 h-3.5 text-emerald-300" />
-              {liveStudentCount.toLocaleString()} Students Enrolled
-            </span>
+            <div className="flex items-center gap-1.5 bg-black/15 px-3 py-1.5 rounded-xl backdrop-blur-md">
+              <Sparkles className="w-4 h-4 text-amber-300" />
+              <span>{liveStudentCount} active student{liveStudentCount !== 1 ? 's' : ''}</span>
+            </div>
 
-            <span className="inline-flex items-center gap-1.5 px-3 py-1 rounded-xl bg-white/10 backdrop-blur-sm text-xs font-semibold text-white">
-              <Sparkles className="w-3.5 h-3.5 text-amber-300" />
-              {liveTeacherCount} Teachers & Staff
-            </span>
+            <div className="flex items-center gap-1.5 bg-black/15 px-3 py-1.5 rounded-xl backdrop-blur-md">
+              <TrendingUp className="w-4 h-4 text-emerald-300" />
+              <span>{liveTeacherCount} faculty &amp; staff member{liveTeacherCount !== 1 ? 's' : ''}</span>
+            </div>
 
           </div>
 
@@ -286,7 +348,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
 
       </div>
 
-      {/* LOADING */}
+      {/* DASHBOARD CONTENT */}
       {loading ? (
 
         <div className="flex items-center justify-center h-64 border-2 border-dashed border-slate-200 rounded-3xl">
@@ -314,11 +376,12 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
         <>
 
           {/* STAT CARDS */}
-          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-5 gap-4">
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-4">
             {dashboardStats.map((stat) => (
               <StatCard
                 key={stat.id}
                 stat={stat}
+                onViewDetails={handleViewDetails}
               />
             ))}
           </div>
@@ -362,7 +425,7 @@ export const AdminDashboardPage: React.FC<AdminDashboardPageProps> = ({
           {/* OPERATIONS */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
-            <RecentNotices />
+            <RecentNotices onNavigate={onNavigate} />
 
             <RecentActivities />
 

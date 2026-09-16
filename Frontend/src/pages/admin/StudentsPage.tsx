@@ -24,6 +24,30 @@ interface Student {
   status: 'ACTIVE' | 'INACTIVE';
 }
 
+interface ClassItem {
+  id: string;
+  franchiseId?: string;
+  name: string;
+  code?: string;
+  numericValue?: number | null;
+  description?: string;
+  isActive?: boolean;
+}
+
+interface SectionItem {
+  id: string;
+  franchiseId?: string;
+  classId: string;
+  name: string;
+  capacity?: number;
+  isActive?: boolean;
+  class?: {
+    id: string;
+    name: string;
+    numericValue?: number | null;
+  };
+}
+
 const formatDateToYYYYMMDD = (val?: string): string => {
   if (!val) return '';
   const trimmed = val.trim();
@@ -58,6 +82,8 @@ const emptyForm = {
   dateOfBirth: '',
   gender: '',
   address: '',
+  classId: '',
+  sectionId: '',
   // Parent / Guardian Details
   parentName: '',
   parentEmail: '',
@@ -79,6 +105,91 @@ export const StudentsPage: React.FC = () => {
 
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
+
+  // Classes & Sections state
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [loadingClasses, setLoadingClasses] = useState(false);
+  const [classesError, setClassesError] = useState<string | null>(null);
+
+  const [sections, setSections] = useState<SectionItem[]>([]);
+  const [loadingSections, setLoadingSections] = useState(false);
+  const [sectionsError, setSectionsError] = useState<string | null>(null);
+
+  const fetchClasses = async () => {
+    try {
+      setLoadingClasses(true);
+      setClassesError(null);
+      const res = await api.get('/franchise/classes');
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        const sortedClasses = [...res.data.data].sort((a: ClassItem, b: ClassItem) => {
+          const numA = a.numericValue;
+          const numB = b.numericValue;
+          if (numA !== null && numA !== undefined && numB !== null && numB !== undefined) {
+            return numA - numB;
+          }
+          if (numA !== null && numA !== undefined) return -1;
+          if (numB !== null && numB !== undefined) return 1;
+          return (a.name || '').localeCompare(b.name || '');
+        });
+        setClasses(sortedClasses);
+      } else {
+        setClasses([]);
+        setClassesError('Failed to load classes.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching classes:', err);
+      setClasses([]);
+      setClassesError(err.response?.data?.message || 'Failed to load classes.');
+    } finally {
+      setLoadingClasses(false);
+    }
+  };
+
+  const fetchSectionsForClass = async (classId: string) => {
+    if (!classId) {
+      setSections([]);
+      setLoadingSections(false);
+      setSectionsError(null);
+      return;
+    }
+    try {
+      setLoadingSections(true);
+      setSectionsError(null);
+      const res = await api.get('/franchise/sections', {
+        params: { classId },
+      });
+      if (res.data?.success && Array.isArray(res.data.data)) {
+        setSections(res.data.data);
+      } else {
+        setSections([]);
+        setSectionsError('Failed to load sections.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching sections:', err);
+      setSections([]);
+      setSectionsError(err.response?.data?.message || 'Failed to load sections.');
+    } finally {
+      setLoadingSections(false);
+    }
+  };
+
+  const handleClassChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
+    const selectedClassId = e.target.value;
+    setForm((prev) => ({
+      ...prev,
+      classId: selectedClassId,
+      sectionId: '',
+    }));
+    setSections([]);
+    setSectionsError(null);
+    if (selectedClassId) {
+      fetchSectionsForClass(selectedClassId);
+    }
+  };
+
+  useEffect(() => {
+    fetchClasses();
+  }, []);
 
   const fetchStudents = async () => {
     try {
@@ -116,9 +227,14 @@ export const StudentsPage: React.FC = () => {
   const openAddModal = () => {
     setEditingStudent(null);
     setForm(emptyForm);
+    setSections([]);
+    setSectionsError(null);
     setError(null);
     setSaving(false);
     setIsModalOpen(true);
+    if (classes.length === 0 && !loadingClasses) {
+      fetchClasses();
+    }
   };
 
   const openEditModal = (student: Student) => {
@@ -131,6 +247,8 @@ export const StudentsPage: React.FC = () => {
       dateOfBirth: student.dateOfBirth ? formatDateToYYYYMMDD(student.dateOfBirth) : '',
       gender: student.gender || '',
       address: student.address || '',
+      classId: '',
+      sectionId: '',
       parentName: '',
       parentEmail: '',
       parentPhone: '',
@@ -139,6 +257,8 @@ export const StudentsPage: React.FC = () => {
       isPrimary: true,
     });
 
+    setSections([]);
+    setSectionsError(null);
     setError(null);
     setSaving(false);
     setIsModalOpen(true);
@@ -150,6 +270,8 @@ export const StudentsPage: React.FC = () => {
     setIsModalOpen(false);
     setEditingStudent(null);
     setForm(emptyForm);
+    setSections([]);
+    setSectionsError(null);
     setSaving(false);
   };
 
@@ -202,6 +324,14 @@ export const StudentsPage: React.FC = () => {
     }
 
     if (!editingStudent) {
+      if (!form.classId) {
+        setError('Please select a class.');
+        return;
+      }
+      if (!form.sectionId) {
+        setError('Please select a section.');
+        return;
+      }
       if (!form.parentName.trim()) {
         setError('Parent name is required.');
         return;
@@ -250,6 +380,8 @@ export const StudentsPage: React.FC = () => {
         dateOfBirth: form.dateOfBirth ? formatDateToYYYYMMDD(form.dateOfBirth) : undefined,
         gender: form.gender || undefined,
         address: form.address.trim() || undefined,
+        classId: form.classId,
+        sectionId: form.sectionId,
       };
 
       let studentRes;
@@ -659,6 +791,84 @@ export const StudentsPage: React.FC = () => {
                         </option>
                       </select>
                     </div>
+                  )}
+
+                  {/* Class and Section Selection (Create Mode) */}
+                  {!editingStudent && (
+                    <>
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                          Class *
+                        </label>
+
+                        <select
+                          name="classId"
+                          value={form.classId}
+                          onChange={handleClassChange}
+                          required={!editingStudent}
+                          disabled={loadingClasses}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        >
+                          <option value="">
+                            {loadingClasses ? 'Loading classes...' : 'Select class'}
+                          </option>
+                          {classes.map((cls) => (
+                            <option key={cls.id} value={cls.id}>
+                              {cls.name}
+                            </option>
+                          ))}
+                        </select>
+
+                        {classesError && (
+                          <p className="text-[11px] text-rose-600 font-medium mt-1">
+                            {classesError}
+                          </p>
+                        )}
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                          Section *
+                        </label>
+
+                        <select
+                          name="sectionId"
+                          value={form.sectionId}
+                          onChange={handleChange}
+                          required={!editingStudent}
+                          disabled={
+                            !form.classId ||
+                            loadingSections ||
+                            sections.length === 0 ||
+                            !!sectionsError
+                          }
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                        >
+                          <option value="">
+                            {!form.classId
+                              ? 'Select a class first'
+                              : loadingSections
+                              ? 'Loading sections...'
+                              : sectionsError
+                              ? 'Error loading sections'
+                              : sections.length === 0
+                              ? 'No sections available'
+                              : 'Select section'}
+                          </option>
+                          {sections.map((sec) => (
+                            <option key={sec.id} value={sec.id}>
+                              {sec.name}
+                            </option>
+                          ))}
+                        </select>
+
+                        {sectionsError && (
+                          <p className="text-[11px] text-rose-600 font-medium mt-1">
+                            {sectionsError}
+                          </p>
+                        )}
+                      </div>
+                    </>
                   )}
                 </div>
 

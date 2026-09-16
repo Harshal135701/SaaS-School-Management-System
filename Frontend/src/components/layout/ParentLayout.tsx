@@ -44,7 +44,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
           user={user}
         />
         
-        <main className="flex-1 overflow-x-hidden overflow-y-auto relative custom-scrollbar">
+        <main className="flex-1 overflow-x-hidden overflow-y-auto relative custom-scrollbar [scrollbar-gutter:stable]">
           <div className="absolute inset-0 bg-gradient-to-br from-blue-50/50 via-transparent to-purple-50/50 pointer-events-none" />
           <div className="relative h-full">
             {children}

@@ -1,10 +1,11 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { Card } from '../../components/ui/Card';
 import { Button } from '../../components/ui/Button';
 import { Input } from '../../components/ui/Input';
 import { Avatar } from '../../components/ui/Avatar';
-import { superAdminProfile, mockSuperAdminSettings } from '../../data/superAdminMockData';
+import { mockSuperAdminSettings } from '../../data/superAdminMockData';
 import type { SuperAdminSettings } from '../../types/superAdmin';
+import api from '../../services/api';
 import {
   User,
   Lock,
@@ -15,6 +16,7 @@ import {
   Sliders,
   ShieldCheck,
   CheckCircle2,
+  AlertCircle,
   Mail,
   Phone,
   KeyRound
@@ -31,21 +33,67 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'appearance' | 'accessibility' | 'system'>(defaultTab);
 
   // Profile Form state
-  const [name, setName] = useState(superAdminProfile.name);
-  const [email, setEmail] = useState(superAdminProfile.email);
-  const [phone, setPhone] = useState(superAdminProfile.phone);
+  const [name, setName] = useState('');
+  const [email, setEmail] = useState('');
+  const [phone, setPhone] = useState('');
+  const [adminTitle, setAdminTitle] = useState('Chief SaaS Platform Administrator');
+  const [adminRole, setAdminRole] = useState('Super Admin');
+
+  // Profile loading & saving state
+  const [profileLoading, setProfileLoading] = useState(true);
+  const [profileSaving, setProfileSaving] = useState(false);
+  const [profileError, setProfileError] = useState<string | null>(null);
 
   // Password & Security State
   const [currentPassword, setCurrentPassword] = useState('');
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [twoFactor, setTwoFactor] = useState(true);
+  const [passwordSaving, setPasswordSaving] = useState(false);
 
   // System Settings State
   const [settings, setSettings] = useState<SuperAdminSettings>(mockSuperAdminSettings);
 
+  const fetchProfile = async () => {
+    try {
+      setProfileLoading(true);
+      setProfileError(null);
+      const res = await api.get('/system-settings/profile');
+      if (res.data?.success && res.data.data) {
+        const admin = res.data.data;
+        setName(admin.name || '');
+        setEmail(admin.email || '');
+        if (admin.phone) setPhone(admin.phone);
+        if (admin.title) setAdminTitle(admin.title);
+        if (admin.role) setAdminRole(admin.role);
+
+        // Also sync local storage user if exists so header/sidebar update
+        try {
+          const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+          if (userStr) {
+            const parsed = JSON.parse(userStr);
+            const updatedUser = { ...parsed, name: admin.name || parsed.name, email: admin.email || parsed.email };
+            if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(updatedUser));
+            if (localStorage.getItem('user')) localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        } catch (e) {}
+      } else {
+        setProfileError(res.data?.message || 'Failed to load profile.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching super admin profile:', err);
+      setProfileError(err.response?.data?.message || 'Failed to load profile.');
+    } finally {
+      setProfileLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchProfile();
+  }, []);
+
   // Theme sync on mount
-  React.useEffect(() => {
+  useEffect(() => {
     const storedTheme = localStorage.getItem('theme') as 'light' | 'dark' | 'system' | null;
     if (storedTheme) {
       setSettings(prev => ({ ...prev, themeMode: storedTheme }));
@@ -79,28 +127,96 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
     }
   };
 
-  const [toastMsg, setToastMsg] = useState<string | null>(null);
+  const [toastMsg, setToastMsg] = useState<{ message: string; type: 'success' | 'error' } | null>(null);
 
-  const showToast = (msg: string) => {
-    setToastMsg(msg);
+  const showToast = (message: string, type: 'success' | 'error' = 'success') => {
+    setToastMsg({ message, type });
     setTimeout(() => setToastMsg(null), 3000);
   };
 
-  const handleSaveProfile = (e: React.FormEvent) => {
+  const handleSaveProfile = async (e: React.FormEvent) => {
     e.preventDefault();
-    showToast('Super Admin profile updated successfully!');
-  };
-
-  const handleSavePassword = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPassword !== confirmPassword) {
-      showToast('Passwords do not match!');
+    if (!name.trim()) {
+      showToast('Name is required', 'error');
       return;
     }
-    showToast('Admin password changed successfully!');
-    setCurrentPassword('');
-    setNewPassword('');
-    setConfirmPassword('');
+    if (!email.trim()) {
+      showToast('Email is required', 'error');
+      return;
+    }
+
+    try {
+      setProfileSaving(true);
+      setProfileError(null);
+      const res = await api.put('/system-settings/profile', {
+        name: name.trim(),
+        email: email.trim(),
+      });
+
+      if (res.data?.success) {
+        if (res.data.data) {
+          setName(res.data.data.name || name);
+          setEmail(res.data.data.email || email);
+        } else {
+          await fetchProfile();
+        }
+
+        // Sync stored user in storage
+        try {
+          const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+          if (userStr) {
+            const parsed = JSON.parse(userStr);
+            const updatedUser = {
+              ...parsed,
+              name: res.data.data?.name || name.trim(),
+              email: res.data.data?.email || email.trim(),
+            };
+            if (sessionStorage.getItem('user')) sessionStorage.setItem('user', JSON.stringify(updatedUser));
+            if (localStorage.getItem('user')) localStorage.setItem('user', JSON.stringify(updatedUser));
+          }
+        } catch (e) {}
+
+        showToast('Profile changes saved successfully', 'success');
+      } else {
+        showToast(res.data?.message || 'Failed to update profile', 'error');
+      }
+    } catch (err: any) {
+      console.error('Error updating super admin profile:', err);
+      const errMsg = err.response?.data?.message || 'Failed to update profile';
+      showToast(errMsg, 'error');
+    } finally {
+      setProfileSaving(false);
+    }
+  };
+
+  const handleSavePassword = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      showToast('Passwords do not match!', 'error');
+      return;
+    }
+
+    try {
+      setPasswordSaving(true);
+      const res = await api.put('/system-settings/change-password', {
+        currentPassword,
+        newPassword,
+      });
+
+      if (res.data?.success) {
+        showToast('Admin password changed successfully!', 'success');
+        setCurrentPassword('');
+        setNewPassword('');
+        setConfirmPassword('');
+      } else {
+        showToast(res.data?.message || 'Failed to change password', 'error');
+      }
+    } catch (err: any) {
+      console.error('Error changing admin password:', err);
+      showToast(err.response?.data?.message || 'Failed to change password', 'error');
+    } finally {
+      setPasswordSaving(false);
+    }
   };
 
   const handleSaveSystem = (e: React.FormEvent) => {
@@ -113,9 +229,17 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
       {/* Toast */}
       {toastMsg && (
         <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-4">
-          <div className="bg-slate-900 text-white px-4 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-2">
-            <CheckCircle2 className="w-4 h-4 text-emerald-400" />
-            <span>{toastMsg}</span>
+          <div className={`text-white px-4 py-3 rounded-2xl shadow-2xl border text-xs font-semibold flex items-center gap-2 ${
+            toastMsg.type === 'error'
+              ? 'bg-rose-900 border-rose-800'
+              : 'bg-slate-900 border-slate-800'
+          }`}>
+            {toastMsg.type === 'error' ? (
+              <AlertCircle className="w-4 h-4 text-rose-400" />
+            ) : (
+              <CheckCircle2 className="w-4 h-4 text-emerald-400" />
+            )}
+            <span>{toastMsg.message}</span>
           </div>
         </div>
       )}
@@ -174,54 +298,71 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
       {/* TAB 1: PROFILE */}
       {activeTab === 'profile' && (
         <Card className="p-6 border-slate-200/80 max-w-3xl">
-          <form onSubmit={handleSaveProfile} className="space-y-6">
-            <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
-              <Avatar src={superAdminProfile.avatar} name={superAdminProfile.name} size="lg" status="online" />
-              <div>
-                <h3 className="text-base font-extrabold text-slate-900">{superAdminProfile.name}</h3>
-                <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
-                  {superAdminProfile.role}
-                </span>
+          {profileLoading ? (
+            <div className="py-12 text-center space-y-3">
+              <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
+              <p className="text-xs font-bold text-slate-500">Loading Super Admin profile...</p>
+            </div>
+          ) : (
+            <form onSubmit={handleSaveProfile} className="space-y-6">
+              {profileError && (
+                <div className="p-3 bg-rose-50 border border-rose-200 text-rose-700 rounded-xl text-xs font-bold flex items-center gap-2">
+                  <AlertCircle className="w-4 h-4 text-rose-600 shrink-0" />
+                  <span>{profileError}</span>
+                </div>
+              )}
+
+              <div className="flex items-center gap-4 pb-4 border-b border-slate-100">
+                <Avatar name={name || 'Super Admin'} size="lg" status="online" />
+                <div>
+                  <h3 className="text-base font-extrabold text-slate-900">{name || 'Super Admin'}</h3>
+                  <span className="text-xs font-bold text-indigo-600 bg-indigo-50 px-2 py-0.5 rounded border border-indigo-200">
+                    {adminRole}
+                  </span>
+                </div>
               </div>
-            </div>
 
-            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-              <Input
-                label="Super Admin Name *"
-                value={name}
-                onChange={(e) => setName(e.target.value)}
-                required
-              />
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                <Input
+                  label="Super Admin Name *"
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="Enter administrator name"
+                  required
+                />
 
-              <Input
-                label="Super Admin Email *"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                leftIcon={<Mail className="w-4 h-4" />}
-                required
-              />
+                <Input
+                  label="Super Admin Email *"
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  leftIcon={<Mail className="w-4 h-4" />}
+                  placeholder="admin@example.com"
+                  required
+                />
 
-              <Input
-                label="Contact Phone"
-                value={phone}
-                onChange={(e) => setPhone(e.target.value)}
-                leftIcon={<Phone className="w-4 h-4" />}
-              />
+                <Input
+                  label="Contact Phone"
+                  value={phone}
+                  onChange={(e) => setPhone(e.target.value)}
+                  placeholder="Phone number"
+                  leftIcon={<Phone className="w-4 h-4" />}
+                />
 
-              <Input
-                label="Administrative Title"
-                value={superAdminProfile.title}
-                disabled
-              />
-            </div>
+                <Input
+                  label="Administrative Title"
+                  value={adminTitle}
+                  disabled
+                />
+              </div>
 
-            <div className="flex justify-end pt-2">
-              <Button variant="primary" type="submit">
-                Save Profile Changes
-              </Button>
-            </div>
-          </form>
+              <div className="flex justify-end pt-2">
+                <Button variant="primary" type="submit" isLoading={profileSaving} disabled={profileSaving}>
+                  {profileSaving ? 'Saving Profile Changes...' : 'Save Profile Changes'}
+                </Button>
+              </div>
+            </form>
+          )}
         </Card>
       )}
 
@@ -261,8 +402,8 @@ export const SuperAdminSettingsPage: React.FC<SuperAdminSettingsPageProps> = ({
               </div>
 
               <div className="flex justify-end pt-2">
-                <Button variant="primary" type="submit">
-                  Update Password
+                <Button variant="primary" type="submit" isLoading={passwordSaving} disabled={passwordSaving}>
+                  {passwordSaving ? 'Updating Password...' : 'Update Password'}
                 </Button>
               </div>
             </form>
