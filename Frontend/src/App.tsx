@@ -21,8 +21,9 @@ import { SettingsPage } from './pages/admin/SettingsPage';
 import { SubjectsPage } from './pages/admin/SubjectsPage';
 import { LibraryPage } from './pages/admin/LibraryPage';
 import { TransportPage } from './pages/admin/TransportPage';
+import { NoticesPage } from './pages/admin/NoticesPage';
 import { StaffRegistrationModal } from './components/modals/StaffRegistrationModal';
-import { Bell, BarChart3, CalendarOff, MessageSquare } from 'lucide-react';
+import { BarChart3, CalendarOff, MessageSquare } from 'lucide-react';
 import type { StaffRegistrationInput, UserRole } from './types';
 
 // Super Admin Imports
@@ -870,26 +871,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
           </div>
         );
       case '/admin/notices':
-        return (
-          <div className="space-y-6">
-            <div className="p-8 bg-white rounded-3xl border border-slate-200/80 shadow-sm text-center max-w-2xl mx-auto my-12">
-              <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <Bell className="w-8 h-8" />
-              </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">School Notices & Circulars</h2>
-              <p className="text-sm text-slate-500 mb-6">
-                Official circulars and announcements management. Backend notification and circulars service is not yet provisioned.
-              </p>
-              <button
-                type="button"
-                onClick={() => setCurrentPath('/admin/dashboard')}
-                className="px-5 py-2.5 bg-blue-600 text-white rounded-xl text-xs font-bold hover:bg-blue-700 transition cursor-pointer"
-              >
-                Back to Dashboard
-              </button>
-            </div>
-          </div>
-        );
+        return <NoticesPage onNavigate={(path) => setCurrentPath(path)} />;
       case '/admin/reports':
         return (
           <div className="space-y-6">

@@ -180,8 +180,15 @@ export const FeesPage: React.FC = () => {
       setLoadingSummary(true);
       setSummaryError(null);
       const res = await api.get("/student-fees/summary");
-      if (res.data?.success && res.data.data) {
-        setFeeSummary(res.data.data);
+      const summaryData = res.data?.data || res.data;
+      if (summaryData && typeof summaryData === "object") {
+        setFeeSummary({
+          totalFee: Number(summaryData.totalOriginal ?? summaryData.totalFee ?? 0),
+          discount: Number(summaryData.totalDiscount ?? summaryData.discount ?? 0),
+          payable: Number(summaryData.totalPayable ?? summaryData.payable ?? 0),
+          paid: Number(summaryData.totalPaid ?? summaryData.paid ?? 0),
+          pending: Number(summaryData.totalPending ?? summaryData.pending ?? 0),
+        });
       }
     } catch (err: any) {
       console.error("Failed to load fee summary:", err);
@@ -196,11 +203,12 @@ export const FeesPage: React.FC = () => {
       setLoadingFees(true);
       setFeesError(null);
       const res = await api.get("/student-fees");
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setStudentFees(res.data.data);
-      } else {
-        setStudentFees([]);
-      }
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setStudentFees(list);
     } catch (err: any) {
       console.error("Failed to load student fees:", err);
       setFeesError(err.response?.data?.message || "Failed to load student fees");
@@ -214,11 +222,12 @@ export const FeesPage: React.FC = () => {
       setLoadingInstallments(true);
       setInstallmentsError(null);
       const res = await api.get("/installments");
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setInstallments(res.data.data);
-      } else {
-        setInstallments([]);
-      }
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setInstallments(list);
     } catch (err: any) {
       console.error("Failed to load installments:", err);
       setInstallmentsError(err.response?.data?.message || "Failed to load installments");
@@ -232,11 +241,12 @@ export const FeesPage: React.FC = () => {
       setLoadingPayments(true);
       setPaymentsError(null);
       const res = await api.get("/payments");
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setPayments(res.data.data);
-      } else {
-        setPayments([]);
-      }
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setPayments(list);
     } catch (err: any) {
       console.error("Failed to load payments:", err);
       setPaymentsError(err.response?.data?.message || "Failed to load payments");
@@ -250,11 +260,12 @@ export const FeesPage: React.FC = () => {
       setLoadingCategories(true);
       setCategoriesError(null);
       const res = await api.get("/fee-categories");
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setCategories(res.data.data);
-      } else {
-        setCategories([]);
-      }
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setCategories(list);
     } catch (err: any) {
       console.error("Failed to load fee categories:", err);
       setCategoriesError(err.response?.data?.message || "Failed to load fee categories");
@@ -268,9 +279,12 @@ export const FeesPage: React.FC = () => {
       const res = await api.get("/franchise/students", {
         params: { limit: 100 },
       });
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setStudents(res.data.data);
-      }
+      const list = Array.isArray(res.data?.data)
+        ? res.data.data
+        : Array.isArray(res.data)
+        ? res.data
+        : [];
+      setStudents(list);
     } catch (err) {
       console.error("Failed to load student list for selection:", err);
     }
@@ -474,7 +488,7 @@ export const FeesPage: React.FC = () => {
       };
 
       const res = await api.post("/student-fees", payload);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Student fee assigned successfully.");
         setIsAssignModalOpen(false);
         await Promise.all([loadStudentFees(), loadFeeSummary()]);
@@ -526,6 +540,12 @@ export const FeesPage: React.FC = () => {
       return;
     }
 
+    const totalPaid = getFeePaidAmount(editingFee);
+    if (calculatedEditFinal < totalPaid) {
+      triggerError(`Cannot reduce fee below already paid amount (₹${totalPaid.toFixed(2)}).`);
+      return;
+    }
+
     try {
       setSubmitting(true);
       // STRICT: Backend contract for PUT /api/student-fees/:id only allows originalAmount, discountPercent, remarks
@@ -536,7 +556,7 @@ export const FeesPage: React.FC = () => {
       };
 
       const res = await api.put(`/student-fees/${editingFee.id}`, payload);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Student fee updated successfully.");
         setIsEditFeeModalOpen(false);
         setEditingFee(null);
@@ -562,7 +582,7 @@ export const FeesPage: React.FC = () => {
     }
     try {
       const res = await api.delete(`/student-fees/${id}`);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Student fee deleted successfully.");
         await Promise.all([loadStudentFees(), loadFeeSummary(), loadInstallments()]);
       } else {
@@ -620,6 +640,21 @@ export const FeesPage: React.FC = () => {
       return;
     }
 
+    const fee = studentFees.find((f) => f.id === createInstallmentForm.studentFeeId);
+    if (fee) {
+      const existingInst = fee.installments?.find(i => i.installmentNumber === instNum);
+      if (existingInst) {
+        triggerError("This installment number already exists for this fee.");
+        return;
+      }
+      
+      const existingTotal = fee.installments?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
+      if (existingTotal + amt > Number(fee.finalAmount) + 0.001) {
+        triggerError(`Installment total cannot exceed fee payable amount (₹${Number(fee.finalAmount).toFixed(2)}).`);
+        return;
+      }
+    }
+
     try {
       setSubmitting(true);
       const payload = {
@@ -630,7 +665,7 @@ export const FeesPage: React.FC = () => {
       };
 
       const res = await api.post("/installments", payload);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Installment created successfully.");
         setIsCreateInstallmentModalOpen(false);
         await Promise.all([loadInstallments(), loadStudentFees(), loadFeeSummary()]);
@@ -678,7 +713,7 @@ export const FeesPage: React.FC = () => {
       };
 
       const res = await api.put(`/installments/${editingInstallment.id}`, payload);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Installment updated successfully.");
         setIsEditInstallmentModalOpen(false);
         setEditingInstallment(null);
@@ -699,7 +734,7 @@ export const FeesPage: React.FC = () => {
 
     try {
       const res = await api.delete(`/installments/${id}`);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Installment deleted successfully.");
         await Promise.all([loadInstallments(), loadStudentFees(), loadFeeSummary()]);
       } else {
@@ -782,7 +817,7 @@ export const FeesPage: React.FC = () => {
       };
 
       const res = await api.post("/payments", payload);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Payment recorded successfully.");
         setIsRecordPaymentModalOpen(false);
         setPaymentTargetInstallment(null);
@@ -800,29 +835,6 @@ export const FeesPage: React.FC = () => {
       triggerError(err.response?.data?.message || err.message || "Failed to record payment.");
     } finally {
       setSubmitting(false);
-    }
-  };
-
-  const handleDeletePayment = async (id: string) => {
-    if (!window.confirm("Are you sure you want to delete this payment record? This will adjust the installment balance.")) {
-      return;
-    }
-    try {
-      const res = await api.delete(`/payments/${id}`);
-      if (res.data?.success) {
-        triggerSuccess("Payment deleted and installment status recalculated.");
-        await Promise.all([
-          loadPayments(),
-          loadInstallments(),
-          loadStudentFees(),
-          loadFeeSummary(),
-        ]);
-      } else {
-        throw new Error(res.data?.message || "Failed to delete payment.");
-      }
-    } catch (err: any) {
-      console.error("Delete payment error:", err);
-      triggerError(err.response?.data?.message || err.message || "Failed to delete payment.");
     }
   };
 
@@ -851,7 +863,7 @@ export const FeesPage: React.FC = () => {
       };
 
       const res = await api.post("/fee-categories", payload);
-      if (res.data?.success) {
+      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Fee category created successfully.");
         setIsAddCategoryModalOpen(false);
         await loadCategories();
@@ -1375,13 +1387,15 @@ export const FeesPage: React.FC = () => {
                               <Pencil className="w-4 h-4" />
                             </button>
 
-                            <button
-                              onClick={() => handleDeleteStudentFee(fee.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
-                              title="Delete Fee Assignment"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {getFeePaidAmount(fee) === 0 && (
+                              <button
+                                onClick={() => handleDeleteStudentFee(fee.id)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                                title="Delete Fee Assignment"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1540,13 +1554,15 @@ export const FeesPage: React.FC = () => {
                               <Pencil className="w-4 h-4" />
                             </button>
 
-                            <button
-                              onClick={() => handleDeleteInstallment(inst.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
-                              title="Delete Installment"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {getInstallmentPaidAmount(inst) === 0 && (
+                              <button
+                                onClick={() => handleDeleteInstallment(inst.id)}
+                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
+                                title="Delete Installment"
+                              >
+                                <Trash2 className="w-4 h-4" />
+                              </button>
+                            )}
                           </div>
                         </td>
                       </tr>
@@ -1695,13 +1711,7 @@ export const FeesPage: React.FC = () => {
 
                         <td className="px-5 py-4">
                           <div className="flex items-center justify-end gap-1.5">
-                            <button
-                              onClick={() => handleDeletePayment(p.id)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
-                              title="Delete Payment (Reverts Installment Status)"
-                            >
-                              <Trash2 className="w-4 h-4" />
-                            </button>
+                            {/* Payment deletion is permanently rejected by backend */}
                           </div>
                         </td>
                       </tr>
