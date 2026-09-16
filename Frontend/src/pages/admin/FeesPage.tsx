@@ -207,8 +207,8 @@ export const FeesPage: React.FC = () => {
       setFeesError(null);
       
       // Also fetch classes and sections here so they are available globally
-      api.get("/classes").then(res => setClasses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
-      api.get("/sections").then(res => setSections(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
+      api.get("/franchise/classes").then(res => setClasses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
+      api.get("/franchise/sections").then(res => setSections(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
 
       const res = await api.get("/student-fees");
       const list = Array.isArray(res.data?.data)
@@ -270,8 +270,8 @@ export const FeesPage: React.FC = () => {
       
       const [res, classRes, secRes] = await Promise.all([
         api.get("/fee-categories"),
-        api.get("/classes").catch(() => ({ data: { data: [] } })),
-        api.get("/sections").catch(() => ({ data: { data: [] } }))
+        api.get("/franchise/classes").catch(() => ({ data: { data: [] } })),
+        api.get("/franchise/sections").catch(() => ({ data: { data: [] } }))
       ]);
       
       const list = Array.isArray(res.data?.data)
