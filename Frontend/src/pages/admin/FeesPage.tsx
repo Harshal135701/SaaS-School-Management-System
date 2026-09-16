@@ -9,7 +9,6 @@ import {
   CheckCircle2,
   Clock3,
   AlertCircle,
-  Eye,
   Receipt,
   Calendar,
   FileText,
@@ -17,6 +16,8 @@ import {
   RefreshCw,
   Tag,
   Percent,
+  Download,
+  Eye,
 } from "lucide-react";
 import api from "../../services/api";
 import type {
@@ -86,6 +87,8 @@ export const FeesPage: React.FC = () => {
   const [installments, setInstallments] = useState<Installment[]>([]);
   const [payments, setPayments] = useState<Payment[]>([]);
   const [categories, setCategories] = useState<FeeCategory[]>([]);
+  const [classes, setClasses] = useState<any[]>([]);
+  const [sections, setSections] = useState<any[]>([]);
   const [students, setStudents] = useState<SimpleStudent[]>([]);
 
   // Loading states per resource (independent to avoid blanking out UI on single failure)
@@ -124,9 +127,9 @@ export const FeesPage: React.FC = () => {
   const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
   const [assignForm, setAssignForm] = useState({
     studentId: "",
-    feeCategoryId: "",
-    originalAmount: "",
-    discountPercent: "0",
+    items: [
+      { id: Date.now(), feeCategoryId: "", originalAmount: "", discountPercent: "0", customName: "" }
+    ],
     remarks: "",
   });
 
@@ -139,7 +142,7 @@ export const FeesPage: React.FC = () => {
   });
 
   const [isDetailsModalOpen, setIsDetailsModalOpen] = useState(false);
-  const [selectedFeeDetails, setSelectedFeeDetails] = useState<StudentFee | null>(null);
+  const [selectedFeeDetails, setSelectedFeeDetails] = useState<any | null>(null);
 
   const [isCreateInstallmentModalOpen, setIsCreateInstallmentModalOpen] = useState(false);
   const [createInstallmentForm, setCreateInstallmentForm] = useState({
@@ -202,6 +205,11 @@ export const FeesPage: React.FC = () => {
     try {
       setLoadingFees(true);
       setFeesError(null);
+      
+      // Also fetch classes and sections here so they are available globally
+      api.get("/classes").then(res => setClasses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
+      api.get("/sections").then(res => setSections(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
+
       const res = await api.get("/student-fees");
       const list = Array.isArray(res.data?.data)
         ? res.data.data
@@ -259,15 +267,39 @@ export const FeesPage: React.FC = () => {
     try {
       setLoadingCategories(true);
       setCategoriesError(null);
-      const res = await api.get("/fee-categories");
+      
+      const [res, classRes, secRes] = await Promise.all([
+        api.get("/fee-categories"),
+        api.get("/classes").catch(() => ({ data: { data: [] } })),
+        api.get("/sections").catch(() => ({ data: { data: [] } }))
+      ]);
+      
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
         ? res.data
         : [];
+        
+      // Sort according to user preference
+      const desiredOrder = ["tuition fee", "uniform", "i-card", "transport", "other"];
+      list.sort((a: any, b: any) => {
+        const aName = a.name.toLowerCase();
+        const bName = b.name.toLowerCase();
+        const aIdx = desiredOrder.indexOf(aName);
+        const bIdx = desiredOrder.indexOf(bName);
+        
+        if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
+        if (aIdx !== -1) return -1;
+        if (bIdx !== -1) return 1;
+        return aName.localeCompare(bName);
+      });
+      
       setCategories(list);
+      
+      setClasses(Array.isArray(classRes.data?.data) ? classRes.data.data : []);
+      setSections(Array.isArray(secRes.data?.data) ? secRes.data.data : []);
     } catch (err: any) {
-      console.error("Failed to load fee categories:", err);
+      console.error("Failed to load fee categories/classes:", err);
       setCategoriesError(err.response?.data?.message || "Failed to load fee categories");
     } finally {
       setLoadingCategories(false);
@@ -373,15 +405,7 @@ export const FeesPage: React.FC = () => {
   };
 
   // Filtered lists for each tab
-  const filteredStudentFees = useMemo(() => {
-    const q = search.trim().toLowerCase();
-    if (!q) return studentFees;
-    return studentFees.filter((f) => {
-      const studentName = f.student?.name?.toLowerCase() || "";
-      const catName = f.category?.name?.toLowerCase() || "";
-      return studentName.includes(q) || catName.includes(q);
-    });
-  }, [studentFees, search]);
+  
 
   const filteredInstallments = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -425,21 +449,14 @@ export const FeesPage: React.FC = () => {
   // HANDLERS: ASSIGN STUDENT FEE
   // ==========================================
 
-  const calculatedAssignFinal = useMemo(() => {
-    const orig = Number(assignForm.originalAmount) || 0;
-    const disc = Number(assignForm.discountPercent) || 0;
-    if (orig <= 0) return 0;
-    return Math.max(0, orig - (orig * disc) / 100);
-  }, [assignForm.originalAmount, assignForm.discountPercent]);
+  
 
   const handleOpenAssignModal = () => {
     loadCategories();
     loadStudents();
     setAssignForm({
       studentId: "",
-      feeCategoryId: categories[0]?.id || "",
-      originalAmount: "",
-      discountPercent: "0",
+      items: [{ id: Date.now(), feeCategoryId: categories[0]?.id || "", originalAmount: "", discountPercent: "0", customName: "" }],
       remarks: "",
     });
     setErrorMessage(null);
@@ -448,13 +465,275 @@ export const FeesPage: React.FC = () => {
 
   // Synchronize category selection in Assign Fee modal once categories are loaded
   useEffect(() => {
-    if (isAssignModalOpen && !assignForm.feeCategoryId && categories.length > 0) {
-      setAssignForm((prev) => ({
-        ...prev,
-        feeCategoryId: categories[0].id,
-      }));
+    if (isAssignModalOpen && assignForm.items[0]?.feeCategoryId === "" && categories.length > 0) {
+      setAssignForm((prev) => {
+        const newItems = [...prev.items];
+        newItems[0].feeCategoryId = categories[0].id;
+        return { ...prev, items: newItems };
+      });
     }
-  }, [isAssignModalOpen, categories, assignForm.feeCategoryId]);
+  }, [isAssignModalOpen, categories, assignForm.items]);
+
+    // GROUPED STUDENT FEES FOR DASHBOARD
+  const groupedStudentFees = useMemo(() => {
+    const groups: Record<string, any> = {};
+    studentFees.forEach(fee => {
+      const sId = fee.student?.id;
+      if (!sId) return;
+      if (!groups[sId]) {
+        groups[sId] = {
+          student: fee.student,
+          fees: [],
+          totalPayable: 0,
+          totalPaid: 0,
+        };
+      }
+      groups[sId].fees.push(fee);
+      
+      const payable = Number(fee.finalAmount) || 0;
+      let paid = 0;
+      fee.installments?.forEach((inst: any) => {
+        inst.payments?.forEach((pay: any) => {
+          paid += Number(pay.amount) || 0;
+        });
+      });
+      
+      groups[sId].totalPayable += payable;
+      groups[sId].totalPaid += paid;
+    });
+    
+    return Object.values(groups).map(g => {
+      g.fees.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
+      g.totalPending = Math.max(g.totalPayable - g.totalPaid, 0);
+      g.status = g.totalPaid >= g.totalPayable ? "PAID" : g.totalPaid > 0 ? "PARTIAL" : "PENDING";
+      return g;
+    });
+  }, [studentFees]);
+  
+  const filteredGroupedFees = useMemo(() => {
+    return groupedStudentFees.filter(g => {
+      if (search && !g.student?.name?.toLowerCase().includes(search.toLowerCase())) return false;
+      return true;
+    });
+  }, [groupedStudentFees, search]);
+
+      const handlePrintStudentReceipt = (group: any) => {
+    const { student, totalPayable, totalPaid, totalPending, fees } = group;
+    const className = classes.find(c => c.id === student?.classId)?.name || 'Unknown';
+    const sectionName = sections.find(s => s.id === student?.sectionId)?.name || 'Unknown';
+    
+    let breakdownHtml = fees.map((fee: any) => {
+      const isOther = fee.category?.name.toLowerCase() === "other";
+      const name = isOther && fee.remarks ? fee.remarks.split('|')[0].trim() : fee.category?.name;
+      const pay = Number(fee.finalAmount);
+      let paid = 0;
+      fee.installments?.forEach((inst: any) => {
+        inst.payments?.forEach((p: any) => paid += Number(p.amount));
+      });
+      const pend = Math.max(pay - paid, 0);
+      return `
+        <tr>
+          <td>${name}</td>
+          <td>Rs. ${pay.toLocaleString('en-IN')}</td>
+          <td>Rs. ${paid.toLocaleString('en-IN')}</td>
+          <td>Rs. ${pend.toLocaleString('en-IN')}</td>
+        </tr>
+      `;
+    }).join("");
+
+    let paymentsHtml = "";
+    fees.forEach((fee: any) => {
+      fee.installments?.forEach((inst: any) => {
+        inst.payments?.forEach((p: any) => {
+          paymentsHtml += `
+            <tr>
+              <td>${new Date(p.paymentDate).toLocaleDateString()}</td>
+              <td>Rs. ${Number(p.amount).toLocaleString('en-IN')}</td>
+              <td>${p.paymentMethod}</td>
+              <td>${p.receiptNumber || p.referenceNumber || 'N/A'}</td>
+              <td>${fee.category?.name}</td>
+            </tr>
+          `;
+        });
+      });
+    });
+    
+    if (!paymentsHtml) {
+      paymentsHtml = `<tr><td colspan="5" style="text-align: center; color: #64748b;">No payments recorded yet.</td></tr>`;
+    }
+
+    const content = `
+      <html>
+        <head>
+          <title>Student Fee Statement - ${student?.name}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+            .header { text-align: center; margin-bottom: 30px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+            .title { font-size: 24px; font-weight: bold; margin: 0 0 10px 0; }
+            .subtitle { color: #64748b; margin: 0; }
+            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 30px; }
+            .box { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+            .label { font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+            .value { font-size: 16px; font-weight: 600; }
+            h3 { font-size: 14px; text-transform: uppercase; margin-top: 30px; margin-bottom: 10px; color: #334155; border-bottom: 1px solid #e2e8f0; padding-bottom: 5px; }
+            table { width: 100%; border-collapse: collapse; margin-bottom: 20px; font-size: 14px; }
+            th, td { padding: 10px; text-align: left; border-bottom: 1px solid #e2e8f0; }
+            th { background: #f1f5f9; font-weight: bold; color: #475569; }
+            .totals { font-weight: bold; background: #f8fafc; }
+            .footer { margin-top: 50px; text-align: center; color: #64748b; font-size: 12px; border-top: 1px dashed #cbd5e1; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">Student Fee Statement</h1>
+            <p class="subtitle">Generated on ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          <div class="details-grid">
+            <div class="box">
+              <div class="label">Student Details</div>
+              <div class="value">${student?.name || 'Unknown Student'}</div>
+              <div style="font-size: 14px; color: #64748b; margin-top: 4px;">
+                Class: ${className} - ${sectionName}
+              </div>
+              <div style="font-size: 14px; color: #64748b; margin-top: 4px;">
+                Roll No: ${student?.rollNumber || 'N/A'}
+              </div>
+            </div>
+            <div class="box">
+              <div class="label">Account Summary</div>
+              <div style="margin-top: 8px; display: flex; justify-content: space-between;">
+                <span style="color: #64748b;">Total Payable:</span>
+                <strong>Rs. ${Number(totalPayable).toLocaleString('en-IN')}</strong>
+              </div>
+              <div style="margin-top: 8px; display: flex; justify-content: space-between;">
+                <span style="color: #15803d;">Total Paid:</span>
+                <strong style="color: #15803d;">Rs. ${Number(totalPaid).toLocaleString('en-IN')}</strong>
+              </div>
+              <div style="margin-top: 8px; display: flex; justify-content: space-between;">
+                <span style="color: #b45309;">Total Pending:</span>
+                <strong style="color: #b45309;">Rs. ${Number(totalPending).toLocaleString('en-IN')}</strong>
+              </div>
+            </div>
+          </div>
+          
+          <h3>Fee Breakdown</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Category</th>
+                <th>Payable</th>
+                <th>Paid</th>
+                <th>Pending</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${breakdownHtml}
+              <tr class="totals">
+                <td>Grand Total</td>
+                <td>Rs. ${Number(totalPayable).toLocaleString('en-IN')}</td>
+                <td>Rs. ${Number(totalPaid).toLocaleString('en-IN')}</td>
+                <td>Rs. ${Number(totalPending).toLocaleString('en-IN')}</td>
+              </tr>
+            </tbody>
+          </table>
+
+          <h3>Payment History</h3>
+          <table>
+            <thead>
+              <tr>
+                <th>Date</th>
+                <th>Amount</th>
+                <th>Method</th>
+                <th>Receipt No</th>
+                <th>Category</th>
+              </tr>
+            </thead>
+            <tbody>
+              ${paymentsHtml}
+            </tbody>
+          </table>
+          
+          <div class="footer">
+            <p>This is a computer-generated statement and does not require a physical signature.</p>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
+  };
+
+  const handlePrintReceipt = (payment: any, feeDetails: any) => {
+    const content = `
+      <html>
+        <head>
+          <title>Fee Receipt - ${payment.receiptNumber || payment.id}</title>
+          <style>
+            body { font-family: system-ui, -apple-system, sans-serif; padding: 40px; color: #1e293b; max-width: 800px; margin: 0 auto; }
+            .header { text-align: center; margin-bottom: 40px; border-bottom: 2px solid #e2e8f0; padding-bottom: 20px; }
+            .title { font-size: 24px; font-weight: bold; margin: 0 0 10px 0; }
+            .subtitle { color: #64748b; margin: 0; }
+            .details-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 40px; }
+            .box { background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0; }
+            .label { font-size: 12px; font-weight: bold; color: #64748b; text-transform: uppercase; margin-bottom: 4px; }
+            .value { font-size: 16px; font-weight: 600; }
+            .footer { margin-top: 60px; text-align: center; color: #64748b; font-size: 14px; border-top: 1px dashed #cbd5e1; padding-top: 20px; }
+          </style>
+        </head>
+        <body>
+          <div class="header">
+            <h1 class="title">Fee Receipt</h1>
+            <p class="subtitle">Generated on ${new Date().toLocaleDateString()}</p>
+          </div>
+          
+          <div class="details-grid">
+            <div class="box">
+              <div class="label">Student Details</div>
+              <div class="value">${feeDetails.student?.name || 'Student'}</div>
+              <div style="font-size: 14px; color: #64748b; margin-top: 4px;">
+                Roll No: ${feeDetails.student?.rollNumber || 'N/A'}
+              </div>
+            </div>
+            <div class="box">
+              <div class="label">Payment Details</div>
+              <div class="value">Amount Paid: Rs. ${Number(payment.amount).toLocaleString('en-IN')}</div>
+              <div style="font-size: 14px; color: #64748b; margin-top: 4px;">
+                Date: ${new Date(payment.paymentDate).toLocaleDateString()} | Method: ${payment.paymentMethod}
+              </div>
+              <div style="font-size: 14px; color: #64748b; margin-top: 4px;">
+                Receipt No: ${payment.receiptNumber || payment.referenceNumber || 'N/A'}
+              </div>
+            </div>
+          </div>
+          
+          <div class="footer">
+            <p>This is a computer-generated receipt and does not require a physical signature.</p>
+          </div>
+        </body>
+      </html>
+    `;
+    
+    const printWindow = window.open('', '_blank');
+    if (printWindow) {
+      printWindow.document.write(content);
+      printWindow.document.close();
+      printWindow.focus();
+      setTimeout(() => {
+        printWindow.print();
+        printWindow.close();
+      }, 250);
+    }
+  };
 
   const handleAssignFeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -462,42 +741,49 @@ export const FeesPage: React.FC = () => {
       triggerError("Please select a student.");
       return;
     }
-    if (!assignForm.feeCategoryId) {
-      triggerError("Please select a fee category.");
+    
+    // Validation
+    const validItems = assignForm.items.filter(item => item.feeCategoryId && Number(item.originalAmount) > 0);
+    if (validItems.length === 0) {
+      triggerError("Please add at least one valid fee item with an amount > 0.");
       return;
     }
-    const orig = Number(assignForm.originalAmount);
-    if (!orig || orig <= 0) {
-      triggerError("Please enter a valid original amount greater than 0.");
-      return;
-    }
-    const disc = Number(assignForm.discountPercent);
-    if (isNaN(disc) || disc < 0 || disc > 100) {
-      triggerError("Discount percentage must be between 0 and 100.");
-      return;
-    }
+
+
 
     try {
       setSubmitting(true);
-      const payload = {
-        studentId: assignForm.studentId,
-        feeCategoryId: assignForm.feeCategoryId,
-        originalAmount: orig,
-        discountPercent: disc,
-        remarks: assignForm.remarks.trim() || undefined,
-      };
+      
+      const promises = validItems.map(item => {
+        let remarks = assignForm.remarks.trim();
+        const category = categories.find(c => c.id === item.feeCategoryId);
+        if (category?.name.toLowerCase() === "other" && item.customName.trim()) {
+           remarks = remarks ? `${item.customName.trim()} | ${remarks}` : item.customName.trim();
+        }
+        
+        return api.post("/student-fees", {
+          studentId: assignForm.studentId,
+          feeCategoryId: item.feeCategoryId,
+          originalAmount: Number(item.originalAmount),
+          discountPercent: Number(item.discountPercent) || 0,
+          remarks: remarks || undefined,
+        });
+      });
 
-      const res = await api.post("/student-fees", payload);
-      if ((res.status >= 200 && res.status < 300) || res.data?.success) {
-        triggerSuccess("Student fee assigned successfully.");
+      const results = await Promise.allSettled(promises);
+      const failed = results.filter(r => r.status === 'rejected');
+      
+      if (failed.length === 0) {
+        triggerSuccess(`Successfully assigned ${validItems.length} fee(s).`);
         setIsAssignModalOpen(false);
         await Promise.all([loadStudentFees(), loadFeeSummary()]);
       } else {
-        throw new Error(res.data?.message || "Failed to assign student fee.");
+        const errorMsg = (failed[0] as PromiseRejectedResult).reason?.response?.data?.message || "Failed to assign some fees.";
+        throw new Error(`Failed to assign ${failed.length} fee(s). Reason: ${errorMsg}`);
       }
     } catch (err: any) {
       console.error("Assign fee error:", err);
-      triggerError(err.response?.data?.message || err.message || "Failed to assign student fee.");
+      triggerError(err.response?.data?.message || err.message || "Failed to assign fee.");
     } finally {
       setSubmitting(false);
     }
@@ -514,16 +800,7 @@ export const FeesPage: React.FC = () => {
     return Math.max(0, orig - (orig * disc) / 100);
   }, [editFeeForm.originalAmount, editFeeForm.discountPercent]);
 
-  const handleOpenEditFeeModal = (fee: StudentFee) => {
-    setEditingFee(fee);
-    setEditFeeForm({
-      originalAmount: String(fee.originalAmount),
-      discountPercent: String(fee.discountPercent || "0"),
-      remarks: fee.remarks || "",
-    });
-    setErrorMessage(null);
-    setIsEditFeeModalOpen(true);
-  };
+  
 
   const handleEditFeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -585,6 +862,32 @@ export const FeesPage: React.FC = () => {
       if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Student fee deleted successfully.");
         await Promise.all([loadStudentFees(), loadFeeSummary(), loadInstallments()]);
+        
+        if (selectedFeeDetails) {
+          const newFees = selectedFeeDetails.fees.filter((f: any) => f.id !== id);
+          if (newFees.length === 0) {
+            setIsDetailsModalOpen(false);
+            setSelectedFeeDetails(null);
+          } else {
+            const totalPayable = newFees.reduce((sum: number, f: any) => sum + Number(f.finalAmount), 0);
+            let totalPaid = 0;
+            newFees.forEach((f: any) => {
+              f.installments?.forEach((inst: any) => {
+                inst.payments?.forEach((p: any) => totalPaid += Number(p.amount));
+              });
+            });
+            const totalPending = Math.max(totalPayable - totalPaid, 0);
+            const status = totalPaid >= totalPayable ? "PAID" : totalPaid > 0 ? "PARTIAL" : "PENDING";
+            setSelectedFeeDetails({
+              ...selectedFeeDetails,
+              fees: newFees,
+              totalPayable,
+              totalPaid,
+              totalPending,
+              status
+            });
+          }
+        }
       } else {
         throw new Error(res.data?.message || "Failed to delete student fee.");
       }
@@ -1118,7 +1421,7 @@ export const FeesPage: React.FC = () => {
                   : "bg-slate-200 text-slate-600"
               }`}
             >
-              {studentFees.length}
+              {groupedStudentFees.length}
             </span>
           </button>
 
@@ -1248,22 +1551,16 @@ export const FeesPage: React.FC = () => {
                     Student
                   </th>
                   <th className="text-left px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Fee Category
+                    Total Payable
                   </th>
                   <th className="text-left px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Original Amount
+                    Total Paid
                   </th>
                   <th className="text-left px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Discount
+                    Total Pending
                   </th>
                   <th className="text-left px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Final Payable
-                  </th>
-                  <th className="text-left px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Paid / Pending
-                  </th>
-                  <th className="text-left px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
-                    Installments
+                    Payment Status
                   </th>
                   <th className="text-right px-5 py-4 text-xs font-extrabold text-slate-500 uppercase tracking-wider">
                     Actions
@@ -1274,136 +1571,101 @@ export const FeesPage: React.FC = () => {
               <tbody className="divide-y divide-slate-100">
                 {loadingFees ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-12 text-center text-sm text-slate-500">
+                    <td colSpan={6} className="px-5 py-12 text-center text-sm text-slate-500">
                       <div className="flex items-center justify-center gap-2">
                         <RefreshCw className="w-4 h-4 animate-spin text-blue-600" />
                         <span>Loading student fees...</span>
                       </div>
                     </td>
                   </tr>
-                ) : filteredStudentFees.length === 0 ? (
+                ) : filteredGroupedFees.length === 0 ? (
                   <tr>
-                    <td colSpan={8} className="px-5 py-12 text-center">
+                    <td colSpan={6} className="px-5 py-12 text-center">
                       <CreditCard className="w-10 h-10 mx-auto text-slate-300" />
                       <p className="mt-3 text-sm font-bold text-slate-700">
                         {search ? "No student fees match your search" : "No student fees assigned yet"}
                       </p>
                       <p className="text-xs text-slate-400 mt-1">
-                        {search ? "Try clearing the search query." : "Click 'Assign Fee' to assign a fee category to a student."}
+                        {search ? "Try clearing the search query." : "Click 'Assign Fee' to assign fees to a student."}
                       </p>
                     </td>
                   </tr>
                 ) : (
-                  filteredStudentFees.map((fee) => {
-                    const paid = getFeePaidAmount(fee);
-                    const pending = Math.max(0, Number(fee.finalAmount || 0) - paid);
-                    const totalInst = fee.installments?.length || 0;
-                    const paidInst =
-                      fee.installments?.filter((i) => i.status === "PAID").length || 0;
+                  filteredGroupedFees.map((group) => {
+                    const { student, totalPayable, totalPaid, totalPending, status } = group;
 
                     return (
-                      <tr key={fee.id} className="hover:bg-slate-50/70 transition">
+                      <tr key={student.id} className="hover:bg-slate-50/70 transition cursor-pointer" onClick={() => {
+                          setSelectedFeeDetails(group);
+                          setIsDetailsModalOpen(true);
+                      }}>
                         <td className="px-5 py-4">
                           <div className="font-bold text-sm text-slate-900">
-                            {fee.student?.name || "Unknown Student"}
+                            {student?.name || "Unknown Student"}
                           </div>
-                          {fee.student?.email && (
-                            <div className="text-xs text-slate-400 mt-0.5">
-                              {fee.student.email}
-                            </div>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <span className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg text-xs font-semibold bg-slate-100 text-slate-700">
-                            <Tag className="w-3 h-3 text-slate-500" />
-                            {fee.category?.name || "Uncategorized"}
-                          </span>
-                        </td>
-
-                        <td className="px-5 py-4 text-sm font-semibold text-slate-600">
-                          ₹{Number(fee.originalAmount || 0).toLocaleString("en-IN")}
-                        </td>
-
-                        <td className="px-5 py-4 text-sm font-semibold text-purple-700">
-                          {Number(fee.discountPercent || 0) > 0 ? (
-                            <span>{fee.discountPercent}% off</span>
-                          ) : (
-                            <span className="text-slate-400">None</span>
-                          )}
+                          <div className="text-xs text-slate-500 mt-0.5">
+                            {student?.classId ? `Class ${classes.find(c => c.id === student.classId)?.name || 'Unknown'}` : ""} {student?.sectionId ? `- ${sections.find(s => s.id === student.sectionId)?.name || 'Unknown'}` : ""} {student?.rollNumber ? `| Roll: ${student.rollNumber}` : ""}
+                          </div>
                         </td>
 
                         <td className="px-5 py-4 text-sm font-extrabold text-slate-900">
-                          ₹{Number(fee.finalAmount || 0).toLocaleString("en-IN")}
+                          ₹{Number(totalPayable || 0).toLocaleString("en-IN")}
+                        </td>
+                        
+                        <td className="px-5 py-4 text-sm font-bold text-emerald-600">
+                          ₹{Number(totalPaid || 0).toLocaleString("en-IN")}
+                        </td>
+                        
+                        <td className="px-5 py-4 text-sm font-bold text-amber-600">
+                          ₹{Number(totalPending || 0).toLocaleString("en-IN")}
+                        </td>
+                        
+                        <td className="px-5 py-4">
+                           <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase ${
+                              status === "PAID"
+                                ? "bg-emerald-100 text-emerald-700"
+                                : status === "PARTIAL"
+                                ? "bg-amber-100 text-amber-700"
+                                : "bg-rose-100 text-rose-700"
+                            }`}
+                          >
+                            {status}
+                          </span>
                         </td>
 
-                        <td className="px-5 py-4">
-                          <div className="text-xs font-bold text-emerald-600">
-                            Paid: ₹{paid.toLocaleString("en-IN")}
-                          </div>
-                          <div className="text-xs font-semibold text-amber-600 mt-0.5">
-                            Pending: ₹{pending.toLocaleString("en-IN")}
-                          </div>
-                        </td>
-
-                        <td className="px-5 py-4">
-                          {totalInst > 0 ? (
-                            <span
-                              className={`inline-flex items-center gap-1.5 px-2 py-0.5 rounded-md text-xs font-bold ${
-                                paidInst === totalInst
-                                  ? "bg-emerald-50 text-emerald-700"
-                                  : paidInst > 0
-                                  ? "bg-amber-50 text-amber-700"
-                                  : "bg-blue-50 text-blue-700"
-                              }`}
-                            >
-                              {paidInst} / {totalInst} Paid
-                            </span>
-                          ) : (
-                            <span className="text-xs text-slate-400 italic">
-                              No installments
-                            </span>
-                          )}
-                        </td>
-
-                        <td className="px-5 py-4">
-                          <div className="flex items-center justify-end gap-1.5">
+                        <td className="px-5 py-4 text-right">
+                          <div className="flex items-center justify-end gap-2">
                             <button
-                              onClick={() => {
-                                setSelectedFeeDetails(fee);
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                setSelectedFeeDetails(group);
                                 setIsDetailsModalOpen(true);
                               }}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-indigo-600 hover:bg-indigo-50 transition"
-                              title="View Fee Details & Installments"
+                              className="p-2 rounded-xl text-blue-600 bg-blue-50 hover:bg-blue-100 transition"
+                              title="View Details"
                             >
                               <Eye className="w-4 h-4" />
                             </button>
-
                             <button
-                              onClick={() => handleOpenEditFeeModal(fee)}
-                              className="p-1.5 rounded-lg text-slate-500 hover:text-blue-600 hover:bg-blue-50 transition"
-                              title="Edit Fee"
+                              type="button"
+                              onClick={(e) => {
+                                e.stopPropagation();
+                                handlePrintStudentReceipt(group);
+                              }}
+                              className="p-2 rounded-xl text-emerald-600 bg-emerald-50 hover:bg-emerald-100 transition"
+                              title="Download Statement"
                             >
-                              <Pencil className="w-4 h-4" />
+                              <FileText className="w-4 h-4" />
                             </button>
-
-                            {getFeePaidAmount(fee) === 0 && (
-                              <button
-                                onClick={() => handleDeleteStudentFee(fee.id)}
-                                className="p-1.5 rounded-lg text-slate-500 hover:text-rose-600 hover:bg-rose-50 transition"
-                                title="Delete Fee Assignment"
-                              >
-                                <Trash2 className="w-4 h-4" />
-                              </button>
-                            )}
                           </div>
                         </td>
                       </tr>
                     );
                   })
                 )}
-              </tbody>
-            </table>
+              </tbody>           </table>
           </div>
         </div>
       )}
@@ -1831,14 +2093,14 @@ export const FeesPage: React.FC = () => {
       {/* ========================================================= */}
       {isAssignModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-up">
-            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between">
+          <div className="w-full max-w-2xl bg-white rounded-3xl shadow-2xl overflow-hidden animate-scale-up flex flex-col max-h-[90vh]">
+            <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">
                   Assign Fee to Student
                 </h2>
                 <p className="text-xs text-slate-500 mt-0.5">
-                  Allocate a fee structure with optional scholarship or discount.
+                  Allocate multiple fee categories to a student in one go.
                 </p>
               </div>
               <button
@@ -1849,145 +2111,197 @@ export const FeesPage: React.FC = () => {
               </button>
             </div>
 
-            <form onSubmit={handleAssignFeeSubmit} className="p-6 space-y-4">
-              {/* Student Select */}
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                  Select Student *
-                </label>
-                <select
-                  value={assignForm.studentId}
-                  onChange={(e) =>
-                    setAssignForm({ ...assignForm, studentId: e.target.value })
-                  }
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  required
-                >
-                  <option value="">-- Choose student --</option>
-                  {students.map((s) => (
-                    <option key={s.id} value={s.id}>
-                      {s.name} {s.rollNumber ? `(Roll: ${s.rollNumber})` : ""} {s.email ? `— ${s.email}` : ""}
-                    </option>
-                  ))}
-                </select>
-              </div>
-
-              {/* Fee Category Select */}
-              <div>
-                <div className="flex items-center justify-between mb-1.5">
-                  <label className="block text-xs font-bold text-slate-600">
-                    Fee Category *
+            <form onSubmit={handleAssignFeeSubmit} className="flex flex-col overflow-hidden">
+              <div className="p-6 overflow-y-auto space-y-4 flex-1">
+                {/* Student Select */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Select Student *
                   </label>
-                  {loadingCategories && (
-                    <span className="text-[11px] text-blue-600 font-semibold flex items-center gap-1">
-                      <RefreshCw className="w-3 h-3 animate-spin" />
-                      Loading...
-                    </span>
-                  )}
+                  <select
+                    value={assignForm.studentId}
+                    onChange={(e) =>
+                      setAssignForm({ ...assignForm, studentId: e.target.value })
+                    }
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    required
+                  >
+                    <option value="">-- Choose student --</option>
+                    {students.map((s) => (
+                      <option key={s.id} value={s.id}>
+                        {s.name} {s.rollNumber ? `(Roll: ${s.rollNumber})` : ""} {s.email ? `- ${s.email}` : ""}
+                      </option>
+                    ))}
+                  </select>
                 </div>
-                <select
-                  value={assignForm.feeCategoryId}
-                  onChange={(e) =>
-                    setAssignForm({ ...assignForm, feeCategoryId: e.target.value })
-                  }
-                  className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
-                  required
-                  disabled={loadingCategories}
-                >
-                  <option value="">-- Choose fee category --</option>
-                  {categories.map((c) => (
-                    <option key={c.id} value={c.id}>
-                      {c.name}
-                    </option>
-                  ))}
-                </select>
-                {!loadingCategories && categories.length === 0 && (
-                  <div className="mt-2 p-2.5 bg-amber-50 rounded-xl border border-amber-200 flex items-center justify-between">
-                    <p className="text-[11px] text-amber-700 font-medium">
-                      No categories found. Please create a Fee Category first.
-                    </p>
+
+                {/* Multi Category Items */}
+                <div>
+                  <div className="flex items-center justify-between mb-2">
+                    <label className="block text-xs font-bold text-slate-600">
+                      Fee Breakdown *
+                    </label>
                     <button
                       type="button"
-                      onClick={() => {
-                        setIsAssignModalOpen(false);
-                        setActiveTab("categories");
-                        handleOpenAddCategoryModal();
-                      }}
-                      className="text-xs font-bold text-blue-600 hover:text-blue-800 underline ml-2 shrink-0 cursor-pointer"
+                      onClick={() => setAssignForm({
+                        ...assignForm,
+                        items: [...assignForm.items, { id: Date.now(), feeCategoryId: "", originalAmount: "", discountPercent: "0", customName: "" }]
+                      })}
+                      className="text-xs font-bold text-blue-600 hover:text-blue-800 transition flex items-center gap-1"
                     >
-                      + Add Category
+                      <Plus className="w-3 h-3" /> Add Fee Item
                     </button>
                   </div>
-                )}
-              </div>
+                  
+                  <div className="space-y-3">
+                    {assignForm.items.map((item, index) => {
+                      const selectedCat = categories.find(c => c.id === item.feeCategoryId);
+                      const isOther = selectedCat?.name.toLowerCase() === "other";
+                      
+                      return (
+                        <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl relative group">
+                          {assignForm.items.length > 1 && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                const newItems = assignForm.items.filter(i => i.id !== item.id);
+                                setAssignForm({...assignForm, items: newItems});
+                              }}
+                              className="absolute -top-2 -right-2 p-1.5 bg-red-100 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm"
+                            >
+                              <X className="w-3 h-3" />
+                            </button>
+                          )}
+                          
+                          <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
+                            <div>
+                              <select
+                                value={item.feeCategoryId}
+                                onChange={(e) => {
+                                  const newItems = [...assignForm.items];
+                                  newItems[index].feeCategoryId = e.target.value;
+                                  setAssignForm({ ...assignForm, items: newItems });
+                                }}
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                required
+                              >
+                                <option value="">-- Category --</option>
+                                {categories.map((c) => (
+                                  <option key={c.id} value={c.id} disabled={assignForm.items.some(i => i.id !== item.id && i.feeCategoryId === c.id)}>
+                                    {c.name}
+                                  </option>
+                                ))}
+                              </select>
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                min="1"
+                                step="0.01"
+                                value={item.originalAmount}
+                                onChange={(e) => {
+                                  const newItems = [...assignForm.items];
+                                  newItems[index].originalAmount = e.target.value;
+                                  setAssignForm({ ...assignForm, items: newItems });
+                                }}
+                                placeholder="Amount (₹)"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                required
+                              />
+                            </div>
+                            <div>
+                              <input
+                                type="number"
+                                min="0"
+                                max="100"
+                                step="0.01"
+                                value={item.discountPercent}
+                                onChange={(e) => {
+                                  const newItems = [...assignForm.items];
+                                  newItems[index].discountPercent = e.target.value;
+                                  setAssignForm({ ...assignForm, items: newItems });
+                                }}
+                                placeholder="Discount %"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                              />
+                            </div>
+                          </div>
+                          {isOther && (
+                            <div className="mt-2">
+                              <input
+                                type="text"
+                                value={item.customName}
+                                onChange={(e) => {
+                                  const newItems = [...assignForm.items];
+                                  newItems[index].customName = e.target.value;
+                                  setAssignForm({ ...assignForm, items: newItems });
+                                }}
+                                placeholder="Custom Fee Name (e.g. Annual Activity Fee)"
+                                className="w-full px-3 py-2 rounded-lg border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                                required
+                              />
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                </div>
 
-              {/* Amounts & Discount Grid */}
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                    Original Amount (₹) *
-                  </label>
-                  <input
-                    type="number"
-                    min="1"
-                    step="0.01"
-                    value={assignForm.originalAmount}
-                    onChange={(e) =>
-                      setAssignForm({ ...assignForm, originalAmount: e.target.value })
-                    }
-                    placeholder="e.g. 50000"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 font-semibold"
-                    required
-                  />
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4 pt-2 border-t border-slate-100">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                      Total Original Amount (₹)
+                    </label>
+                    <input
+                      type="text"
+                      value={assignForm.items.reduce((sum, item) => sum + (Number(item.originalAmount) || 0), 0).toFixed(2)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 bg-slate-50 text-sm outline-none cursor-not-allowed font-semibold text-slate-700"
+                      readOnly
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                      Total Discount Amount (₹)
+                    </label>
+                    <input
+                      type="text"
+                      value={assignForm.items.reduce((sum, item) => sum + ((Number(item.originalAmount) || 0) * (Number(item.discountPercent) || 0) / 100), 0).toFixed(2)}
+                      className="w-full px-3 py-2.5 rounded-xl border border-emerald-200 bg-emerald-50 text-sm outline-none cursor-not-allowed font-semibold text-emerald-700"
+                      readOnly
+                    />
+                  </div>
                 </div>
 
                 <div>
                   <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                    Discount (%)
+                    Final Payable (₹)
                   </label>
-                  <input
-                    type="number"
-                    min="0"
-                    max="100"
-                    step="0.1"
-                    value={assignForm.discountPercent}
+                  <div className="w-full px-4 py-3 rounded-xl bg-blue-50 border border-blue-100 text-sm font-bold text-blue-700">
+                    ₹{(
+                      assignForm.items.reduce((sum, item) => sum + ((Number(item.originalAmount) || 0) * (1 - (Number(item.discountPercent) || 0) / 100)), 0)
+                    ).toLocaleString("en-IN", { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1.5">
+                    Remarks / Notes
+                  </label>
+                  <textarea
+                    rows={2}
+                    value={assignForm.remarks}
                     onChange={(e) =>
-                      setAssignForm({ ...assignForm, discountPercent: e.target.value })
+                      setAssignForm({ ...assignForm, remarks: e.target.value })
                     }
-                    placeholder="0 - 100"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500"
+                    placeholder="Optional notes..."
+                    className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
                   />
                 </div>
-              </div>
-
-              {/* Calculated Final Payable Preview */}
-              <div className="p-3.5 bg-slate-50 rounded-xl border border-slate-200 flex items-center justify-between">
-                <span className="text-xs font-bold text-slate-600">
-                  Calculated Final Payable:
-                </span>
-                <span className="text-lg font-extrabold text-blue-700">
-                  ₹{calculatedAssignFinal.toLocaleString("en-IN")}
-                </span>
-              </div>
-
-              {/* Remarks */}
-              <div>
-                <label className="block text-xs font-bold text-slate-600 mb-1.5">
-                  Remarks / Notes
-                </label>
-                <textarea
-                  rows={2}
-                  value={assignForm.remarks}
-                  onChange={(e) =>
-                    setAssignForm({ ...assignForm, remarks: e.target.value })
-                  }
-                  placeholder="Optional notes regarding this fee assignment..."
-                  className="w-full px-3 py-2 rounded-xl border border-slate-200 text-xs outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 resize-none"
-                />
               </div>
 
               {/* Modal Footer */}
-              <div className="flex items-center justify-end gap-3 pt-2">
+              <div className="p-6 border-t border-slate-100 flex items-center justify-end gap-3 shrink-0">
                 <button
                   type="button"
                   onClick={() => setIsAssignModalOpen(false)}
@@ -2008,7 +2322,6 @@ export const FeesPage: React.FC = () => {
           </div>
         </div>
       )}
-
       {/* ========================================================= */}
       {/* MODAL 2: EDIT STUDENT FEE                                 */}
       {/* ========================================================= */}
@@ -2126,7 +2439,7 @@ export const FeesPage: React.FC = () => {
       {/* ========================================================= */}
       {isDetailsModalOpen && selectedFeeDetails && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-slate-900/50 backdrop-blur-sm">
-          <div className="w-full max-w-3xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[90vh] flex flex-col animate-scale-up">
+          <div className="w-full max-w-4xl bg-white rounded-3xl shadow-2xl overflow-hidden max-h-[95vh] flex flex-col animate-scale-up">
             <div className="px-6 py-5 border-b border-slate-100 flex items-center justify-between shrink-0">
               <div className="flex items-center gap-3">
                 <div className="w-10 h-10 rounded-2xl bg-blue-50 flex items-center justify-center text-blue-600 font-bold">
@@ -2134,182 +2447,208 @@ export const FeesPage: React.FC = () => {
                 </div>
                 <div>
                   <h2 className="text-lg font-extrabold text-slate-900">
-                    Fee Allocation Details
+                    Student Fee Details
                   </h2>
                   <p className="text-xs text-slate-500 mt-0.5">
-                    {selectedFeeDetails.student?.name} — {selectedFeeDetails.category?.name}
+                    {selectedFeeDetails.student?.name}
                   </p>
                 </div>
               </div>
               <button
-                onClick={() => {
-                  setIsDetailsModalOpen(false);
-                  setSelectedFeeDetails(null);
-                }}
+                onClick={() => setIsDetailsModalOpen(false)}
                 className="p-2 rounded-xl text-slate-400 hover:text-slate-600 hover:bg-slate-100 transition"
               >
                 <X className="w-5 h-5" />
               </button>
             </div>
 
-            <div className="p-6 overflow-y-auto space-y-6">
-              {/* Financial Summary Card Grid */}
-              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 bg-slate-50 p-4 rounded-2xl border border-slate-200">
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Original</span>
-                  <p className="text-base font-extrabold text-slate-800 mt-0.5">
-                    ₹{Number(selectedFeeDetails.originalAmount).toLocaleString("en-IN")}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Discount</span>
-                  <p className="text-base font-extrabold text-purple-600 mt-0.5">
-                    {Number(selectedFeeDetails.discountPercent || 0)}%
-                  </p>
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Final Payable</span>
-                  <p className="text-base font-extrabold text-indigo-700 mt-0.5">
-                    ₹{Number(selectedFeeDetails.finalAmount).toLocaleString("en-IN")}
-                  </p>
-                </div>
-
-                <div>
-                  <span className="text-[11px] font-bold text-slate-400 uppercase">Total Paid</span>
-                  <p className="text-base font-extrabold text-emerald-600 mt-0.5">
-                    ₹{getFeePaidAmount(selectedFeeDetails).toLocaleString("en-IN")}
-                  </p>
-                </div>
-              </div>
-
-              {selectedFeeDetails.remarks && (
-                <div className="text-xs text-slate-600 bg-amber-50/70 border border-amber-100 p-3 rounded-xl">
-                  <span className="font-bold text-amber-800">Remarks: </span>
-                  {selectedFeeDetails.remarks}
-                </div>
-              )}
-
-              {/* Installments Breakdown Section */}
-              <div className="space-y-3">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-sm font-extrabold text-slate-900 flex items-center gap-2">
-                    <Calendar className="w-4 h-4 text-blue-600" />
-                    <span>Associated Installment Schedule</span>
+            <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
+               {/* Summary */}
+               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="bg-white border border-slate-200 p-4 rounded-2xl">
+                     <p className="text-[11px] font-bold text-slate-500 uppercase">Total Payable</p>
+                     <p className="text-xl font-black text-slate-900">₹{Number(selectedFeeDetails.totalPayable).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-white border border-emerald-200 p-4 rounded-2xl">
+                     <p className="text-[11px] font-bold text-emerald-600 uppercase">Total Paid</p>
+                     <p className="text-xl font-black text-emerald-700">₹{Number(selectedFeeDetails.totalPaid).toLocaleString('en-IN')}</p>
+                  </div>
+                  <div className="bg-white border border-amber-200 p-4 rounded-2xl">
+                     <p className="text-[11px] font-bold text-amber-600 uppercase">Total Pending</p>
+                     <p className="text-xl font-black text-amber-700">₹{Number(selectedFeeDetails.totalPending).toLocaleString('en-IN')}</p>
+                  </div>
+               </div>
+               
+               {/* Category Breakdown */}
+               <div>
+                 <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide">Category Breakdown</h3>
+                 <div className="space-y-3">
+                   {selectedFeeDetails.fees.map((fee: any) => {
+                     const isOther = fee.category?.name.toLowerCase() === "other";
+                     const name = isOther && fee.remarks ? fee.remarks.split('|')[0].trim() : fee.category?.name;
+                     const orig = Number(fee.originalAmount);
+                     const disc = Number(fee.discountPercent);
+                     const pay = Number(fee.finalAmount);
+                     let paid = 0;
+                     fee.installments?.forEach((inst: any) => {
+                       inst.payments?.forEach((p: any) => paid += Number(p.amount));
+                     });
+                     const pend = Math.max(pay - paid, 0);
+                     
+                     return (
+                       <div key={fee.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+                         <div>
+                           <h4 className="font-bold text-slate-900">{name}</h4>
+                           <div className="text-xs text-slate-500 mt-1 flex items-center gap-3">
+                             <span>Original: ₹{orig.toLocaleString('en-IN')}</span>
+                             {disc > 0 && <span className="text-purple-600 font-semibold">Discount: {disc}%</span>}
+                           </div>
+                         </div>
+                         <div className="flex items-center gap-6 text-sm font-bold">
+                           <div className="text-center">
+                             <div className="text-[10px] text-slate-400 uppercase">Payable</div>
+                             <div className="text-slate-900">₹{pay.toLocaleString('en-IN')}</div>
+                           </div>
+                           <div className="text-center">
+                             <div className="text-[10px] text-emerald-600 uppercase">Paid</div>
+                             <div className="text-emerald-700">₹{paid.toLocaleString('en-IN')}</div>
+                           </div>
+                           <div className="text-center">
+                             <div className="text-[10px] text-amber-600 uppercase">Pending</div>
+                             <div className="text-amber-700">₹{pend.toLocaleString('en-IN')}</div>
+                           </div>
+                           
+                           <button
+                              onClick={() => {
+                                 setEditingFee(fee);
+                                 setEditFeeForm({
+                                   originalAmount: fee.originalAmount?.toString() || "",
+                                   discountPercent: fee.discountPercent?.toString() || "0",
+                                   remarks: fee.remarks || "",
+                                 });
+                                 setIsEditFeeModalOpen(true);
+                              }}
+                              className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition"
+                           >
+                             <Pencil className="w-4 h-4" />
+                           </button>
+                           
+                           {paid === 0 && (
+                             <button
+                               onClick={() => handleDeleteStudentFee(fee.id)}
+                               className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 hover:bg-rose-100 transition"
+                             >
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           )}
+                         </div>
+                       </div>
+                     );
+                   })}
+                 </div>
+               </div>
+               
+               {/* Installments & Payments */}
+               <div>
+                  <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide flex items-center justify-between">
+                    Installments & Payments
+                    <button
+                      onClick={() => {
+                        setCreateInstallmentForm({ studentFeeId: selectedFeeDetails.fees[0]?.id || "", installmentNumber: 1, amount: "", dueDate: "" });
+                        setIsCreateInstallmentModalOpen(true);
+                      }}
+                      className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                    >
+                      <Plus className="w-3 h-3" /> Add Installment
+                    </button>
                   </h3>
-                  <button
-                    onClick={() => {
-                      handleOpenCreateInstallmentModal(selectedFeeDetails.id);
-                    }}
-                    className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-50 text-blue-700 hover:bg-blue-100 text-xs font-bold transition"
-                  >
-                    <Plus className="w-3.5 h-3.5" />
-                    <span>Add Installment</span>
-                  </button>
-                </div>
-
-                {(!selectedFeeDetails.installments || selectedFeeDetails.installments.length === 0) ? (
-                  <div className="text-center py-8 bg-slate-50 rounded-2xl border border-dashed border-slate-200">
-                    <Calendar className="w-8 h-8 mx-auto text-slate-300" />
-                    <p className="text-xs font-bold text-slate-600 mt-2">No installments scheduled</p>
-                    <p className="text-[11px] text-slate-400 mt-0.5">
-                      Create installments to divide this payable fee across due dates.
-                    </p>
+                  
+                  <div className="space-y-4">
+                     {selectedFeeDetails.fees.map((fee: any) => (
+                       fee.installments?.length > 0 && (
+                         <div key={fee.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                           <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 font-bold text-sm text-slate-700">
+                             {fee.category?.name} Installments
+                           </div>
+                           <div className="divide-y divide-slate-100">
+                             {fee.installments.map((inst: any, idx: number) => {
+                               const paid = inst.payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0;
+                               const pending = Math.max(Number(inst.amount) - paid, 0);
+                               
+                               return (
+                                 <div key={inst.id} className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                                   <div>
+                                     <div className="font-bold text-sm text-slate-900">Installment #{inst.installmentNumber || idx + 1} &middot; ₹{Number(inst.amount).toLocaleString('en-IN')}</div>
+                                     <div className="text-xs text-slate-500 mt-0.5">Due: {new Date(inst.dueDate).toLocaleDateString()}</div>
+                                   </div>
+                                   
+                                   <div className="flex items-center gap-4">
+                                     <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${inst.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : inst.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                                       {inst.status}
+                                     </span>
+                                     
+                                     {inst.status !== "PAID" && (
+                                       <button
+                                         onClick={() => {
+                                           setPaymentTargetInstallment(inst);
+                                           setPaymentForm({
+                                             amount: pending.toString(),
+                                             paymentMethod: "CASH",
+                                             receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
+                                             remarks: "",
+                                           });
+                                           setIsRecordPaymentModalOpen(true);
+                                         }}
+                                         className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition"
+                                       >
+                                         Pay
+                                       </button>
+                                     )}
+                                   </div>
+                                   
+                                   {inst.payments && inst.payments.length > 0 && (
+                                     <div className="w-full mt-3 bg-slate-50 rounded-xl border border-slate-200 p-3">
+                                       <div className="text-[10px] font-bold text-slate-500 uppercase mb-2">Payment Records</div>
+                                       <div className="space-y-2">
+                                          {inst.payments.map((p: any) => (
+                                            <div key={p.id} className="flex items-center justify-between text-xs">
+                                              <div className="flex items-center gap-2">
+                                                <span className="font-bold text-emerald-700">₹{Number(p.amount).toLocaleString('en-IN')}</span>
+                                                <span className="text-slate-500 font-medium bg-slate-200 px-1.5 py-0.5 rounded-md text-[9px]">{p.paymentMethod}</span>
+                                                <span className="text-slate-400">{new Date(p.paymentDate).toLocaleDateString()}</span>
+                                              </div>
+                                              <div className="flex items-center gap-2">
+                                                 <span className="text-slate-400 font-mono text-[10px]">{p.receiptNumber || p.referenceNumber}</span>
+                                                 <button 
+                                                    type="button" 
+                                                    onClick={(e) => {
+                                                        e.stopPropagation();
+                                                        handlePrintReceipt(p, selectedFeeDetails);
+                                                    }}
+                                                    className="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-300 transition"
+                                                    title="Download Receipt"
+                                                 >
+                                                   <Download className="w-3 h-3" />
+                                                 </button>
+                                              </div>
+                                            </div>
+                                          ))}
+                                       </div>
+                                     </div>
+                                   )}
+                                 </div>
+                               );
+                             })}
+                           </div>
+                         </div>
+                       )
+                     ))}
                   </div>
-                ) : (
-                  <div className="space-y-3">
-                    {selectedFeeDetails.installments.map((inst) => {
-                      const instPaid = getInstallmentPaidAmount(inst);
-                      const instRemaining = Math.max(0, Number(inst.amount) - instPaid);
-
-                      return (
-                        <div
-                          key={inst.id}
-                          className="bg-white rounded-2xl border border-slate-200 p-4 shadow-sm hover:border-blue-200 transition space-y-3"
-                        >
-                          <div className="flex items-center justify-between">
-                            <div className="flex items-center gap-3">
-                              <span className="w-7 h-7 rounded-lg bg-blue-100 text-blue-700 font-extrabold text-xs flex items-center justify-center">
-                                #{inst.installmentNumber}
-                              </span>
-                              <div>
-                                <span className="text-sm font-extrabold text-slate-900">
-                                  ₹{Number(inst.amount).toLocaleString("en-IN")}
-                                </span>
-                                <span className="text-xs text-slate-400 ml-2">
-                                  Due: {inst.dueDate ? new Date(inst.dueDate).toLocaleDateString("en-IN") : "—"} (Remaining: ₹{instRemaining.toLocaleString("en-IN")})
-                                </span>
-                              </div>
-                            </div>
-
-                            <div className="flex items-center gap-2">
-                              {getInstallmentStatusBadge(inst.status)}
-
-                              {inst.status !== "PAID" && (
-                                <button
-                                  onClick={() => handleOpenRecordPaymentModal(inst)}
-                                  className="inline-flex items-center gap-1 px-2.5 py-1 rounded-lg bg-emerald-600 hover:bg-emerald-700 text-white text-xs font-bold transition shadow-xs"
-                                >
-                                  <Receipt className="w-3.5 h-3.5" />
-                                  <span>Collect</span>
-                                </button>
-                              )}
-                            </div>
-                          </div>
-
-                          {/* Payments under this installment */}
-                          {inst.payments && inst.payments.length > 0 && (
-                            <div className="pt-2 border-t border-slate-100 space-y-1.5">
-                              <span className="text-[10px] font-bold text-slate-400 uppercase tracking-wider">
-                                Payment Records ({inst.payments.length})
-                              </span>
-                              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                                {inst.payments.map((pmt) => (
-                                  <div
-                                    key={pmt.id}
-                                    className="p-2 rounded-xl bg-slate-50 border border-slate-100 text-xs flex items-center justify-between"
-                                  >
-                                    <div>
-                                      <span className="font-extrabold text-emerald-600">
-                                        ₹{Number(pmt.amount).toLocaleString("en-IN")}
-                                      </span>
-                                      <span className="text-slate-400 ml-2 text-[11px]">
-                                        ({pmt.paymentMethod})
-                                      </span>
-                                    </div>
-                                    <span className="font-mono text-[10px] text-slate-500">
-                                      {pmt.referenceNumber}
-                                    </span>
-                                  </div>
-                                ))}
-                              </div>
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                )}
-              </div>
-            </div>
-
-            <div className="px-6 py-4 bg-slate-50 border-t border-slate-100 flex justify-end shrink-0">
-              <button
-                type="button"
-                onClick={() => {
-                  setIsDetailsModalOpen(false);
-                  setSelectedFeeDetails(null);
-                }}
-                className="px-5 py-2 rounded-xl bg-slate-800 hover:bg-slate-900 text-white text-xs font-bold transition"
-              >
-                Close
-              </button>
+               </div>
             </div>
           </div>
         </div>
       )}
-
       {/* ========================================================= */}
       {/* MODAL 4: CREATE INSTALLMENT                               */}
       {/* ========================================================= */}
