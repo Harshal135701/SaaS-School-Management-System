@@ -142,12 +142,12 @@ export const NoticesPage: React.FC<NoticesPageProps> = ({ onNavigate }) => {
       const payload: Record<string, any> = {
         title: formData.title.trim(),
         content: formData.content.trim(),
-        audience: formData.audience,
+        targetAudience: formData.audience,
         priority: formData.priority,
       };
 
       if (formData.expiresAt) {
-        payload.expiresAt = formData.expiresAt;
+        payload.expiryDate = formData.expiresAt;
       }
 
       const res = await api.post('/franchise/notices', payload);

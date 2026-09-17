@@ -2520,7 +2520,8 @@ export const FeesPage: React.FC = () => {
                            
                            <button
                               onClick={() => {
-                                 setEditingFee(fee);
+                                 setIsDetailsModalOpen(false);
+                                   setEditingFee(fee);
                                  setEditFeeForm({
                                    originalAmount: fee.originalAmount?.toString() || "",
                                    discountPercent: fee.discountPercent?.toString() || "0",
