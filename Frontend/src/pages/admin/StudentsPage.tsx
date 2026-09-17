@@ -22,6 +22,8 @@ interface Student {
   gender?: 'MALE' | 'FEMALE' | 'OTHER';
   address?: string;
   status: 'ACTIVE' | 'INACTIVE';
+  classId?: string;
+  sectionId?: string;
 }
 
 interface ClassItem {
@@ -247,8 +249,8 @@ export const StudentsPage: React.FC = () => {
       dateOfBirth: student.dateOfBirth ? formatDateToYYYYMMDD(student.dateOfBirth) : '',
       gender: student.gender || '',
       address: student.address || '',
-      classId: '',
-      sectionId: '',
+      classId: student.classId || '',
+      sectionId: student.sectionId || '',
       parentName: '',
       parentEmail: '',
       parentPhone: '',
@@ -262,6 +264,14 @@ export const StudentsPage: React.FC = () => {
     setError(null);
     setSaving(false);
     setIsModalOpen(true);
+
+    if (classes.length === 0 && !loadingClasses) {
+      fetchClasses();
+    }
+
+    if (student.classId) {
+      fetchSectionsForClass(student.classId);
+    }
   };
 
   const closeModal = () => {
@@ -351,7 +361,7 @@ export const StudentsPage: React.FC = () => {
       setError(null);
 
       if (editingStudent) {
-        const payload = {
+        const payload: Record<string, any> = {
           name: form.name.trim(),
           email: form.email.trim() || undefined,
           phone: form.phone.trim() || undefined,
@@ -359,6 +369,8 @@ export const StudentsPage: React.FC = () => {
           gender: form.gender || undefined,
           address: form.address.trim() || undefined,
           status: editingStudent.status,
+          classId: form.classId || undefined,
+          sectionId: form.sectionId || undefined,
         };
 
         await api.put(
@@ -793,83 +805,79 @@ export const StudentsPage: React.FC = () => {
                     </div>
                   )}
 
-                  {/* Class and Section Selection (Create Mode) */}
-                  {!editingStudent && (
-                    <>
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Class *
-                        </label>
+                  {/* Class and Section Selection */}
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Class {!editingStudent && '*'}
+                    </label>
 
-                        <select
-                          name="classId"
-                          value={form.classId}
-                          onChange={handleClassChange}
-                          required={!editingStudent}
-                          disabled={loadingClasses}
-                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                        >
-                          <option value="">
-                            {loadingClasses ? 'Loading classes...' : 'Select class'}
-                          </option>
-                          {classes.map((cls) => (
-                            <option key={cls.id} value={cls.id}>
-                              {cls.name}
-                            </option>
-                          ))}
-                        </select>
+                    <select
+                      name="classId"
+                      value={form.classId}
+                      onChange={handleClassChange}
+                      required={!editingStudent}
+                      disabled={loadingClasses}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {loadingClasses ? 'Loading classes...' : 'Select class'}
+                      </option>
+                      {classes.map((cls) => (
+                        <option key={cls.id} value={cls.id}>
+                          {cls.name}
+                        </option>
+                      ))}
+                    </select>
 
-                        {classesError && (
-                          <p className="text-[11px] text-rose-600 font-medium mt-1">
-                            {classesError}
-                          </p>
-                        )}
-                      </div>
+                    {classesError && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">
+                        {classesError}
+                      </p>
+                    )}
+                  </div>
 
-                      <div>
-                        <label className="block text-xs font-bold text-slate-600 mb-1">
-                          Section *
-                        </label>
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Section {!editingStudent && '*'}
+                    </label>
 
-                        <select
-                          name="sectionId"
-                          value={form.sectionId}
-                          onChange={handleChange}
-                          required={!editingStudent}
-                          disabled={
-                            !form.classId ||
-                            loadingSections ||
-                            sections.length === 0 ||
-                            !!sectionsError
-                          }
-                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
-                        >
-                          <option value="">
-                            {!form.classId
-                              ? 'Select a class first'
-                              : loadingSections
-                              ? 'Loading sections...'
-                              : sectionsError
-                              ? 'Error loading sections'
-                              : sections.length === 0
-                              ? 'No sections available'
-                              : 'Select section'}
-                          </option>
-                          {sections.map((sec) => (
-                            <option key={sec.id} value={sec.id}>
-                              {sec.name}
-                            </option>
-                          ))}
-                        </select>
+                    <select
+                      name="sectionId"
+                      value={form.sectionId}
+                      onChange={handleChange}
+                      required={!editingStudent}
+                      disabled={
+                        !form.classId ||
+                        loadingSections ||
+                        sections.length === 0 ||
+                        !!sectionsError
+                      }
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 disabled:bg-slate-100 disabled:text-slate-400 disabled:cursor-not-allowed"
+                    >
+                      <option value="">
+                        {!form.classId
+                          ? 'Select a class first'
+                          : loadingSections
+                          ? 'Loading sections...'
+                          : sectionsError
+                          ? 'Error loading sections'
+                          : sections.length === 0
+                          ? 'No sections available'
+                          : 'Select section'}
+                      </option>
+                      {sections.map((sec) => (
+                        <option key={sec.id} value={sec.id}>
+                          {sec.name}
+                        </option>
+                      ))}
+                    </select>
 
-                        {sectionsError && (
-                          <p className="text-[11px] text-rose-600 font-medium mt-1">
-                            {sectionsError}
-                          </p>
-                        )}
-                      </div>
-                    </>
-                  )}
+                    {sectionsError && (
+                      <p className="text-[11px] text-rose-600 font-medium mt-1">
+                        {sectionsError}
+                      </p>
+                    )}
+                  </div>
                 </div>
 
                 <div>
