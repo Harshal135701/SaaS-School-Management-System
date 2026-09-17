@@ -39,6 +39,10 @@ const ConversationParticipant = require("./ConversationParticipant");
 const Message = require("./Message");
 const Class = require("./Class")(sequelize);
 const Section = require("./Section")(sequelize);
+const { DataTypes } = require("sequelize");
+const ExpenseCategory = require("./ExpenseCategory")(sequelize, DataTypes);
+const Vendor = require("./Vendor")(sequelize, DataTypes);
+const SchoolExpense = require("./SchoolExpense")(sequelize, DataTypes);
 const Subject = require("./Subject")(sequelize);
 const ExamResult = require("./ExamResult");
 
@@ -736,6 +740,58 @@ Notice.belongsTo(Franchise, {
   as: "franchise",
 });
 
+// General School Expense Management
+
+Franchise.hasMany(ExpenseCategory, {
+  foreignKey: "franchiseId",
+  as: "expenseCategories",
+});
+
+ExpenseCategory.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Franchise.hasMany(Vendor, {
+  foreignKey: "franchiseId",
+  as: "vendors",
+});
+
+Vendor.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+Franchise.hasMany(SchoolExpense, {
+  foreignKey: "franchiseId",
+  as: "schoolExpenses",
+});
+
+SchoolExpense.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+  as: "franchise",
+});
+
+ExpenseCategory.hasMany(SchoolExpense, {
+  foreignKey: "categoryId",
+  as: "expenses",
+});
+
+SchoolExpense.belongsTo(ExpenseCategory, {
+  foreignKey: "categoryId",
+  as: "category",
+});
+
+Vendor.hasMany(SchoolExpense, {
+  foreignKey: "vendorId",
+  as: "expenses",
+});
+
+SchoolExpense.belongsTo(Vendor, {
+  foreignKey: "vendorId",
+  as: "vendor",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -757,7 +813,7 @@ module.exports = {
   Book,
   ConversationParticipant,
   Vehicle,
-  Notice, 
+  Notice,
   Student,
   MonthlySalary,
   Examination,
@@ -777,6 +833,9 @@ module.exports = {
   Teacher,
   Fee,
   TeacherAssignment,
+  ExpenseCategory,
+  Vendor,
+  SchoolExpense,
   Attendance,
   ParentStudent,
 };
