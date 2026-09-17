@@ -292,18 +292,19 @@ const updateStudentFee = async (req, res) => {
     }
 
     // Check already-paid amount
-    const paidResult = await Payment.sum("amount", {
-      where: { franchiseId },
-      include: [
-        {
-          model: Installment,
-          as: "installment",
-          where: { studentFeeId: studentFee.id },
-          required: true,
+    const installmentIds = installments.map((installment) => installment.id);
+
+    let paidResult = 0;
+
+    if (installmentIds.length > 0) {
+      paidResult = await Payment.sum("amount", {
+        where: {
+          installmentId: installmentIds,
+          franchiseId,
         },
-      ],
-      transaction,
-    });
+        transaction,
+      });
+    }
 
     const totalPaid = Number(paidResult || 0);
 
