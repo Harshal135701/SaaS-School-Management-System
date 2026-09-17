@@ -105,9 +105,9 @@ app.use("/api/student-fees", studentFeeRoutes);
 app.use("/api/installments", installmentRoutes);
 app.use("/api/payments", paymentRoutes);
 app.use("/api/franchise/financial-dashboard", financialDashboardRoutes);
+
+
 // TEACHERS FEE MANAGEMENT
-
-
 app.use("/api/salary-profiles", salaryProfileRoutes);
 app.use("/api/salary-advances", salaryAdvanceRoutes);
 app.use("/api/monthly-salaries", monthlySalaryRoutes);
