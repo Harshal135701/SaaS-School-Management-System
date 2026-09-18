@@ -1,41 +1,56 @@
+
 const crypto = require("crypto");
 const bcrypt = require("bcryptjs");
-const { PasswordResetOTP } = require("../models");
+
+const {
+  PasswordResetOTP,
+  SystemAdmin,
+  FranchiseAdmin,
+  Teacher,
+  Parent,
+} = require("../models");
 
 const OTP_EXPIRY_MINUTES = 5;
+const RESET_TOKEN_EXPIRY_MINUTES = 10;
 const MAX_OTP_ATTEMPTS = 5;
 
 const generateOTP = () => {
   return crypto.randomInt(100000, 1000000).toString();
 };
 
-const createOTP = async (email) => {
+const hashResetToken = (token) => {
+  return crypto
+    .createHash("sha256")
+    .update(token)
+    .digest("hex");
+};
+
+const createOTP = async (email, userType) => {
   const normalizedEmail = email.trim().toLowerCase();
 
-  // Invalidate any previous OTP
+  // Invalidate previous unused OTPs for this email + user type
   await PasswordResetOTP.update(
     { isUsed: true },
     {
       where: {
         email: normalizedEmail,
+        userType,
         isUsed: false,
       },
     }
   );
 
-  // Generate 6-digit OTP
   const otp = generateOTP();
 
-  // Hash OTP before storing
   const otpHash = await bcrypt.hash(otp, 10);
 
-  // OTP expires after 5 minutes
   const expiresAt = new Date(
     Date.now() + OTP_EXPIRY_MINUTES * 60 * 1000
   );
 
   await PasswordResetOTP.create({
     email: normalizedEmail,
+    userType,
     otpHash,
     expiresAt,
     attempts: 0,
@@ -45,12 +60,13 @@ const createOTP = async (email) => {
   return otp;
 };
 
-const verifyOTP = async (email, otp) => {
+const verifyOTP = async (email, otp, userType) => {
   const normalizedEmail = email.trim().toLowerCase();
 
   const record = await PasswordResetOTP.findOne({
     where: {
       email: normalizedEmail,
+      userType,
       isUsed: false,
     },
     order: [["createdAt", "DESC"]],
@@ -83,7 +99,10 @@ const verifyOTP = async (email, otp) => {
     };
   }
 
-  const isValid = await bcrypt.compare(otp, record.otpHash);
+  const isValid = await bcrypt.compare(
+    otp,
+    record.otpHash
+  );
 
   if (!isValid) {
     record.attempts += 1;
@@ -100,22 +119,18 @@ const verifyOTP = async (email, otp) => {
     };
   }
 
-  // Generate secure reset token
+  // Generate secure one-time reset token
   const resetToken = crypto.randomBytes(32).toString("hex");
 
-  const resetTokenHash = crypto
-    .createHash("sha256")
-    .update(resetToken)
-    .digest("hex");
+  const resetTokenHash = hashResetToken(resetToken);
 
   const resetTokenExpiresAt = new Date(
-    Date.now() + 10 * 60 * 1000
+    Date.now() +
+      RESET_TOKEN_EXPIRY_MINUTES * 60 * 1000
   );
 
   record.resetTokenHash = resetTokenHash;
   record.resetTokenExpiresAt = resetTokenExpiresAt;
-
-  // OTP cannot be used again
   record.isUsed = true;
 
   await record.save();
@@ -126,8 +141,106 @@ const verifyOTP = async (email, otp) => {
   };
 };
 
+const resetPassword = async (
+  email,
+  userType,
+  resetToken,
+  newPassword
+) => {
+  const normalizedEmail = email.trim().toLowerCase();
+
+  const resetTokenHash = hashResetToken(resetToken);
+
+  const record = await PasswordResetOTP.findOne({
+    where: {
+      email: normalizedEmail,
+      userType,
+      resetTokenHash,
+    },
+    order: [["createdAt", "DESC"]],
+  });
+
+  if (!record) {
+    return {
+      success: false,
+      message: "Invalid or expired reset token.",
+    };
+  }
+
+  if (
+    !record.resetTokenExpiresAt ||
+    new Date() > record.resetTokenExpiresAt
+  ) {
+    return {
+      success: false,
+      message: "Reset token has expired.",
+    };
+  }
+
+  let UserModel;
+
+  switch (userType) {
+    case "SYSTEM_ADMIN":
+      UserModel = SystemAdmin;
+      break;
+
+    case "FRANCHISE_ADMIN":
+      UserModel = FranchiseAdmin;
+      break;
+
+    case "TEACHER":
+      UserModel = Teacher;
+      break;
+
+    case "PARENT":
+      UserModel = Parent;
+      break;
+
+    default:
+      return {
+        success: false,
+        message: "Invalid user type.",
+      };
+  }
+
+  const user = await UserModel.findOne({
+    where: {
+      email: normalizedEmail,
+    },
+  });
+
+  if (!user) {
+    return {
+      success: false,
+      message: "Account not found.",
+    };
+  }
+
+  const hashedPassword = await bcrypt.hash(
+    newPassword,
+    10
+  );
+
+  user.password = hashedPassword;
+
+  await user.save();
+
+  // Invalidate reset token immediately after successful reset
+  record.resetTokenHash = null;
+  record.resetTokenExpiresAt = null;
+
+  await record.save();
+
+  return {
+    success: true,
+    message: "Password reset successfully.",
+  };
+};
+
 module.exports = {
   generateOTP,
   createOTP,
   verifyOTP,
+  resetPassword,
 };
+

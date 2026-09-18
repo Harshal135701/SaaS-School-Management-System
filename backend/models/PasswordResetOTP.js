@@ -15,6 +15,16 @@ const PasswordResetOTP = sequelize.define(
       allowNull: false,
     },
 
+    userType: {
+      type: DataTypes.ENUM(
+        "SYSTEM_ADMIN",
+        "FRANCHISE_ADMIN",
+        "TEACHER",
+        "PARENT"
+      ),
+      allowNull: false,
+    },
+
     otpHash: {
       type: DataTypes.STRING,
       allowNull: false,
