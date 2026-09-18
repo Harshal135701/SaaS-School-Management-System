@@ -129,10 +129,11 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
   // ────────────────────────────────────────────────────────────
   // 1. DISCOVER LINKED CHILDREN FOR LOGGED-IN PARENT
   // ────────────────────────────────────────────────────────────
-  const discoverChildren = useCallback(async (): Promise<StudentSummary[]> => {
+  const discoverChildren = useCallback(async (): Promise<{ kids: StudentSummary[]; apiError: string | null }> => {
     let discovered: StudentSummary[] = [];
+    let discoveredError: string | null = null;
 
-    // Check if user session already contains linked students
+    // Check user session objects
     if (user?.students && Array.isArray(user.students) && user.students.length > 0) {
       discovered = user.students.map((s: any) => ({
         id: s.id,
@@ -145,10 +146,7 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
         sectionName: s.section?.name || s.sectionName,
         relationship: s.relationship
       }));
-      return discovered;
-    }
-
-    if (user?.student && typeof user.student === 'object') {
+    } else if (user?.student && typeof user.student === 'object') {
       discovered = [{
         id: user.student.id,
         name: user.student.name || 'Child',
@@ -156,49 +154,100 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
         classId: user.student.classId,
         sectionId: user.student.sectionId
       }];
-      return discovered;
-    }
-
-    if (user?.studentId) {
+    } else if (user?.studentId) {
       discovered = [{
         id: user.studentId,
         name: user.studentName || 'Child'
       }];
-      return discovered;
     }
 
-    // Try parent children endpoints if provided by backend
+    // Source A: Chat conversations (/franchise/chat/my)
     try {
-      const parentStudentsRes = await api.get('/parent/students').catch(() => null);
-      if (parentStudentsRes?.data?.success && Array.isArray(parentStudentsRes.data.data) && parentStudentsRes.data.data.length > 0) {
-        return parentStudentsRes.data.data;
-      }
+      const chatRes = await api.get('/franchise/chat/my').catch((err) => {
+        if (err.response?.status === 401 || err.response?.status === 403) {
+          discoveredError = 'Session expired or invalid parent credentials. Please sign in again.';
+        } else if (err.code === 'ERR_NETWORK') {
+          discoveredError = 'Network error. Unable to reach the server.';
+        }
+        return null;
+      });
 
-      const parentChildrenRes = await api.get('/parent/children').catch(() => null);
-      if (parentChildrenRes?.data?.success && Array.isArray(parentChildrenRes.data.data) && parentChildrenRes.data.data.length > 0) {
-        return parentChildrenRes.data.data;
-      }
-
-      const chatRes = await api.get('/franchise/chat/my').catch(() => null);
-      if (chatRes?.data?.success && Array.isArray(chatRes.data.data)) {
+      if (chatRes?.data?.success && Array.isArray(chatRes.data.data) && chatRes.data.data.length > 0) {
         const studentMap = new Map<string, StudentSummary>();
         chatRes.data.data.forEach((c: any) => {
-          if (c.student?.id && c.student?.name) {
-            studentMap.set(c.student.id, {
-              id: c.student.id,
-              name: c.student.name
+          const sid = c.student?.id || c.studentId;
+          const sname = c.student?.name || 'Student';
+          if (sid && !studentMap.has(String(sid))) {
+            studentMap.set(String(sid), {
+              id: sid,
+              name: sname
             });
           }
         });
+
         if (studentMap.size > 0) {
-          return Array.from(studentMap.values());
+          const chatStudents = Array.from(studentMap.values());
+          chatStudents.forEach(cs => {
+            if (!discovered.some(d => String(d.id) === String(cs.id))) {
+              discovered.push(cs);
+            }
+          });
         }
       }
     } catch (e) {
-      console.warn('Child discovery endpoint check warning:', e);
+      console.warn('Chat discovery check error:', e);
     }
 
-    return discovered;
+    // Source B: Homework list (/franchise/homework/parent/list)
+    try {
+      const hwRes = await api.get('/franchise/homework/parent/list').catch(() => null);
+      if (hwRes?.data?.success && Array.isArray(hwRes.data.data) && hwRes.data.data.length > 0) {
+        hwRes.data.data.forEach((hw: any) => {
+          if (hw.studentId && !discovered.some(d => String(d.id) === String(hw.studentId))) {
+            discovered.push({
+              id: hw.studentId,
+              name: hw.studentName || 'Student',
+              classId: hw.classId,
+              sectionId: hw.sectionId,
+              className: hw.class?.name,
+              sectionName: hw.section?.name
+            });
+          }
+        });
+      }
+    } catch (e) {}
+
+    // Enrich discovered students with full profile data (/franchise/students/parent/:studentId)
+    if (discovered.length > 0) {
+      const enriched = await Promise.all(
+        discovered.map(async (st) => {
+          try {
+            const sRes = await api.get(`/franchise/students/parent/${st.id}`).catch(() => null);
+            if (sRes?.data?.success && sRes.data.data) {
+              const fullS = sRes.data.data;
+              return {
+                id: fullS.id,
+                name: fullS.name || st.name,
+                email: fullS.email || st.email,
+                phone: fullS.phone || st.phone,
+                dateOfBirth: fullS.dateOfBirth,
+                gender: fullS.gender,
+                address: fullS.address,
+                classId: fullS.classId || st.classId,
+                sectionId: fullS.sectionId || st.sectionId,
+                className: fullS.class?.name || st.className,
+                sectionName: fullS.section?.name || st.sectionName,
+                status: fullS.status
+              };
+            }
+          } catch (e) {}
+          return st;
+        })
+      );
+      return { kids: enriched, apiError: null };
+    }
+
+    return { kids: [], apiError: discoveredError };
   }, [user]);
 
   // ────────────────────────────────────────────────────────────
@@ -313,10 +362,18 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
     let isMounted = true;
     (async () => {
       setLoading(true);
-      const kids = await discoverChildren();
+      setError(null);
+      const { kids, apiError } = await discoverChildren();
       if (!isMounted) return;
       childrenListRef.current = kids;
       setChildrenList(kids);
+
+      if (apiError) {
+        setError(apiError);
+        setLoading(false);
+        return;
+      }
+
       if (kids.length > 0) {
         const initialId = kids[0].id;
         setSelectedChildId(initialId);
@@ -598,7 +655,7 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
             <Users className="w-8 h-8" />
           </div>
           <h2 className="mt-5 text-lg font-extrabold text-slate-900">
-            No Student Linked Yet
+            No children linked to this account.
           </h2>
           <p className="mt-2 text-sm text-slate-500 max-w-md mx-auto leading-relaxed">
             No student is currently linked to your parent account ({user?.email}). Please contact your school administration to link your student to this parent profile.
