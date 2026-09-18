@@ -16,6 +16,7 @@ import { ExaminationPage } from './pages/admin/ExaminationPage';
 import { FeesPage } from './pages/admin/FeesPage';
 import { SalaryPage } from './pages/admin/SalaryPage';
 import { WatchmenPage } from './pages/admin/WatchmenPage';
+import { ExpensesPage } from './pages/admin/ExpensesPage';
 import { AttendancePage } from './pages/admin/AttendancePage';
 import { HomeworkPage } from './pages/admin/HomeworkPage';
 import { TimetablePage } from './pages/admin/TimetablePage';
@@ -818,6 +819,8 @@ if (user?.role === 'FRANCHISE_ADMIN') {
           return <SalaryPage />;
         case '/admin/watchmen':
           return <WatchmenPage />;
+        case '/admin/expenses':
+          return <ExpensesPage />;
       case '/admin/attendance':
         return <AttendancePage />;
       case '/admin/homework':
