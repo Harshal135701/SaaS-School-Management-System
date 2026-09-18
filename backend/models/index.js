@@ -4,11 +4,13 @@ const Franchise = require("./Franchise");
 const FranchiseAdmin = require("./FranchiseAdmin");
 const SystemAdmin = require("./SystemAdmin");
 const Watchman = require("./Watchman")(sequelize);
+const SubjectRequirement = require("./SubjectRequirement");
 const WatchmanExpense = require("./WatchmanExpense")(sequelize);
 const TeacherAssignment = require("./TeacherAssignment");
 const SalaryPayment = require("./SalaryPayment");
 const RoyaltyConfiguration = require("./RoyaltyConfiguration");
 const Notice = require("./Notice");
+const SchoolPeriod = require("./SchoolPeriod");
 const MonthlyRoyalty = require("./MonthlyRoyalty");
 const SalaryAdvance = require("./SalaryAdvance");
 const Contract = require("./Contract");
@@ -792,6 +794,42 @@ SchoolExpense.belongsTo(Vendor, {
   as: "vendor",
 });
 
+Franchise.hasMany(SubjectRequirement, {
+  foreignKey: "franchiseId",
+  onDelete: "CASCADE",
+});
+
+SubjectRequirement.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+});
+
+Class.hasMany(SubjectRequirement, {
+  foreignKey: "classId",
+  onDelete: "CASCADE",
+});
+
+SubjectRequirement.belongsTo(Class, {
+  foreignKey: "classId",
+});
+
+Subject.hasMany(SubjectRequirement, {
+  foreignKey: "subjectId",
+  onDelete: "CASCADE",
+});
+
+SubjectRequirement.belongsTo(Subject, {
+  foreignKey: "subjectId",
+});
+
+Franchise.hasMany(SchoolPeriod, {
+  foreignKey: "franchiseId",
+  onDelete: "CASCADE",
+});
+
+SchoolPeriod.belongsTo(Franchise, {
+  foreignKey: "franchiseId",
+});
+
 module.exports = {
   sequelize,
   Franchise,
@@ -805,6 +843,7 @@ module.exports = {
   Payment,
   Feature,
   SalaryProfile,
+  SubjectRequirement,
   Contract,
   TransportRoute,
   Class,
@@ -812,6 +851,7 @@ module.exports = {
   Subject,
   Book,
   ConversationParticipant,
+  SchoolPeriod,
   Vehicle,
   Notice,
   Student,
