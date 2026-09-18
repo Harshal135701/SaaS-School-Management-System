@@ -55,6 +55,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const salaryAdvanceRoutes = require("./routes/salaryAdvanceRoutes");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const examResultRoutes = require("./routes/examResultRoutes");
+const parentMeRoutes = require("./routes/parentMeRoutes");
 const classRoutes = require("./routes/classRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
@@ -132,6 +133,8 @@ app.use("/api/expense-categories", expenseCategoryRoutes);
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/school-expenses", schoolExpenseRoutes);
 
+// parent 
+app.use("/api/parent", parentMeRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({

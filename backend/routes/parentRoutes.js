@@ -4,6 +4,7 @@ const router = express.Router();
 
 const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 const { allowRoles } = require("../middleware/roleMiddleware");
+const parentProtect = require("../middleware/parentAuthMiddleware");
 
 const {
   createParent,
@@ -11,6 +12,7 @@ const {
   getParents,
   updateParent,
   deleteParent,
+  getMyStudents,
 } = require("../controllers/parentController");
 
 const parentAccess = allowRoles(
@@ -28,6 +30,10 @@ router.get("/", teacherOrFranchiseProtect, parentAccess, getParents);
 router.put("/:id", teacherOrFranchiseProtect, parentAccess, updateParent);
 
 router.delete("/:id", teacherOrFranchiseProtect, parentAccess, deleteParent);
+
+
+router.get("/me/students",parentProtect,getMyStudents);
+
 
 router.post(
   "/assign-student",
