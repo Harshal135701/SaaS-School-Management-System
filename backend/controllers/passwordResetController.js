@@ -6,6 +6,13 @@ const {
   Parent,
 } = require("../models");
 
+const allowedUserTypes = [
+  "SYSTEM_ADMIN",
+  "FRANCHISE_ADMIN",
+  "TEACHER",
+  "PARENT",
+];
+
 const {
   createOTP,
   verifyOTP,
@@ -120,11 +127,19 @@ const verifyOTPController = async (req, res) => {
       userType,
     } = req.body;
 
+
     if (!email || !otp || !userType) {
       return res.status(400).json({
         success: false,
         message:
           "Email, OTP and user type are required.",
+      });
+    }
+
+    if (!allowedUserTypes.includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user type.",
       });
     }
 
@@ -177,6 +192,13 @@ const resetPasswordController = async (req, res) => {
         success: false,
         message:
           "Email, user type, reset token and new password are required.",
+      });
+    }
+
+    if (!allowedUserTypes.includes(userType)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid user type.",
       });
     }
 
