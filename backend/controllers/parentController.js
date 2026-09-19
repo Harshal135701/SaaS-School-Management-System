@@ -1,8 +1,11 @@
 const bcrypt = require("bcryptjs");
+
 const {
   Parent,
   Student,
   ParentStudent,
+  Class,
+  Section,
 } = require("../models");
 
 const createParent = async (req, res) => {
@@ -259,11 +262,73 @@ const assignStudent = async (req, res) => {
   }
 };
 
+const getMyStudents = async (req, res) => {
+  try {
+    const relations = await ParentStudent.findAll({
+      where: {
+        parentId: req.user.id,
+      },
+      include: [
+        {
+          model: Student,
+          as: "student",
+          where: {
+            franchiseId: req.user.franchiseId,
+          },
+          attributes: [
+            "id",
+            "name",
+            "email",
+            "phone",
+            "dateOfBirth",
+            "gender",
+            "address",
+            "status",
+            "classId",
+            "sectionId",
+          ],
+          include: [
+            {
+              model: Class,
+              as: "class",
+              attributes: ["id", "name", "code"],
+            },
+            {
+              model: Section,
+              as: "section",
+              attributes: ["id", "name"],
+            },
+          ],
+        },
+      ],
+      order: [["createdAt", "ASC"]],
+    });
+
+    const students = relations.map((relation) => ({
+      ...relation.student.toJSON(),
+      relationship: relation.relationship,
+      isPrimary: relation.isPrimary,
+    }));
+
+    return res.status(200).json({
+      success: true,
+      data: students,
+    });
+  } catch (error) {
+    console.error("Get my students error:", error);
+
+    return res.status(500).json({
+      success: false,
+      message: "Internal server error",
+    });
+  }
+};
+
 module.exports = {
   createParent,
   getParents,
   updateParent,
   deleteParent,
   assignStudent,
+  getMyStudents,
 };
-

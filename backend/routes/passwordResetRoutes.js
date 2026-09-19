@@ -5,10 +5,29 @@ const router = express.Router();
 const {
   forgotPassword,
   verifyOTPController,
+  resetPasswordController,
 } = require("../controllers/passwordResetController");
 
-router.post("/forgot-password", forgotPassword);
+const {
+  passwordResetLimiter,
+} = require("../middleware/rateLimiter");
 
-router.post("/verify-otp", verifyOTPController);
+router.post(
+  "/forgot-password",
+  passwordResetLimiter,
+  forgotPassword
+);
+
+router.post(
+  "/verify-otp",
+  passwordResetLimiter,
+  verifyOTPController
+);
+
+router.post(
+  "/reset-password",
+  passwordResetLimiter,
+  resetPasswordController
+);
 
 module.exports = router;

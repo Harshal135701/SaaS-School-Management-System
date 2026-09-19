@@ -18,6 +18,7 @@ app.use(express.json());
 // Here all the apis init
 const noticeRoutes = require("./routes/noticeRoutes");
 const payrollRoutes = require("./routes/payrollRoutes");
+const subjectRequirementRoutes = require("./routes/subjectRequirementRoutes");
 const schoolExpenseRoutes = require("./routes/schoolExpenseRoutes");
 const salaryProfileRoutes = require("./routes/salaryProfileRoutes");
 const teacherAssignmentRoutes = require("./routes/teacherAssignmentRoutes");
@@ -39,6 +40,7 @@ const studentRoutes = require("./routes/studentRoutes");
 const teacherRoutes = require("./routes/teacherRoutes");
 const attendanceRoutes = require("./routes/attendanceRoutes");
 const homeworkRoutes = require("./routes/homeworkRoutes");
+const schoolPeriodRoutes = require("./routes/schoolPeriodRoutes");
 const feeRoutes = require("./routes/feeRoutes");
 const examinationRoutes = require("./routes/examinationRoutes");
 const bookRoutes = require("./routes/bookRoutes");
@@ -53,6 +55,7 @@ const chatRoutes = require("./routes/chatRoutes");
 const salaryAdvanceRoutes = require("./routes/salaryAdvanceRoutes");
 const passwordResetRoutes = require("./routes/passwordResetRoutes");
 const examResultRoutes = require("./routes/examResultRoutes");
+const parentMeRoutes = require("./routes/parentMeRoutes");
 const classRoutes = require("./routes/classRoutes");
 const sectionRoutes = require("./routes/sectionRoutes");
 const subjectRoutes = require("./routes/subjectRoutes");
@@ -100,7 +103,9 @@ app.use("/api/franchise/subjects", subjectRoutes);
 app.use("/api/auth", passwordResetRoutes);
 app.use("/api/franchise/teacher-assignments", teacherAssignmentRoutes);
 app.use("/api/franchise/notices", noticeRoutes);
- 
+app.use("/api/subject-requirements", subjectRequirementRoutes);
+app.use("/api/school-periods", schoolPeriodRoutes);
+
 //STUDENT FEES MANAGEMENT
 
 app.use("/api/fee-categories", feeCategoryRoutes);
@@ -116,7 +121,7 @@ app.use("/api/salary-advances", salaryAdvanceRoutes);
 app.use("/api/monthly-salaries", monthlySalaryRoutes);
 app.use("/api/salary-payments", salaryPaymentRoutes);
 app.use("/api/payroll", payrollRoutes);
-app.use("/api/franchise/teacher-expenses",teacherExpenseDashboardRoutes);
+app.use("/api/franchise/teacher-expenses", teacherExpenseDashboardRoutes);
 
 
 // Watchman routes
@@ -128,6 +133,8 @@ app.use("/api/expense-categories", expenseCategoryRoutes);
 app.use("/api/vendors", vendorRoutes);
 app.use("/api/school-expenses", schoolExpenseRoutes);
 
+// parent 
+app.use("/api/parent", parentMeRoutes);
 // Test route
 app.get("/", (req, res) => {
   res.json({
