@@ -324,7 +324,13 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
 
   const academicStats = useMemo(() => {
     if (examResults.length === 0) {
-      return { value: 'Good', change: 'On Track', subtext: 'Academic standing good' };
+      return {
+        value: 'Not Available',
+        change: 'No Graded Results Yet',
+        subtext: 'No graded results yet',
+        isPositive: false,
+        neutral: true
+      };
     }
     const totalMarksPct = examResults.reduce((acc, curr) => {
       if (curr.percentage !== undefined) return acc + curr.percentage;
@@ -337,7 +343,9 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
     return {
       value: `${avgPct}%`,
       change: `${examResults.length} Graded`,
-      subtext: 'Average marks obtained'
+      subtext: 'Average marks obtained',
+      isPositive: true,
+      neutral: false
     };
   }, [examResults]);
 
@@ -421,8 +429,8 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
       title: 'ACADEMIC PERFORMANCE',
       value: academicStats.value,
       change: academicStats.change,
-      isPositive: true,
-      neutral: false,
+      isPositive: academicStats.isPositive,
+      neutral: academicStats.neutral,
       subtext: academicStats.subtext,
       iconName: 'BookOpen',
       color: 'purple'
