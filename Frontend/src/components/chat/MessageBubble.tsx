@@ -5,9 +5,9 @@ import { MoreVertical, Edit2, Trash2, Trash, Ban, Check, X } from 'lucide-react'
 interface MessageBubbleProps {
   message: ChatMessage;
   isMe: boolean;
-  onEdit: (id: string, text: string) => void;
-  onDeleteForMe: (id: string) => void;
-  onDeleteForEveryone: (id: string) => void;
+  onEdit: (id: string | number, text: string) => void;
+  onDeleteForMe: (id: string | number) => void;
+  onDeleteForEveryone: (id: string | number) => void;
 }
 
 export const MessageBubble: React.FC<MessageBubbleProps> = ({ 

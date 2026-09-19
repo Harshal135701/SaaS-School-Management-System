@@ -1,37 +1,39 @@
 export interface ConversationParticipant {
-  id: string;
+  id: string | number;
   participantType: 'PARENT' | 'TEACHER';
-  participantId: string;
+  participantId: string | number;
 }
 
 export interface Conversation {
-  id: string;
-  franchiseId: string;
-  parentId?: string;
-  teacherId?: string;
-  studentId?: string;
+  id: string | number;
+  franchiseId: string | number;
+  parentId?: string | number;
+  teacherId?: string | number;
+  studentId?: string | number;
+  createdAt?: string;
   updatedAt: string;
   isEdited?: boolean;
   editedAt?: string;
   isDeletedForEveryone?: boolean;
-  deletedForMeBy?: string[];
+  deletedForMeBy?: (string | number)[];
   student?: {
-    id: string;
+    id: string | number;
     name: string;
   };
-  participants: ConversationParticipant[];
+  participants?: ConversationParticipant[];
 }
 
 export interface ChatMessage {
-  id: string;
-  conversationId: string;
+  id: string | number;
+  conversationId: string | number;
   senderType: 'PARENT' | 'TEACHER';
-  senderId: string;
+  senderId: string | number;
   message: string;
   createdAt: string;
   updatedAt: string;
   isEdited?: boolean;
   editedAt?: string;
   isDeletedForEveryone?: boolean;
-  deletedForMeBy?: string[];
+  deletedForMeBy?: (string | number)[];
 }
+

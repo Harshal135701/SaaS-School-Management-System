@@ -7,9 +7,9 @@ interface ChatWindowProps {
   conversation: Conversation | null;
   messages: ChatMessage[];
   onSendMessage: (text: string) => void;
-  onEditMessage: (messageId: string, text: string) => void;
-  onDeleteForMe: (messageId: string) => void;
-  onDeleteForEveryone: (messageId: string) => void;
+  onEditMessage: (messageId: string | number, text: string) => void;
+  onDeleteForMe: (messageId: string | number) => void;
+  onDeleteForEveryone: (messageId: string | number) => void;
   isLoading: boolean;
   user: any;
   onBack: () => void;
@@ -28,6 +28,9 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
 }) => {
   const [inputText, setInputText] = useState('');
   const messagesEndRef = useRef<HTMLDivElement>(null);
+
+  const userRole = (user?.role || '').toUpperCase();
+  const userId = String(user?.id || '');
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -63,7 +66,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     );
   }
 
-  const isTeacher = user?.role === 'TEACHER';
+  const isTeacher = userRole === 'TEACHER';
   const headerTitle = conversation.student ? `Student: ${conversation.student.name}` : (isTeacher ? 'Parent' : 'Teacher');
 
   return (
@@ -81,7 +84,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
         <div>
           <h2 className="font-bold text-slate-800 leading-tight">{headerTitle}</h2>
-          <p className="text-xs text-slate-500">{isTeacher ? 'Parent' : 'Teacher'}</p>
+          <p className="text-xs text-slate-500">{isTeacher ? 'Parent Conversation' : 'Teacher Conversation'}</p>
         </div>
       </div>
 
@@ -99,7 +102,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
           </div>
         ) : (
           messages.map((msg) => {
-            const isMe = msg.senderType === user?.role && msg.senderId === user?.id;
+            const isMe = msg.senderType === userRole && String(msg.senderId) === userId;
             return (
               <MessageBubble 
                 key={msg.id} 
@@ -138,3 +141,4 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
     </div>
   );
 };
+

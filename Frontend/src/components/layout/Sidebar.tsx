@@ -4,8 +4,7 @@ import { Tooltip } from '../ui/Tooltip';
 import { Avatar } from '../ui/Avatar';
 import { currentUser } from '../../data/mockData';
 import type { Franchise } from '../../types/superAdmin';
-import { 
-  LayoutDashboard, 
+import { Shield, LayoutDashboard, 
   GraduationCap, 
   Users, 
   HeartHandshake, 
@@ -18,7 +17,9 @@ import {
   FileText, 
   ClipboardList, 
   CalendarOff, 
-  CreditCard, 
+  CreditCard,
+  Banknote, 
+  Receipt,
   Library, 
   Bus, 
   Bell, 
@@ -32,7 +33,7 @@ import {
   ChevronRight,
   User,
   ChevronUp
-} from 'lucide-react';
+ } from 'lucide-react';
 
 interface SidebarProps {
   currentPath: string;
@@ -94,6 +95,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'OPERATIONS',
       items: [
         { id: 'fees', label: 'Fees', icon: CreditCard, path: '/admin/fees' },
+          { id: 'salary', label: 'Salary', icon: Banknote, path: '/admin/salary' },
+          { id: 'watchman', label: 'Watchman', icon: Shield, path: '/admin/watchmen' },
+          { id: 'expenses', label: 'Expense', icon: Receipt, path: '/admin/expenses' },
         { id: 'library', label: 'Library', icon: Library, path: '/admin/library' },
         { id: 'transport', label: 'Transport', icon: Bus, path: '/admin/transport' },
         { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' },
@@ -193,9 +197,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   {!isCollapsed && (
                     <div className="flex items-center justify-between w-full overflow-hidden">
                       <span className="truncate">{item.label}</span>
-                      {item.badge && (
+                      {(item as any).badge && (
                         <span className="px-1.5 py-0.5 text-[9px] font-extrabold bg-indigo-100 text-indigo-700 rounded-md uppercase shrink-0">
-                          {item.badge}
+                          {(item as any).badge}
                         </span>
                       )}
                     </div>

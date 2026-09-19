@@ -207,8 +207,8 @@ export const FeesPage: React.FC = () => {
       setFeesError(null);
       
       // Also fetch classes and sections here so they are available globally
-      api.get("/classes").then(res => setClasses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
-      api.get("/sections").then(res => setSections(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
+      api.get("/franchise/classes").then(res => setClasses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
+      api.get("/franchise/sections").then(res => setSections(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
 
       const res = await api.get("/student-fees");
       const list = Array.isArray(res.data?.data)
@@ -270,8 +270,8 @@ export const FeesPage: React.FC = () => {
       
       const [res, classRes, secRes] = await Promise.all([
         api.get("/fee-categories"),
-        api.get("/classes").catch(() => ({ data: { data: [] } })),
-        api.get("/sections").catch(() => ({ data: { data: [] } }))
+        api.get("/franchise/classes").catch(() => ({ data: { data: [] } })),
+        api.get("/franchise/sections").catch(() => ({ data: { data: [] } }))
       ]);
       
       const list = Array.isArray(res.data?.data)
@@ -517,7 +517,98 @@ export const FeesPage: React.FC = () => {
     });
   }, [groupedStudentFees, search]);
 
-      const handlePrintStudentReceipt = (group: any) => {
+  const handleOpenPayForGroup = async (group: any) => {
+    let targetInst: Installment | null = null;
+    let targetFee: any = null;
+
+    if (group.fees && Array.isArray(group.fees)) {
+      // 1. Look for an existing unpaid installment
+      for (const fee of group.fees) {
+        if (fee.installments && fee.installments.length > 0) {
+          for (const inst of fee.installments) {
+            const paidAmount = inst.payments?.reduce((s: number, p: any) => s + Number(p.amount || 0), 0) || 0;
+            if (inst.status !== "PAID" && Number(inst.amount) > paidAmount) {
+              targetInst = inst;
+              break;
+            }
+          }
+        }
+        if (targetInst) break;
+      }
+
+      // 2. If no unpaid installment found, look for an assigned fee with unpaid balance
+      if (!targetInst) {
+        for (const fee of group.fees) {
+          const feePaid = fee.installments?.reduce((sum: number, inst: any) => {
+            return sum + (inst.payments?.reduce((s: number, p: any) => s + Number(p.amount || 0), 0) || 0);
+          }, 0) || 0;
+          
+          if (Number(fee.finalAmount) > feePaid) {
+            targetFee = fee;
+            break;
+          }
+        }
+      }
+    }
+
+    if (targetInst) {
+      const paidAmount = targetInst.payments?.reduce((s: number, p: any) => s + Number(p.amount || 0), 0) || 0;
+      const remaining = Math.max(0, Number(targetInst.amount) - paidAmount);
+      setPaymentTargetInstallment(targetInst);
+      setPaymentForm({
+        amount: remaining.toString(),
+        paymentMethod: "CASH",
+        receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
+        remarks: "",
+      });
+      setIsRecordPaymentModalOpen(true);
+    } else if (targetFee) {
+      try {
+        setSubmitting(true);
+        const today = new Date().toISOString().split("T")[0];
+        const instNum = (targetFee.installments?.length || 0) + 1;
+        const feePaid = targetFee.installments?.reduce((sum: number, inst: any) => {
+          return sum + (inst.payments?.reduce((s: number, p: any) => s + Number(p.amount || 0), 0) || 0);
+        }, 0) || 0;
+        const unassignedFeeAmount = Math.max(0, Number(targetFee.finalAmount) - feePaid);
+
+        const res = await api.post("/installments", {
+          studentFeeId: targetFee.id,
+          installmentNumber: instNum,
+          amount: unassignedFeeAmount,
+          dueDate: today,
+        });
+        
+        const createdInst = res.data?.data || res.data;
+        if (createdInst && createdInst.id) {
+          createdInst.studentFee = {
+            ...targetFee,
+            student: group.student,
+          };
+          setPaymentTargetInstallment(createdInst);
+          setPaymentForm({
+            amount: unassignedFeeAmount.toString(),
+            paymentMethod: "CASH",
+            receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
+            remarks: "",
+          });
+          setIsRecordPaymentModalOpen(true);
+          await Promise.all([loadStudentFees(), loadInstallments(), loadFeeSummary()]);
+        }
+      } catch (err: any) {
+        console.error("Error creating full payment installment:", err);
+        setSelectedFeeDetails(group);
+        setIsDetailsModalOpen(true);
+      } finally {
+        setSubmitting(false);
+      }
+    } else {
+      setSelectedFeeDetails(group);
+      setIsDetailsModalOpen(true);
+    }
+  };
+
+  const handlePrintStudentReceipt = (group: any) => {
     const { student, totalPayable, totalPaid, totalPending, fees } = group;
     const className = classes.find(c => c.id === student?.classId)?.name || 'Unknown';
     const sectionName = sections.find(s => s.id === student?.sectionId)?.name || 'Unknown';
@@ -1648,6 +1739,19 @@ export const FeesPage: React.FC = () => {
                             >
                               <Eye className="w-4 h-4" />
                             </button>
+                            {status !== "PAID" && (
+                              <button
+                                type="button"
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  handleOpenPayForGroup(group);
+                                }}
+                                className="p-2 rounded-xl text-purple-600 bg-purple-50 hover:bg-purple-100 transition"
+                                title="Record Payment"
+                              >
+                                <CreditCard className="w-4 h-4" />
+                              </button>
+                            )}
                             <button
                               type="button"
                               onClick={(e) => {
@@ -2520,7 +2624,8 @@ export const FeesPage: React.FC = () => {
                            
                            <button
                               onClick={() => {
-                                 setEditingFee(fee);
+                                 setIsDetailsModalOpen(false);
+                                   setEditingFee(fee);
                                  setEditFeeForm({
                                    originalAmount: fee.originalAmount?.toString() || "",
                                    discountPercent: fee.discountPercent?.toString() || "0",

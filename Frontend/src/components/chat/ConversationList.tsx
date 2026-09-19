@@ -4,7 +4,7 @@ import { MessageSquare, User } from 'lucide-react';
 
 interface ConversationListProps {
   conversations: Conversation[];
-  selectedConversationId?: string;
+  selectedConversationId?: string | number;
   onSelect: (conv: Conversation) => void;
   isLoading: boolean;
   user: any;
@@ -17,6 +17,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   isLoading,
   user 
 }) => {
+  const userRole = (user?.role || '').toUpperCase();
+
   const formatTime = (dateString: string) => {
     const d = new Date(dateString);
     if (isNaN(d.getTime())) return '';
@@ -28,9 +30,9 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   const getCounterpartInfo = (conv: Conversation) => {
-    const isTeacher = user?.role === 'TEACHER';
+    const isTeacher = userRole === 'TEACHER';
     const title = conv.student ? `Student: ${conv.student.name}` : (isTeacher ? 'Parent' : 'Teacher');
-    const subtitle = isTeacher ? 'Parent' : 'Teacher';
+    const subtitle = isTeacher ? 'Parent Conversation' : 'Teacher Conversation';
     return { title, subtitle };
   };
 
@@ -60,13 +62,13 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500">
             <MessageSquare className="w-12 h-12 mb-3 text-slate-300" />
             <p className="font-semibold text-slate-700">No conversations yet</p>
-            <p className="text-sm mt-1">Your conversations with teachers/parents will appear here.</p>
+            <p className="text-sm mt-1">Your active conversations will appear here.</p>
           </div>
         ) : (
           <div className="divide-y divide-slate-50">
             {conversations.map(conv => {
               const { title, subtitle } = getCounterpartInfo(conv);
-              const isSelected = conv.id === selectedConversationId;
+              const isSelected = String(conv.id) === String(selectedConversationId);
 
               return (
                 <button
