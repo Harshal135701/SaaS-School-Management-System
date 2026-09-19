@@ -49,8 +49,14 @@ export const TopHeader: React.FC<TopHeaderProps> = ({
 
   const handleOpenChat = () => {
     setShowMessages(false);
-    const isTeacher = window.location.pathname.startsWith('/teacher');
-    onNavigate(isTeacher ? '/teacher/chat' : '/admin/chat');
+    const path = window.location.pathname;
+    if (path.startsWith('/teacher')) {
+      onNavigate('/teacher/chat');
+    } else if (path.startsWith('/parent')) {
+      onNavigate('/parent/chat');
+    } else {
+      onNavigate('/admin/chat');
+    }
   };
 
   return (
