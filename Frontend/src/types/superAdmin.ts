@@ -79,7 +79,6 @@ export interface Contract {
   startDate: string;
   endDate: string;
   durationMonths: number;
-  monthlyRoyalty: number;
   plan: PlanType;
   renewalStatus: RenewalStatus;
   status: ContractStatus;
