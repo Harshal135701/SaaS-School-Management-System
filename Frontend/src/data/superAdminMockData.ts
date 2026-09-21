@@ -40,9 +40,6 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Paid',
     status: 'Active',
     joinedDate: '2025-08-01',
-    contractStartDate: '2025-08-01',
-    contractEndDate: '2027-07-31',
-    monthlyRoyalty: 65000
   },
   {
     id: 'fr-002',
@@ -65,9 +62,6 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Pending',
     status: 'Active',
     joinedDate: '2025-09-15',
-    contractStartDate: '2025-09-15',
-    contractEndDate: '2027-09-14',
-    monthlyRoyalty: 42000
   },
   {
     id: 'fr-003',
@@ -90,9 +84,6 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Overdue',
     status: 'Active',
     joinedDate: '2024-09-01',
-    contractStartDate: '2024-09-01',
-    contractEndDate: '2026-09-30',
-    monthlyRoyalty: 75000
   },
   {
     id: 'fr-004',
@@ -115,9 +106,7 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Paid',
     status: 'Active',
     joinedDate: '2025-11-10',
-    contractStartDate: '2025-11-10',
-    contractEndDate: '2027-11-09',
-    monthlyRoyalty: 45000
+
   },
   {
     id: 'fr-005',
@@ -140,9 +129,6 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Paid',
     status: 'Active',
     joinedDate: '2026-01-10',
-    contractStartDate: '2026-01-10',
-    contractEndDate: '2027-01-09',
-    monthlyRoyalty: 25000
   },
   {
     id: 'fr-006',
@@ -165,9 +151,7 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Pending',
     status: 'Active',
     joinedDate: '2024-10-01',
-    contractStartDate: '2024-10-01',
-    contractEndDate: '2026-09-15',
-    monthlyRoyalty: 42000
+
   },
   {
     id: 'fr-007',
@@ -190,9 +174,6 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Paid',
     status: 'Active',
     joinedDate: '2025-06-01',
-    contractStartDate: '2025-06-01',
-    contractEndDate: '2027-05-31',
-    monthlyRoyalty: 70000
   },
   {
     id: 'fr-008',
@@ -215,9 +196,6 @@ export const mockFranchises: Franchise[] = [
     royaltyStatus: 'Overdue',
     status: 'Inactive',
     joinedDate: '2024-05-01',
-    contractStartDate: '2024-05-01',
-    contractEndDate: '2026-05-01',
-    monthlyRoyalty: 25000
   }
 ];
 

@@ -200,8 +200,6 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
 
         durationMonths: 0,
 
-        monthlyRoyalty: 0,
-
         plan:
           franchise?.plan?.name ||
           'N/A',
@@ -1180,20 +1178,6 @@ export const ContractsPage: React.FC<ContractsPageProps> = ({
                 </span>
               </div>
 
-              <div className="flex justify-between items-center border-b pb-2">
-                <span className="font-bold text-slate-500">
-                  Monthly Royalty Rate:
-                </span>
-
-                <span className="font-extrabold text-emerald-600">
-                  ₹
-                  {(
-                    viewingContract.monthlyRoyalty ||
-                    0
-                  ).toLocaleString('en-IN')}
-                  /mo
-                </span>
-              </div>
 
               <div className="flex justify-between items-center border-b pb-2">
                 <span className="font-bold text-slate-500">

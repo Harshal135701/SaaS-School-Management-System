@@ -116,10 +116,6 @@ export function App() {
         status: 'Active',
 
         joinedDate: '',
-        contractStartDate: '',
-        contractEndDate: '',
-
-        monthlyRoyalty: 0,
       };
 
       setLoggedInFranchise(franchise);
@@ -286,10 +282,6 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         status: 'Active',
 
         joinedDate: '',
-        contractStartDate: '',
-        contractEndDate: '',
-
-        monthlyRoyalty: 0,
       };
       console.log('FRANCHISE CREATED FOR DASHBOARD:', franchise);
       setLoggedInFranchise(franchise);
