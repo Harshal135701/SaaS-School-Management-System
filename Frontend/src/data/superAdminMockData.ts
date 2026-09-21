@@ -341,6 +341,7 @@ export const mockRoyaltyConfigs: RoyaltyConfig[] = [
     lateFeePercentage: 2.5,
     status: 'Active'
   },
+
   {
     id: 'cfg-02',
     plan: 'Pro',
@@ -351,6 +352,7 @@ export const mockRoyaltyConfigs: RoyaltyConfig[] = [
     lateFeePercentage: 2.0,
     status: 'Active'
   },
+
   {
     id: 'cfg-03',
     plan: 'Enterprise',
@@ -374,7 +376,6 @@ export const mockContracts: Contract[] = [
     startDate: '2025-08-01',
     endDate: '2027-07-31',
     durationMonths: 24,
-    monthlyRoyalty: 65000,
     plan: 'Enterprise',
     renewalStatus: 'Auto Renewal',
     status: 'Active',
@@ -390,7 +391,6 @@ export const mockContracts: Contract[] = [
     startDate: '2025-09-15',
     endDate: '2027-09-14',
     durationMonths: 24,
-    monthlyRoyalty: 42000,
     plan: 'Pro',
     renewalStatus: 'Pending Renewal',
     status: 'Active',
@@ -406,7 +406,6 @@ export const mockContracts: Contract[] = [
     startDate: '2024-09-01',
     endDate: '2026-09-30',
     durationMonths: 24,
-    monthlyRoyalty: 75000,
     plan: 'Enterprise',
     renewalStatus: 'Pending Renewal',
     status: 'Expiring Soon',
@@ -422,7 +421,6 @@ export const mockContracts: Contract[] = [
     startDate: '2025-11-10',
     endDate: '2027-11-09',
     durationMonths: 24,
-    monthlyRoyalty: 45000,
     plan: 'Pro',
     renewalStatus: 'Auto Renewal',
     status: 'Active',
@@ -437,8 +435,7 @@ export const mockContracts: Contract[] = [
     agreementTitle: 'Basic Tier SaaS Provision Contract',
     startDate: '2026-01-10',
     endDate: '2027-01-09',
-    durationMonths: 12,
-    monthlyRoyalty: 25000,
+    durationMonths: 12,  
     plan: 'Basic',
     renewalStatus: 'Manual Renewal',
     status: 'Active',
@@ -454,7 +451,7 @@ export const mockContracts: Contract[] = [
     startDate: '2024-10-01',
     endDate: '2026-09-15',
     durationMonths: 24,
-    monthlyRoyalty: 42000,
+
     plan: 'Pro',
     renewalStatus: 'Pending Renewal',
     status: 'Expiring Soon',
@@ -470,7 +467,6 @@ export const mockContracts: Contract[] = [
     startDate: '2024-05-01',
     endDate: '2026-05-01',
     durationMonths: 24,
-    monthlyRoyalty: 25000,
     plan: 'Basic',
     renewalStatus: 'Pending Renewal',
     status: 'Expired',
