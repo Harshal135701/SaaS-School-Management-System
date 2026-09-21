@@ -3,7 +3,7 @@ import { Modal } from '../ui/Modal';
 import { Input } from '../ui/Input';
 import { Button } from '../ui/Button';
 import type { Franchise, PlanType } from '../../types/superAdmin';
-import { Building2, User, Mail, Phone, MapPin, Calendar, CreditCard, ShieldCheck } from 'lucide-react';
+import { Building2, User, Mail, Phone, MapPin, CreditCard, ShieldCheck } from 'lucide-react';
 
 interface AddFranchiseModalProps {
   isOpen: boolean;
@@ -33,9 +33,6 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
 
   // Plan & Financials
   const [plan, setPlan] = useState<PlanType>('Pro');
-  const [startDate, setStartDate] = useState('2026-08-17');
-  const [endDate, setEndDate] = useState('2028-08-16');
-  const [monthlyRoyalty, setMonthlyRoyalty] = useState('45000');
 
   const [isLoading, setIsLoading] = useState(false);
 
@@ -67,9 +64,6 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
         royaltyStatus: 'Paid',
         status: 'Active',
         joinedDate: new Date().toISOString().split('T')[0],
-        contractStartDate: startDate,
-        contractEndDate: endDate,
-        monthlyRoyalty: parseInt(monthlyRoyalty) || 45000
       };
 
       setIsLoading(false);
@@ -212,11 +206,11 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
           <div className="flex items-center gap-2 border-b border-slate-200 pb-2">
             <CreditCard className="w-4 h-4 text-emerald-600" />
             <h4 className="text-xs font-extrabold uppercase tracking-wider text-slate-800">
-              3. Subscription Plan & Contract Setup
+              3. Subscription Plan
             </h4>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
             <div>
               <label className="block text-xs font-bold uppercase tracking-wider text-slate-600 mb-1">
                 SaaS Subscription Plan
@@ -226,9 +220,6 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
                 onChange={(e) => {
                   const p = e.target.value as PlanType;
                   setPlan(p);
-                  if (p === 'Basic') setMonthlyRoyalty('25000');
-                  if (p === 'Pro') setMonthlyRoyalty('45000');
-                  if (p === 'Enterprise') setMonthlyRoyalty('75000');
                 }}
                 className="w-full bg-white border border-slate-200 rounded-xl p-2.5 text-xs font-bold text-slate-800 outline-none focus:border-blue-500"
               >
@@ -237,22 +228,6 @@ export const AddFranchiseModal: React.FC<AddFranchiseModalProps> = ({
                 <option value="Enterprise">Enterprise Plan (₹75,000/mo)</option>
               </select>
             </div>
-
-            <Input
-              label="Contract Start Date"
-              type="date"
-              value={startDate}
-              onChange={(e) => setStartDate(e.target.value)}
-              leftIcon={<Calendar className="w-4 h-4" />}
-            />
-
-            <Input
-              label="Contract End Date"
-              type="date"
-              value={endDate}
-              onChange={(e) => setEndDate(e.target.value)}
-              leftIcon={<Calendar className="w-4 h-4" />}
-            />
           </div>
         </div>
 

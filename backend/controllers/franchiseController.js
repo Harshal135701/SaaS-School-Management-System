@@ -190,6 +190,7 @@ const getFranchises = async (req, res) => {
   }
 };
 
+
 const getFranchiseById = async (req, res) => {
   try {
     const { id } = req.params;
@@ -264,9 +265,31 @@ const getFranchiseById = async (req, res) => {
       });
     }
 
+    // Count active students for this franchise
+    const studentCount = await Student.count({
+      where: {
+        franchiseId: id,
+        status: "ACTIVE",
+      },
+    });
+
+    // Count active teachers/staff for this franchise
+    const teacherCount = await Teacher.count({
+      where: {
+        franchiseId: id,
+        status: "ACTIVE",
+      },
+    });
+
+    // Add counts to the response
+    const franchiseData = franchise.toJSON();
+
+    franchiseData.studentCount = studentCount;
+    franchiseData.teacherCount = teacherCount;
+
     return res.status(200).json({
       success: true,
-      data: franchise,
+      data: franchiseData,
     });
   } catch (error) {
     console.error("Get Franchise By ID Error:", error);
@@ -277,6 +300,8 @@ const getFranchiseById = async (req, res) => {
     });
   }
 };
+
+
 
 const updateFranchiseStatus = async (req, res) => {
   try {
