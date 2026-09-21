@@ -1,6 +1,6 @@
 import React from 'react';
 import type { Conversation } from '../../types/chat';
-import { MessageSquare, User } from 'lucide-react';
+import { MessageSquare, User, Plus } from 'lucide-react';
 
 interface ConversationListProps {
   conversations: Conversation[];
@@ -8,6 +8,7 @@ interface ConversationListProps {
   onSelect: (conv: Conversation) => void;
   isLoading: boolean;
   user: any;
+  onOpenNewChat?: () => void;
 }
 
 export const ConversationList: React.FC<ConversationListProps> = ({ 
@@ -15,7 +16,8 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   selectedConversationId, 
   onSelect, 
   isLoading,
-  user 
+  user,
+  onOpenNewChat
 }) => {
   const userRole = (user?.role || '').toUpperCase();
 
@@ -30,9 +32,28 @@ export const ConversationList: React.FC<ConversationListProps> = ({
   };
 
   const getCounterpartInfo = (conv: Conversation) => {
-    const isTeacher = userRole === 'TEACHER';
-    const title = conv.student ? `Student: ${conv.student.name}` : (isTeacher ? 'Parent' : 'Teacher');
-    const subtitle = isTeacher ? 'Parent Conversation' : 'Teacher Conversation';
+    if (userRole === 'PARENT') {
+      const title = conv.teacher?.name
+        ? conv.teacher.name
+        : (conv.student?.name ? `Teacher for ${conv.student.name}` : 'Teacher Conversation');
+      const subtitle = conv.student?.name
+        ? `Student: ${conv.student.name}${conv.teacher?.subject ? ' • ' + conv.teacher.subject : ''}`
+        : 'Teacher Conversation';
+      return { title, subtitle };
+    }
+
+    if (userRole === 'TEACHER') {
+      const title = conv.parent?.name
+        ? conv.parent.name
+        : (conv.student?.name ? `Parent of ${conv.student.name}` : 'Parent Conversation');
+      const subtitle = conv.student?.name
+        ? `Student: ${conv.student.name}`
+        : 'Parent Conversation';
+      return { title, subtitle };
+    }
+
+    const title = conv.student ? `Student: ${conv.student.name}` : 'Conversation';
+    const subtitle = 'Staff Conversation';
     return { title, subtitle };
   };
 
@@ -43,6 +64,16 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <MessageSquare className="w-5 h-5 text-blue-600" />
           Messages
         </h2>
+
+        {userRole === 'PARENT' && onOpenNewChat && (
+          <button
+            onClick={onOpenNewChat}
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-sm shadow-blue-600/20 transition-all active:scale-95 cursor-pointer"
+          >
+            <Plus className="w-4 h-4" />
+            <span>New Chat</span>
+          </button>
+        )}
       </div>
 
       <div className="flex-1 overflow-y-auto custom-scrollbar">
@@ -62,7 +93,19 @@ export const ConversationList: React.FC<ConversationListProps> = ({
           <div className="flex flex-col items-center justify-center h-full text-center p-6 text-slate-500">
             <MessageSquare className="w-12 h-12 mb-3 text-slate-300" />
             <p className="font-semibold text-slate-700">No conversations yet</p>
-            <p className="text-sm mt-1">Your active conversations will appear here.</p>
+            <p className="text-sm mt-1">
+              {userRole === 'PARENT'
+                ? 'Click "New Chat" to select a child and start a conversation with their teacher.'
+                : 'Your active conversations will appear here.'}
+            </p>
+            {userRole === 'PARENT' && onOpenNewChat && (
+              <button
+                onClick={onOpenNewChat}
+                className="mt-4 px-4 py-2 rounded-xl bg-blue-600 text-white text-xs font-bold hover:bg-blue-700 shadow-md shadow-blue-600/20 transition-all"
+              >
+                Start New Chat
+              </button>
+            )}
           </div>
         ) : (
           <div className="divide-y divide-slate-50">

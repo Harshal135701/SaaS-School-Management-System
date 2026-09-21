@@ -36,6 +36,7 @@ interface StudentSummary {
   className?: string;
   sectionName?: string;
   relationship?: string;
+  isPrimary?: boolean;
 }
 
 interface AttendanceRecord {
@@ -130,125 +131,42 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
   // 1. DISCOVER LINKED CHILDREN FOR LOGGED-IN PARENT
   // ────────────────────────────────────────────────────────────
   const discoverChildren = useCallback(async (): Promise<{ kids: StudentSummary[]; apiError: string | null }> => {
-    let discovered: StudentSummary[] = [];
-    let discoveredError: string | null = null;
+    try {
+      const res = await api.get('/parent/me/students');
+      const rawData = res?.data?.data !== undefined ? res.data.data : res?.data;
+      const list = Array.isArray(rawData) ? rawData : [];
 
-    // Check user session objects
-    if (user?.students && Array.isArray(user.students) && user.students.length > 0) {
-      discovered = user.students.map((s: any) => ({
-        id: s.id,
-        name: s.name,
-        email: s.email,
-        phone: s.phone,
-        classId: s.classId,
-        sectionId: s.sectionId,
-        className: s.class?.name || s.className,
-        sectionName: s.section?.name || s.sectionName,
-        relationship: s.relationship
+      const kids: StudentSummary[] = list.map((item: any) => ({
+        id: String(item.id),
+        name: item.name || 'Student',
+        email: item.email || undefined,
+        phone: item.phone || undefined,
+        dateOfBirth: item.dateOfBirth || undefined,
+        gender: item.gender || undefined,
+        address: item.address || undefined,
+        status: item.status || undefined,
+        classId: item.classId || undefined,
+        sectionId: item.sectionId || undefined,
+        className: item.class?.name || item.className || undefined,
+        sectionName: item.section?.name || item.sectionName || undefined,
+        relationship: item.relationship || undefined,
+        isPrimary: typeof item.isPrimary === 'boolean' ? item.isPrimary : undefined
       }));
-    } else if (user?.student && typeof user.student === 'object') {
-      discovered = [{
-        id: user.student.id,
-        name: user.student.name || 'Child',
-        email: user.student.email,
-        classId: user.student.classId,
-        sectionId: user.student.sectionId
-      }];
-    } else if (user?.studentId) {
-      discovered = [{
-        id: user.studentId,
-        name: user.studentName || 'Child'
-      }];
-    }
 
-    // Source A: Chat conversations (/franchise/chat/my)
-    try {
-      const chatRes = await api.get('/franchise/chat/my').catch((err) => {
-        if (err.response?.status === 401 || err.response?.status === 403) {
-          discoveredError = 'Session expired or invalid parent credentials. Please sign in again.';
-        } else if (err.code === 'ERR_NETWORK') {
-          discoveredError = 'Network error. Unable to reach the server.';
-        }
-        return null;
-      });
-
-      if (chatRes?.data?.success && Array.isArray(chatRes.data.data) && chatRes.data.data.length > 0) {
-        const studentMap = new Map<string, StudentSummary>();
-        chatRes.data.data.forEach((c: any) => {
-          const sid = c.student?.id || c.studentId;
-          const sname = c.student?.name || 'Student';
-          if (sid && !studentMap.has(String(sid))) {
-            studentMap.set(String(sid), {
-              id: sid,
-              name: sname
-            });
-          }
-        });
-
-        if (studentMap.size > 0) {
-          const chatStudents = Array.from(studentMap.values());
-          chatStudents.forEach(cs => {
-            if (!discovered.some(d => String(d.id) === String(cs.id))) {
-              discovered.push(cs);
-            }
-          });
-        }
+      return { kids, apiError: null };
+    } catch (err: any) {
+      console.error('Error discovering parent students:', err);
+      let apiError: string | null = null;
+      if (err.response?.status === 401 || err.response?.status === 403) {
+        apiError = 'Session expired or invalid parent credentials. Please sign in again.';
+      } else if (err.code === 'ERR_NETWORK') {
+        apiError = 'Network error. Unable to reach the server.';
+      } else {
+        apiError = err.response?.data?.message || 'Failed to load linked students.';
       }
-    } catch (e) {
-      console.warn('Chat discovery check error:', e);
+      return { kids: [], apiError };
     }
-
-    // Source B: Homework list (/franchise/homework/parent/list)
-    try {
-      const hwRes = await api.get('/franchise/homework/parent/list').catch(() => null);
-      if (hwRes?.data?.success && Array.isArray(hwRes.data.data) && hwRes.data.data.length > 0) {
-        hwRes.data.data.forEach((hw: any) => {
-          if (hw.studentId && !discovered.some(d => String(d.id) === String(hw.studentId))) {
-            discovered.push({
-              id: hw.studentId,
-              name: hw.studentName || 'Student',
-              classId: hw.classId,
-              sectionId: hw.sectionId,
-              className: hw.class?.name,
-              sectionName: hw.section?.name
-            });
-          }
-        });
-      }
-    } catch (e) {}
-
-    // Enrich discovered students with full profile data (/franchise/students/parent/:studentId)
-    if (discovered.length > 0) {
-      const enriched = await Promise.all(
-        discovered.map(async (st) => {
-          try {
-            const sRes = await api.get(`/franchise/students/parent/${st.id}`).catch(() => null);
-            if (sRes?.data?.success && sRes.data.data) {
-              const fullS = sRes.data.data;
-              return {
-                id: fullS.id,
-                name: fullS.name || st.name,
-                email: fullS.email || st.email,
-                phone: fullS.phone || st.phone,
-                dateOfBirth: fullS.dateOfBirth,
-                gender: fullS.gender,
-                address: fullS.address,
-                classId: fullS.classId || st.classId,
-                sectionId: fullS.sectionId || st.sectionId,
-                className: fullS.class?.name || st.className,
-                sectionName: fullS.section?.name || st.sectionName,
-                status: fullS.status
-              };
-            }
-          } catch (e) {}
-          return st;
-        })
-      );
-      return { kids: enriched, apiError: null };
-    }
-
-    return { kids: [], apiError: discoveredError };
-  }, [user]);
+  }, []);
 
   // ────────────────────────────────────────────────────────────
   // 2. FETCH REAL CHILD DATA
@@ -406,7 +324,13 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
 
   const academicStats = useMemo(() => {
     if (examResults.length === 0) {
-      return { value: 'Good', change: 'On Track', subtext: 'Academic standing good' };
+      return {
+        value: 'Not Available',
+        change: 'No Graded Results Yet',
+        subtext: 'No graded results yet',
+        isPositive: false,
+        neutral: true
+      };
     }
     const totalMarksPct = examResults.reduce((acc, curr) => {
       if (curr.percentage !== undefined) return acc + curr.percentage;
@@ -419,7 +343,9 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
     return {
       value: `${avgPct}%`,
       change: `${examResults.length} Graded`,
-      subtext: 'Average marks obtained'
+      subtext: 'Average marks obtained',
+      isPositive: true,
+      neutral: false
     };
   }, [examResults]);
 
@@ -503,8 +429,8 @@ export const ParentDashboardPage: React.FC<ParentDashboardPageProps> = ({ user }
       title: 'ACADEMIC PERFORMANCE',
       value: academicStats.value,
       change: academicStats.change,
-      isPositive: true,
-      neutral: false,
+      isPositive: academicStats.isPositive,
+      neutral: academicStats.neutral,
       subtext: academicStats.subtext,
       iconName: 'BookOpen',
       color: 'purple'

@@ -67,7 +67,26 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
   }
 
   const isTeacher = userRole === 'TEACHER';
-  const headerTitle = conversation.student ? `Student: ${conversation.student.name}` : (isTeacher ? 'Parent' : 'Teacher');
+  let headerTitle = isTeacher ? 'Parent Conversation' : 'Teacher Conversation';
+  let headerSubtitle = conversation.student ? `Student: ${conversation.student.name}` : '';
+
+  if (userRole === 'PARENT') {
+    if (conversation.teacher?.name) {
+      headerTitle = conversation.teacher.name;
+      headerSubtitle = `Student: ${conversation.student?.name || 'Child'}${conversation.teacher.subject ? ' • ' + conversation.teacher.subject : ''}`;
+    } else if (conversation.student?.name) {
+      headerTitle = `Teacher for ${conversation.student.name}`;
+      headerSubtitle = `Student: ${conversation.student.name}`;
+    }
+  } else if (userRole === 'TEACHER') {
+    if (conversation.parent?.name) {
+      headerTitle = conversation.parent.name;
+      headerSubtitle = `Parent of ${conversation.student?.name || 'Student'}`;
+    } else if (conversation.student?.name) {
+      headerTitle = `Parent of ${conversation.student.name}`;
+      headerSubtitle = `Student: ${conversation.student.name}`;
+    }
+  }
 
   return (
     <div className="flex flex-col h-full">
@@ -84,7 +103,7 @@ export const ChatWindow: React.FC<ChatWindowProps> = ({
         </div>
         <div>
           <h2 className="font-bold text-slate-800 leading-tight">{headerTitle}</h2>
-          <p className="text-xs text-slate-500">{isTeacher ? 'Parent Conversation' : 'Teacher Conversation'}</p>
+          {headerSubtitle && <p className="text-xs text-slate-500">{headerSubtitle}</p>}
         </div>
       </div>
 

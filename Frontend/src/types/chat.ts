@@ -20,6 +20,17 @@ export interface Conversation {
     id: string | number;
     name: string;
   };
+  teacher?: {
+    id: string | number;
+    name: string;
+    subject?: string;
+    email?: string;
+  };
+  parent?: {
+    id: string | number;
+    name: string;
+    email?: string;
+  };
   participants?: ConversationParticipant[];
 }
 
