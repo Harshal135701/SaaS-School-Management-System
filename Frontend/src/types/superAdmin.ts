@@ -25,9 +25,6 @@ export interface Franchise {
   royaltyStatus: RoyaltyStatus;
   status: FranchiseStatus;
   joinedDate: string;
-  contractStartDate: string;
-  contractEndDate: string;
-  monthlyRoyalty: number;
 }
 
 export interface FranchiseAdminUser {
