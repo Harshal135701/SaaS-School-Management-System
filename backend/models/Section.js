@@ -1,45 +1,46 @@
 const { DataTypes } = require("sequelize");
 
 module.exports = (sequelize) => {
-  const Section = sequelize.define(
-    "Section",
-    {
-      id: {
-        type: DataTypes.UUID,
-        defaultValue: DataTypes.UUIDV4,
-        primaryKey: true,
-      },
+const Section = sequelize.define(
+"Section",
+{
+id: {
+type: DataTypes.UUID,
+defaultValue: DataTypes.UUIDV4,
+primaryKey: true,
+},
+  franchiseId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+  },
 
-      franchiseId: {
-        type: DataTypes.UUID,
-        allowNull: false,
-      },
+  classId: {
+    type: DataTypes.UUID,
+    allowNull: false,
+  },
 
-      classId: {
-        type: DataTypes.UUID,
-        allowNull: false,
-      },
+  name: {
+    type: DataTypes.STRING,
+    allowNull: false,
+  },
 
-      name: {
-        type: DataTypes.STRING,
-        allowNull: false,
-      },
+  capacity: {
+    type: DataTypes.INTEGER,
+    allowNull: true,
+  },
 
-      capacity: {
-        type: DataTypes.INTEGER,
-        allowNull: true,
-      },
+  isActive: {
+    type: DataTypes.BOOLEAN,
+    allowNull: false,
+    defaultValue: true,
+  },
+},
+{
+  tableName: "sections",
+  timestamps: true,
+}
 
-      isActive: {
-        type: DataTypes.BOOLEAN,
-        defaultValue: true,
-      },
-    },
-    {
-      tableName: "sections",
-      timestamps: true,
-    }
-  );
+);
 
-  return Section;
+return Section;
 };

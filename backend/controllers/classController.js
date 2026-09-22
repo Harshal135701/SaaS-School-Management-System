@@ -1,35 +1,73 @@
-const { Class } = require("../models");
+const { Class, Section, Student, SubjectRequirement } = require("../models");
 
 const createClass = async (req, res) => {
   try {
-    const { name, code, numericValue, description } = req.body;
+    const {
+      name,
+      code,
+      numericValue,
+      description,
+    } = req.body;
+
 
     if (!name || !code) {
       return res.status(400).json({
         success: false,
-        message: "Class name and code is required",
+        message: "Class name and code are required",
+      });
+    }
+
+    const existingClass = await Class.findOne({
+      where: {
+        franchiseId: req.user.franchiseId,
+        code: code.trim(),
+      },
+    });
+
+    if (existingClass) {
+      return res.status(409).json({
+        success: false,
+        message: "A class with this code already exists",
+      });
+    }
+
+    if (
+      numericValue !== undefined &&
+      numericValue !== null &&
+      (!Number.isInteger(Number(numericValue)) || Number(numericValue) <= 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Numeric value must be a positive integer",
       });
     }
 
     const newClass = await Class.create({
       franchiseId: req.user.franchiseId,
-      name,
-      code,
-      numericValue,
-      description,
+      name: name.trim(),
+      code: code.trim(),
+      numericValue:
+        numericValue !== undefined && numericValue !== null
+          ? Number(numericValue)
+          : null,
+      description: description?.trim() || null,
+      isActive: true,
     });
 
-    res.status(201).json({
+    return res.status(201).json({
       success: true,
       message: "Class created successfully",
       data: newClass,
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Create Class Error:", error);
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
   }
 };
 
@@ -39,19 +77,37 @@ const getClasses = async (req, res) => {
       where: {
         franchiseId: req.user.franchiseId,
       },
-      order: [["numericValue", "ASC"], ["name", "ASC"]],
+      include: [
+        {
+          model: Section,
+          as: "sections",
+          attributes: [
+            "id",
+            "name",
+            "capacity",
+            "isActive",
+            "classId",
+          ],
+          required: false,
+        },
+      ],
+      order: [
+        ["numericValue", "ASC"],
+        ["name", "ASC"],
+      ],
     });
-
-    res.json({
+    return res.json({
       success: true,
       data: classes,
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Get Classes Error:", error);
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
   }
 };
 
@@ -62,8 +118,21 @@ const getClassById = async (req, res) => {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
+      include: [
+        {
+          model: Section,
+          as: "sections",
+          attributes: [
+            "id",
+            "name",
+            "capacity",
+            "isActive",
+            "classId",
+          ],
+          required: false,
+        },
+      ],
     });
-
     if (!classData) {
       return res.status(404).json({
         success: false,
@@ -71,13 +140,14 @@ const getClassById = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data: classData,
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Get Class Error:", error);
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
@@ -92,7 +162,6 @@ const updateClass = async (req, res) => {
         franchiseId: req.user.franchiseId,
       },
     });
-
     if (!classData) {
       return res.status(404).json({
         success: false,
@@ -100,26 +169,91 @@ const updateClass = async (req, res) => {
       });
     }
 
-    const { name, numericValue, description, isActive } = req.body;
-
-    await classData.update({
+    const {
       name,
+      code,
       numericValue,
       description,
       isActive,
+    } = req.body;
+
+    if (code !== undefined) {
+      const normalizedCode = code.trim();
+
+      if (!normalizedCode) {
+        return res.status(400).json({
+          success: false,
+          message: "Class code cannot be empty",
+        });
+      }
+
+      const duplicateClass = await Class.findOne({
+        where: {
+          franchiseId: req.user.franchiseId,
+          code: normalizedCode,
+        },
+      });
+
+      if (
+        duplicateClass &&
+        duplicateClass.id !== classData.id
+      ) {
+        return res.status(409).json({
+          success: false,
+          message: "A class with this code already exists",
+        });
+      }
+    }
+
+    if (
+      numericValue !== undefined &&
+      numericValue !== null &&
+      (!Number.isInteger(Number(numericValue)) || Number(numericValue) <= 0)
+    ) {
+      return res.status(400).json({
+        success: false,
+        message: "Numeric value must be a positive integer",
+      });
+    }
+
+    await classData.update({
+      ...(name !== undefined && {
+        name: name.trim(),
+      }),
+
+      ...(code !== undefined && {
+        code: code.trim(),
+      }),
+
+      ...(numericValue !== undefined && {
+        numericValue:
+          numericValue === null || numericValue === ""
+            ? null
+            : Number(numericValue),
+      }),
+
+      ...(description !== undefined && {
+        description: description?.trim() || null,
+      }),
+
+      ...(isActive !== undefined && {
+        isActive: Boolean(isActive),
+      }),
     });
 
-    res.json({
+    return res.json({
       success: true,
       message: "Class updated successfully",
       data: classData,
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Update Class Error:", error);
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
   }
 };
 
@@ -131,7 +265,6 @@ const deleteClass = async (req, res) => {
         franchiseId: req.user.franchiseId,
       },
     });
-
     if (!classData) {
       return res.status(404).json({
         success: false,
@@ -139,18 +272,59 @@ const deleteClass = async (req, res) => {
       });
     }
 
+    const [studentCount, sectionCount, subjectRequirementCount] =
+      await Promise.all([
+        Student.count({
+          where: {
+            classId: classData.id,
+          },
+        }),
+
+        Section.count({
+          where: {
+            classId: classData.id,
+          },
+        }),
+
+        SubjectRequirement.count({
+          where: {
+            classId: classData.id,
+          },
+        }),
+      ]);
+
+    if (
+      studentCount > 0 ||
+      sectionCount > 0 ||
+      subjectRequirementCount > 0
+    ) {
+      return res.status(409).json({
+        success: false,
+        message:
+          "This class cannot be deleted because it is already being used. Deactivate the class instead.",
+        data: {
+          studentCount,
+          sectionCount,
+          subjectRequirementCount,
+        },
+      });
+    }
+
     await classData.destroy();
 
-    res.json({
+    return res.json({
       success: true,
       message: "Class deleted successfully",
     });
+
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Delete Class Error:", error);
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
+
   }
 };
 

@@ -13,6 +13,7 @@ import {
 } from 'lucide-react';
 import api from '../../services/api';
 
+
 interface Student {
   id: string;
   name: string;
@@ -24,7 +25,23 @@ interface Student {
   status: 'ACTIVE' | 'INACTIVE';
   classId?: string;
   sectionId?: string;
+  class?: {
+    id: string;
+    name: string;
+    code?: string;
+    numericValue?: number | null;
+    isActive?: boolean;
+  };
+  section?: {
+    id: string;
+    name: string;
+    capacity?: number | null;
+    isActive?: boolean;
+    classId?: string;
+  };
 }
+
+
 
 interface ClassItem {
   id: string;
@@ -104,6 +121,13 @@ export const StudentsPage: React.FC = () => {
 
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [editingStudent, setEditingStudent] = useState<Student | null>(null);
+  ////////////////////////////////////////////////////////
+
+  const [viewingStudent, setViewingStudent] = useState<Student | null>(null);
+  const [isViewModalOpen, setIsViewModalOpen] = useState(false);
+  const [loadingStudentDetails, setLoadingStudentDetails] = useState(false);
+
+  ////////////////////////////////////////////////////////
 
   const [form, setForm] = useState(emptyForm);
   const [saving, setSaving] = useState(false);
@@ -217,6 +241,34 @@ export const StudentsPage: React.FC = () => {
       setLoading(false);
     }
   };
+
+
+  const handleViewStudent = async (studentId: string) => {
+    try {
+      setLoadingStudentDetails(true);
+      setError(null);
+
+      const res = await api.get(`/franchise/students/${studentId}`);
+
+      if (res.data?.success) {
+        setViewingStudent(res.data.data);
+        setIsViewModalOpen(true);
+      } else {
+        setError('Failed to fetch student details.');
+      }
+    } catch (err: any) {
+      console.error('Error fetching student details:', err);
+
+      setError(
+        err.response?.data?.message || 'Failed to load student details.'
+      );
+    } finally {
+      setLoadingStudentDetails(false);
+    }
+  };
+
+
+
 
   useEffect(() => {
     const timer = setTimeout(() => {
@@ -498,7 +550,7 @@ export const StudentsPage: React.FC = () => {
 
       setError(
         err.response?.data?.message ||
-          'Failed to delete student.'
+        'Failed to delete student.'
       );
     }
   };
@@ -623,12 +675,16 @@ export const StudentsPage: React.FC = () => {
                     </td>
 
                     <td className="p-3 text-right space-x-1">
+
                       <button
+                        onClick={() => handleViewStudent(student.id)}
                         className="p-1 text-slate-400 hover:text-blue-600 rounded"
                         title="View"
                       >
                         <Eye className="w-4 h-4" />
                       </button>
+
+
 
                       <button
                         onClick={() =>
@@ -858,12 +914,12 @@ export const StudentsPage: React.FC = () => {
                         {!form.classId
                           ? 'Select a class first'
                           : loadingSections
-                          ? 'Loading sections...'
-                          : sectionsError
-                          ? 'Error loading sections'
-                          : sections.length === 0
-                          ? 'No sections available'
-                          : 'Select section'}
+                            ? 'Loading sections...'
+                            : sectionsError
+                              ? 'Error loading sections'
+                              : sections.length === 0
+                                ? 'No sections available'
+                                : 'Select section'}
                       </option>
                       {sections.map((sec) => (
                         <option key={sec.id} value={sec.id}>
@@ -1024,14 +1080,188 @@ export const StudentsPage: React.FC = () => {
                   {saving
                     ? 'Saving...'
                     : editingStudent
-                    ? 'Update Student'
-                    : 'Register Student'}
+                      ? 'Update Student'
+                      : 'Register Student'}
                 </button>
               </div>
             </form>
           </div>
         </div>
       )}
+
+      {isViewModalOpen && viewingStudent && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">
+                  Student Details
+                </h2>
+
+                <p className="text-xs text-slate-500 mt-1">
+                  View complete student information.
+                </p>
+              </div>
+
+              <button
+                onClick={() => {
+                  setIsViewModalOpen(false);
+                  setViewingStudent(null);
+                }}
+                className="p-2 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+            </div>
+
+            <div className="p-5 space-y-5">
+              {loadingStudentDetails ? (
+                <div className="py-10 text-center text-sm font-semibold text-slate-500">
+                  Loading student details...
+                </div>
+              ) : (
+                <>
+                  <div className="flex items-center gap-4 p-4 bg-slate-50 rounded-xl">
+                    <div className="w-12 h-12 rounded-full bg-blue-100 flex items-center justify-center">
+                      <GraduationCap className="w-6 h-6 text-blue-600" />
+                    </div>
+
+                    <div>
+                      <h3 className="text-base font-extrabold text-slate-900">
+                        {viewingStudent.name}
+                      </h3>
+
+                      <p className="text-xs text-slate-500">
+                        ID: {viewingStudent.id.substring(0, 8).toUpperCase()}
+                      </p>
+                    </div>
+
+                    <div className="ml-auto">
+                      <Badge
+                        variant={
+                          viewingStudent.status === 'ACTIVE'
+                            ? 'green'
+                            : 'slate'
+                        }
+                        size="sm"
+                      >
+                        {viewingStudent.status}
+                      </Badge>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide mb-3">
+                      Student Information
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Email
+                        </p>
+                        <p className="text-sm font-semibold text-slate-700 mt-1 break-words">
+                          {viewingStudent.email || '—'}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Phone
+                        </p>
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {viewingStudent.phone || '—'}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Date of Birth
+                        </p>
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {viewingStudent.dateOfBirth
+                            ? formatDateToYYYYMMDD(
+                              viewingStudent.dateOfBirth
+                            )
+                            : '—'}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Gender
+                        </p>
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {viewingStudent.gender || '—'}
+                        </p>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl col-span-2">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Address
+                        </p>
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {viewingStudent.address || '—'}
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+
+                  <div>
+                    <h3 className="text-xs font-extrabold text-slate-900 uppercase tracking-wide mb-3">
+                      Academic Information
+                    </h3>
+
+                    <div className="grid grid-cols-2 gap-3">
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Class
+                        </p>
+
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {viewingStudent.class?.name || '—'}
+                        </p>
+
+                        {viewingStudent.class?.code && (
+                          <p className="text-[11px] text-slate-400 mt-1">
+                            Code: {viewingStudent.class.code}
+                          </p>
+                        )}
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-xl">
+                        <p className="text-[11px] font-bold text-slate-400">
+                          Section
+                        </p>
+
+                        <p className="text-sm font-semibold text-slate-700 mt-1">
+                          {viewingStudent.section?.name || '—'}
+                        </p>
+                      </div>
+                    </div>
+            
+
+                  </div>
+
+                  <div className="flex justify-end pt-3 border-t border-slate-100">
+                    <button
+                      type="button"
+                      onClick={() => {
+                        setIsViewModalOpen(false);
+                        setViewingStudent(null);
+                      }}
+                      className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+                    >
+                      Close
+                    </button>
+                  </div>
+                </>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 };
+
