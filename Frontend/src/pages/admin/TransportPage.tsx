@@ -109,6 +109,11 @@ export const TransportPage: React.FC = () => {
       return;
     }
 
+    if (routeForm.arrivalTime <= routeForm.departureTime) {
+      setError('Arrival time must be later than departure time.');
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
