@@ -9,10 +9,12 @@ const Timetable = sequelize.define(
       defaultValue: DataTypes.UUIDV4,
       primaryKey: true,
     },
+
     franchiseId: {
       type: DataTypes.UUID,
       allowNull: false,
     },
+
     day: {
       type: DataTypes.ENUM(
         "MONDAY",
@@ -24,32 +26,65 @@ const Timetable = sequelize.define(
       ),
       allowNull: false,
     },
-    startTime: {
-      type: DataTypes.TIME,
+
+    schoolPeriodId: {
+      type: DataTypes.UUID,
       allowNull: false,
     },
-    endTime: {
-      type: DataTypes.TIME,
+
+    classId: {
+      type: DataTypes.UUID,
       allowNull: false,
     },
-    subject: {
-      type: DataTypes.STRING,
+
+    sectionId: {
+      type: DataTypes.UUID,
       allowNull: false,
     },
+
+    subjectId: {
+      type: DataTypes.UUID,
+      allowNull: false,
+    },
+
     teacherId: {
       type: DataTypes.UUID,
       allowNull: false,
     },
-    className: {
+
+    room: {
       type: DataTypes.STRING,
-      allowNull: false,
+      allowNull: true,
+      trim: true,
     },
-    section: DataTypes.STRING,
-    room: DataTypes.STRING,
   },
   {
     tableName: "timetables",
     timestamps: true,
+
+    indexes: [
+      {
+        unique: true,
+        fields: [
+          "franchiseId",
+          "day",
+          "schoolPeriodId",
+          "classId",
+          "sectionId",
+        ],
+        name: "unique_class_section_period",
+      },
+      {
+        unique: true,
+        fields: [
+          "franchiseId",
+          "day",
+          "schoolPeriodId",
+          "teacherId",
+        ],
+        name: "unique_teacher_period",
+      },
+    ],
   }
 );
 

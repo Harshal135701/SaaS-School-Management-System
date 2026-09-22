@@ -51,6 +51,14 @@ const SchoolPeriod = sequelize.define(
   {
     tableName: "school_periods",
     timestamps: true,
+
+    indexes: [
+      {
+        unique: true,
+        fields: ["franchiseId", "periodNumber"],
+        name: "unique_franchise_period_number",
+      },
+    ],
   }
 );
 
