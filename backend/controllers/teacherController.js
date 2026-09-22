@@ -1,5 +1,6 @@
 const bcrypt = require("bcryptjs");
-const { Teacher } = require("../models");
+const { Op } = require("sequelize");
+const { Teacher, TeacherAssignment } = require("../models");
 
 const VALID_STAFF_TYPES = ["TEACHING", "NON_TEACHING"];
 
@@ -12,123 +13,132 @@ const VALID_ROLES = [
   "SUPPORT",
 ];
 
+const VALID_GENDERS = ["MALE", "FEMALE", "OTHER"];
+const VALID_STATUSES = ["ACTIVE", "INACTIVE"];
+
 const createTeacher = async (req, res) => {
   try {
     const {
       name,
       email,
       phone,
-      staffType,
-      role,
+      staffType = "TEACHING",
+      role = "TEACHER",
       password,
       dateOfBirth,
       gender,
-      subject,
       qualification,
       joiningDate,
       address,
+      panNumber,
+      aadhaarNumber,
     } = req.body;
 
-    if (!name || !email || !password) {
+
+    if (!name?.trim() || !email?.trim() || !password || !panNumber?.trim()) {
       return res.status(400).json({
         success: false,
-        message: "Name, email and password are required",
+        message: "Name, email, password and PAN number are required",
       });
     }
 
-    if (staffType && !VALID_STAFF_TYPES.includes(staffType)) {
+    if (!VALID_STAFF_TYPES.includes(staffType)) {
       return res.status(400).json({
         success: false,
         message: "Invalid staff type",
       });
     }
 
-    if (role && !VALID_ROLES.includes(role)) {
+    if (!VALID_ROLES.includes(role)) {
       return res.status(400).json({
         success: false,
         message: "Invalid staff role",
       });
     }
 
-    if (
-      req.user.role === "HOD" &&
-      (role === "HOD" || role === "PRINCIPAL")
-    ) {
+    if (gender && !VALID_GENDERS.includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid gender",
+      });
+    }
+
+    if (req.user.role === "HOD" && ["HOD", "PRINCIPAL"].includes(role)) {
       return res.status(403).json({
         success: false,
         message: "HOD cannot create HOD or PRINCIPAL staff",
       });
     }
 
-    const existingTeacher = await Teacher.findOne({
+    const normalizedEmail = email.trim().toLowerCase();
+    const normalizedPAN = panNumber.trim().toUpperCase();
+
+    const existingTeacher = await Teacher.unscoped().findOne({
       where: {
-        email,
         franchiseId: req.user.franchiseId,
+        [Op.or]: [
+          { email: normalizedEmail },
+          { panNumber: normalizedPAN },
+        ],
       },
     });
 
     if (existingTeacher) {
       return res.status(409).json({
         success: false,
-        message: "A teacher with this email already exists",
+        message:
+          existingTeacher.email === normalizedEmail
+            ? "A teacher with this email already exists"
+            : "A teacher with this PAN already exists",
       });
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
+    const hashedPassword = await bcrypt.hash(password, 12);
 
     const teacher = await Teacher.create({
       franchiseId: req.user.franchiseId,
-      name,
-      email,
-      phone,
+      name: name.trim(),
+      email: normalizedEmail,
+      phone: phone?.trim() || null,
       password: hashedPassword,
-      staffType: staffType || "TEACHING",
-      role: role || "TEACHER",
-      dateOfBirth,
-      gender,
-      subject,
-      qualification,
-      joiningDate,
-      address,
+      staffType,
+      role,
+      dateOfBirth: dateOfBirth || null,
+      gender: gender || null,
+      qualification: qualification?.trim() || null,
+      joiningDate: joiningDate || null,
+      address: address?.trim() || null,
+      panNumber: normalizedPAN,
+      aadhaarNumber: aadhaarNumber?.trim() || null,
+      status: "ACTIVE",
     });
 
     return res.status(201).json({
       success: true,
       message: "Teacher created successfully",
-      data: {
-        id: teacher.id,
-        name: teacher.name,
-        email: teacher.email,
-        phone: teacher.phone,
-        staffType: teacher.staffType,
-        role: teacher.role,
-        dateOfBirth: teacher.dateOfBirth,
-        gender: teacher.gender,
-        subject: teacher.subject,
-        qualification: teacher.qualification,
-        joiningDate: teacher.joiningDate,
-        address: teacher.address,
-        status: teacher.status,
-      },
+      data: teacher,
     });
+
   } catch (error) {
-    console.error(error);
+    console.error("Create Teacher Error:", error);
+
 
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
+
   }
 };
 
 const getTeachers = async (req, res) => {
   try {
-    const { Op } = require("sequelize");
-
-    const page = Math.max(parseInt(req.query.page) || 1, 1);
-    const limit = Math.min(parseInt(req.query.limit) || 10, 100);
+    const page = Math.max(Number(req.query.page) || 1, 1);
+    const limit = Math.min(Math.max(Number(req.query.limit) || 10, 1), 100);
     const offset = (page - 1) * limit;
     const search = req.query.search?.trim();
+
 
     const where = {
       franchiseId: req.user.franchiseId,
@@ -139,12 +149,11 @@ const getTeachers = async (req, res) => {
         { name: { [Op.iLike]: `%${search}%` } },
         { email: { [Op.iLike]: `%${search}%` } },
         { phone: { [Op.iLike]: `%${search}%` } },
-        { subject: { [Op.iLike]: `%${search}%` } },
+        { panNumber: { [Op.iLike]: `%${search}%` } },
       ];
     }
 
     const { count, rows } = await Teacher.findAndCountAll({
-      attributes: { exclude: ["password"] },
       where,
       limit,
       offset,
@@ -161,25 +170,28 @@ const getTeachers = async (req, res) => {
         totalPages: Math.ceil(count / limit),
       },
     });
+
   } catch (error) {
-    console.error(error);
+    console.error("Get Teachers Error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
+
   }
 };
 
 const getTeacherById = async (req, res) => {
   try {
     const teacher = await Teacher.findOne({
-      attributes: { exclude: ["password"] },
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
     });
+
 
     if (!teacher) {
       return res.status(404).json({
@@ -192,24 +204,29 @@ const getTeacherById = async (req, res) => {
       success: true,
       data: teacher,
     });
+
+
   } catch (error) {
-    console.error(error);
+    console.error("Get Teacher Error:", error);
 
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
+
   }
 };
 
 const updateTeacher = async (req, res) => {
   try {
-    const teacher = await Teacher.findOne({
+    const teacher = await Teacher.unscoped().findOne({
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
     });
+
 
     if (!teacher) {
       return res.status(404).json({
@@ -220,7 +237,7 @@ const updateTeacher = async (req, res) => {
 
     if (
       req.user.role === "HOD" &&
-      (teacher.role === "HOD" || teacher.role === "PRINCIPAL")
+      ["HOD", "PRINCIPAL"].includes(teacher.role)
     ) {
       return res.status(403).json({
         success: false,
@@ -236,11 +253,13 @@ const updateTeacher = async (req, res) => {
       role,
       dateOfBirth,
       gender,
-      subject,
       qualification,
       joiningDate,
       address,
+      panNumber,
+      aadhaarNumber,
       status,
+      password,
     } = req.body;
 
     if (staffType && !VALID_STAFF_TYPES.includes(staffType)) {
@@ -257,9 +276,24 @@ const updateTeacher = async (req, res) => {
       });
     }
 
+    if (gender && !VALID_GENDERS.includes(gender)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid gender",
+      });
+    }
+
+    if (status && !VALID_STATUSES.includes(status)) {
+      return res.status(400).json({
+        success: false,
+        message: "Invalid status",
+      });
+    }
+
     if (
       req.user.role === "HOD" &&
-      (role === "HOD" || role === "PRINCIPAL")
+      role &&
+      ["HOD", "PRINCIPAL"].includes(role)
     ) {
       return res.status(403).json({
         success: false,
@@ -267,39 +301,64 @@ const updateTeacher = async (req, res) => {
       });
     }
 
-    if (email && email !== teacher.email) {
-      const existingTeacher = await Teacher.findOne({
+    const normalizedEmail = email?.trim().toLowerCase();
+    const normalizedPAN = panNumber?.trim().toUpperCase();
+
+    if (normalizedEmail || normalizedPAN) {
+      const duplicateConditions = [];
+
+      if (normalizedEmail) {
+        duplicateConditions.push({ email: normalizedEmail });
+      }
+
+      if (normalizedPAN) {
+        duplicateConditions.push({ panNumber: normalizedPAN });
+      }
+
+      const duplicate = await Teacher.unscoped().findOne({
         where: {
-          email,
           franchiseId: req.user.franchiseId,
+          id: { [Op.ne]: teacher.id },
+          [Op.or]: duplicateConditions,
         },
       });
 
-      if (existingTeacher && existingTeacher.id !== teacher.id) {
+      if (duplicate) {
         return res.status(409).json({
           success: false,
-          message: "A teacher with this email already exists",
+          message:
+            normalizedEmail && duplicate.email === normalizedEmail
+              ? "A teacher with this email already exists"
+              : "A teacher with this PAN already exists",
         });
       }
     }
 
-    await teacher.update({
-      ...(name !== undefined && { name }),
-      ...(email !== undefined && { email }),
-      ...(phone !== undefined && { phone }),
-      ...(staffType !== undefined && { staffType }),
-      ...(role !== undefined && { role }),
-      ...(dateOfBirth !== undefined && { dateOfBirth }),
-      ...(gender !== undefined && { gender }),
-      ...(subject !== undefined && { subject }),
-      ...(qualification !== undefined && { qualification }),
-      ...(joiningDate !== undefined && { joiningDate }),
-      ...(address !== undefined && { address }),
-      ...(status !== undefined && { status }),
-    });
+    const updateData = {};
+
+    if (name !== undefined) updateData.name = name.trim();
+    if (email !== undefined) updateData.email = normalizedEmail;
+    if (phone !== undefined) updateData.phone = phone?.trim() || null;
+    if (staffType !== undefined) updateData.staffType = staffType;
+    if (role !== undefined) updateData.role = role;
+    if (dateOfBirth !== undefined) updateData.dateOfBirth = dateOfBirth || null;
+    if (gender !== undefined) updateData.gender = gender || null;
+    if (qualification !== undefined)
+      updateData.qualification = qualification?.trim() || null;
+    if (joiningDate !== undefined) updateData.joiningDate = joiningDate || null;
+    if (address !== undefined) updateData.address = address?.trim() || null;
+    if (panNumber !== undefined) updateData.panNumber = normalizedPAN;
+    if (aadhaarNumber !== undefined)
+      updateData.aadhaarNumber = aadhaarNumber?.trim() || null;
+    if (status !== undefined) updateData.status = status;
+
+    if (password !== undefined && password !== "") {
+      updateData.password = await bcrypt.hash(password, 12);
+    }
+
+    await teacher.update(updateData);
 
     const updatedTeacher = await Teacher.findOne({
-      attributes: { exclude: ["password"] },
       where: {
         id: teacher.id,
         franchiseId: req.user.franchiseId,
@@ -311,19 +370,24 @@ const updateTeacher = async (req, res) => {
       message: "Teacher updated successfully",
       data: updatedTeacher,
     });
+
+
   } catch (error) {
-    console.error(error);
+    console.error("Update Teacher Error:", error);
+
 
     return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
+
+
   }
 };
 
 const deleteTeacher = async (req, res) => {
   try {
-    const teacher = await Teacher.findOne({
+    const teacher = await Teacher.unscoped().findOne({
       where: {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
@@ -337,14 +401,39 @@ const deleteTeacher = async (req, res) => {
       });
     }
 
-    await teacher.destroy();
+    if (teacher.status === "INACTIVE") {
+      return res.status(400).json({
+        success: false,
+        message: "Teacher is already inactive",
+      });
+    }
+
+    // Deactivate teacher
+    await teacher.update({
+      status: "INACTIVE",
+    });
+
+    // Deactivate all active assignments of this teacher
+    await TeacherAssignment.update(
+      {
+        status: "INACTIVE",
+      },
+      {
+        where: {
+          teacherId: teacher.id,
+          franchiseId: req.user.franchiseId,
+          status: "ACTIVE",
+        },
+      }
+    );
 
     return res.status(200).json({
       success: true,
-      message: "Teacher deleted successfully",
+      message:
+        "Teacher deactivated successfully and active assignments were deactivated",
     });
   } catch (error) {
-    console.error(error);
+    console.error("Delete Teacher Error:", error);
 
     return res.status(500).json({
       success: false,
