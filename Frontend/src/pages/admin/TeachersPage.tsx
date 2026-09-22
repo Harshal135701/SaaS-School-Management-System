@@ -42,6 +42,12 @@ interface SectionItem {
   classId: string;
 }
 
+interface SubjectItem {
+  id: string;
+  name: string;
+  code?: string;
+}
+
 interface TeacherForm {
   name: string;
   email: string;
@@ -54,6 +60,7 @@ interface TeacherForm {
   confirmPassword: string;
   classId?: string;
   sectionId?: string;
+  subjectId?: string;
 }
 
 const emptyForm: TeacherForm = {
@@ -68,12 +75,14 @@ const emptyForm: TeacherForm = {
   confirmPassword: '',
   classId: '',
   sectionId: '',
+  subjectId: '',
 };
 
 export const TeachersPage: React.FC = () => {
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [sections, setSections] = useState<SectionItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
 
   const [loading, setLoading] = useState(true);
@@ -91,7 +100,7 @@ export const TeachersPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [teachersRes, classesRes, assignmentsRes] = await Promise.all([
+      const [teachersRes, classesRes, assignmentsRes, subjectsRes] = await Promise.all([
         api.get('/franchise/teachers', {
           params: {
             limit: 100,
@@ -99,6 +108,7 @@ export const TeachersPage: React.FC = () => {
         }),
         api.get('/franchise/classes').catch(() => ({ data: { success: false, data: [] } })),
         api.get('/franchise/teacher-assignments').catch(() => ({ data: { success: false, data: [] } })),
+        api.get('/franchise/subjects').catch(() => ({ data: { success: false, data: [] } })),
       ]);
 
       if (teachersRes.data?.success) {
@@ -113,6 +123,10 @@ export const TeachersPage: React.FC = () => {
 
       if (assignmentsRes.data?.success && Array.isArray(assignmentsRes.data.data)) {
         setAssignments(assignmentsRes.data.data);
+      }
+
+      if (subjectsRes.data?.success && Array.isArray(subjectsRes.data.data)) {
+        setSubjects(subjectsRes.data.data);
       }
     } catch (err) {
       console.error('Error fetching teachers:', err);
@@ -163,6 +177,16 @@ export const TeachersPage: React.FC = () => {
       setSections([]);
     }
 
+    let initialSubjectId = existingAssignment?.subjectId || '';
+    if (!initialSubjectId && teacher.subject) {
+      const matched = subjects.find(
+        (s) => s.name.trim().toLowerCase() === teacher.subject?.trim().toLowerCase()
+      );
+      if (matched) {
+        initialSubjectId = matched.id;
+      }
+    }
+
     setForm({
       name: teacher.name || '',
       email: teacher.email || '',
@@ -175,6 +199,7 @@ export const TeachersPage: React.FC = () => {
       confirmPassword: '',
       classId: existingAssignment?.classId || '',
       sectionId: existingAssignment?.sectionId || '',
+      subjectId: initialSubjectId,
     });
 
     setError(null);
@@ -285,20 +310,29 @@ export const TeachersPage: React.FC = () => {
       if (savedTeacherId) {
         const existingAssignment = assignments.find((a) => a.teacherId === savedTeacherId);
         if (form.classId && form.sectionId) {
+          let targetSubjectId = form.subjectId || null;
+          if (!targetSubjectId && form.subject) {
+            const matched = subjects.find(
+              (s) => s.name.trim().toLowerCase() === form.subject.trim().toLowerCase()
+            );
+            if (matched) {
+              targetSubjectId = matched.id;
+            }
+          }
+
+          const assignmentPayload = {
+            teacherId: savedTeacherId,
+            classId: form.classId,
+            sectionId: form.sectionId,
+            subjectId: targetSubjectId,
+          };
+
           if (existingAssignment) {
-            await api.put(`/franchise/teacher-assignments/${existingAssignment.id}`, {
-              teacherId: savedTeacherId,
-              classId: form.classId,
-              sectionId: form.sectionId,
-            }).catch((assignErr) => {
+            await api.put(`/franchise/teacher-assignments/${existingAssignment.id}`, assignmentPayload).catch((assignErr) => {
               console.warn('Failed to update teacher assignment:', assignErr);
             });
           } else {
-            await api.post('/franchise/teacher-assignments', {
-              teacherId: savedTeacherId,
-              classId: form.classId,
-              sectionId: form.sectionId,
-            }).catch((assignErr) => {
+            await api.post('/franchise/teacher-assignments', assignmentPayload).catch((assignErr) => {
               console.warn('Failed to create teacher assignment:', assignErr);
             });
           }
@@ -702,6 +736,26 @@ export const TeachersPage: React.FC = () => {
                     {sections.map((sec) => (
                       <option key={sec.id} value={sec.id}>
                         {sec.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* ASSIGNED MASTER SUBJECT (OPTIONAL) */}
+                <div>
+                  <label className="block text-xs font-bold text-slate-600 mb-1">
+                    Assigned Master Subject <span className="font-normal text-slate-400">(Optional)</span>
+                  </label>
+                  <select
+                    name="subjectId"
+                    value={form.subjectId || ''}
+                    onChange={handleChange}
+                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                  >
+                    <option value="">-- None / Select Subject --</option>
+                    {subjects.map((sub) => (
+                      <option key={sub.id} value={sub.id}>
+                        {sub.name}
                       </option>
                     ))}
                   </select>

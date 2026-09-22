@@ -17,6 +17,36 @@ interface Teacher {
   subject?: string;
 }
 
+interface SchoolPeriod {
+  id: string;
+  periodNumber: number;
+  name: string;
+  startTime: string;
+  endTime: string;
+  isBreak?: boolean;
+  isActive?: boolean;
+}
+
+interface ClassItem {
+  id: string;
+  name: string;
+  code?: string;
+  numericValue?: number;
+}
+
+interface SectionItem {
+  id: string;
+  classId: string;
+  name: string;
+}
+
+interface SubjectItem {
+  id: string;
+  name: string;
+  code?: string;
+  isActive?: boolean;
+}
+
 interface Timetable {
   id: string;
   day: string;
@@ -72,10 +102,20 @@ const days = [
  */
 const TIMETABLE_API = '/franchise/timetable';
 const TEACHER_API = '/franchise/teachers';
+const SCHOOL_PERIODS_API = '/school-periods';
+const CLASSES_API = '/franchise/classes';
+const SECTIONS_API = '/franchise/sections';
+const SUBJECTS_API = '/franchise/subjects';
 
 export const TimetablePage: React.FC = () => {
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
+  const [schoolPeriods, setSchoolPeriods] = useState<SchoolPeriod[]>([]);
+  const [classes, setClasses] = useState<ClassItem[]>([]);
+  const [sections, setSections] = useState<SectionItem[]>([]);
+  const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const [teacherAssignments, setTeacherAssignments] = useState<any[]>([]);
+  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
@@ -110,6 +150,10 @@ export const TimetablePage: React.FC = () => {
   // FETCH DATA
   // ============================================================
 
+  // ============================================================
+  // FETCH DATA
+  // ============================================================
+
   const fetchData = async () => {
     try {
       setLoading(true);
@@ -120,10 +164,30 @@ export const TimetablePage: React.FC = () => {
         TIMETABLE_API
       );
 
-      const [timetableRes, teachersRes] =
+      const [timetableRes, teachersRes, periodsRes, classesRes, sectionsRes, subjectsRes, assignmentsRes] =
         await Promise.all([
           api.get(TIMETABLE_API),
           api.get(TEACHER_API),
+          api.get(SCHOOL_PERIODS_API).catch((err) => {
+            console.error('Failed to fetch school periods:', err);
+            return { data: { data: [] } };
+          }),
+          api.get(CLASSES_API).catch((err) => {
+            console.error('Failed to fetch classes:', err);
+            return { data: { data: [] } };
+          }),
+          api.get(SECTIONS_API).catch((err) => {
+            console.error('Failed to fetch sections:', err);
+            return { data: { data: [] } };
+          }),
+          api.get(SUBJECTS_API).catch((err) => {
+            console.error('Failed to fetch subjects:', err);
+            return { data: { data: [] } };
+          }),
+          api.get('/franchise/teacher-assignments').catch((err) => {
+            console.error('Failed to fetch teacher assignments:', err);
+            return { data: { data: [] } };
+          }),
         ]);
 
       console.log(
@@ -136,6 +200,11 @@ export const TimetablePage: React.FC = () => {
         teachersRes.data
       );
 
+      console.log(
+        'School Periods API response:',
+        periodsRes.data
+      );
+
       const timetableData =
         timetableRes.data?.data || [];
 
@@ -144,8 +213,35 @@ export const TimetablePage: React.FC = () => {
         teachersRes.data?.teachers ||
         [];
 
+      const rawPeriods: SchoolPeriod[] =
+        periodsRes.data?.data || [];
+
+      const activeNonBreakPeriods = rawPeriods
+        .filter((p) => p.isActive !== false && !p.isBreak)
+        .sort((a, b) => a.periodNumber - b.periodNumber);
+
+      const loadedClasses: ClassItem[] =
+        classesRes.data?.data || [];
+
+      const loadedSections: SectionItem[] =
+        sectionsRes.data?.data || [];
+
+      const loadedSubjects: SubjectItem[] =
+        subjectsRes.data?.data || [];
+
+      const activeSubjects = loadedSubjects.filter(
+        (s) => s.isActive !== false
+      );
+
+      const loadedAssignments = assignmentsRes?.data?.data || [];
+
       setTimetables(timetableData);
       setTeachers(teacherData);
+      setSchoolPeriods(activeNonBreakPeriods);
+      setClasses(loadedClasses);
+      setSections(loadedSections);
+      setSubjects(activeSubjects);
+      setTeacherAssignments(loadedAssignments);
     } catch (err: any) {
       console.error(
         'Timetable fetch error:',
@@ -171,7 +267,7 @@ export const TimetablePage: React.FC = () => {
   }, []);
 
   // ============================================================
-  // FORM CHANGE
+  // FORM CHANGE & PERIOD HELPERS
   // ============================================================
 
   const handleChange = (
@@ -181,10 +277,58 @@ export const TimetablePage: React.FC = () => {
   ) => {
     const { name, value } = e.target;
 
+    if (name === 'teacherId' && value) {
+      const selectedTeacher = teachers.find((t) => t.id === value);
+      if (selectedTeacher && selectedTeacher.subject) {
+        const matchingSubject = subjects.find(
+          (s) =>
+            s.name.trim().toLowerCase() ===
+            selectedTeacher.subject?.trim().toLowerCase()
+        );
+
+        setForm((prev) => ({
+          ...prev,
+          teacherId: value,
+          subject: matchingSubject
+            ? matchingSubject.name
+            : (prev.subject || selectedTeacher.subject || ''),
+        }));
+        return;
+      }
+    }
+
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
+  };
+
+  const formatPeriodLabel = (period: SchoolPeriod) => {
+    const start = period.startTime ? period.startTime.substring(0, 5) : '';
+    const end = period.endTime ? period.endTime.substring(0, 5) : '';
+    return `${period.name || `Period ${period.periodNumber}`} — ${start} to ${end}`;
+  };
+
+  const handlePeriodChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const periodId = e.target.value;
+    setSelectedPeriodId(periodId);
+
+    const foundPeriod = schoolPeriods.find((p) => p.id === periodId);
+    if (foundPeriod) {
+      setForm((prev) => ({
+        ...prev,
+        startTime: foundPeriod.startTime ? foundPeriod.startTime.substring(0, 5) : '',
+        endTime: foundPeriod.endTime ? foundPeriod.endTime.substring(0, 5) : '',
+      }));
+    } else {
+      setForm((prev) => ({
+        ...prev,
+        startTime: '',
+        endTime: '',
+      }));
+    }
   };
 
   // ============================================================
@@ -193,6 +337,7 @@ export const TimetablePage: React.FC = () => {
 
   const openCreateModal = () => {
     setEditingId(null);
+    setSelectedPeriodId('');
 
     setForm({
       ...initialForm,
@@ -210,14 +355,27 @@ export const TimetablePage: React.FC = () => {
   ) => {
     setEditingId(item.id);
 
+    const itemStart = item.startTime
+      ? item.startTime.substring(0, 5)
+      : '';
+    const itemEnd = item.endTime
+      ? item.endTime.substring(0, 5)
+      : '';
+
+    const matchingPeriod = schoolPeriods.find(
+      (p) =>
+        p.startTime &&
+        p.endTime &&
+        p.startTime.substring(0, 5) === itemStart &&
+        p.endTime.substring(0, 5) === itemEnd
+    );
+
+    setSelectedPeriodId(matchingPeriod ? matchingPeriod.id : '');
+
     setForm({
       day: displayDay(item.day),
-      startTime: item.startTime
-        ? item.startTime.substring(0, 5)
-        : '',
-      endTime: item.endTime
-        ? item.endTime.substring(0, 5)
-        : '',
+      startTime: itemStart,
+      endTime: itemEnd,
       subject: item.subject || '',
       teacherId: item.teacherId || '',
       className: item.className || '',
@@ -790,49 +948,74 @@ export const TimetablePage: React.FC = () => {
                     Subject *
                   </label>
 
-                  <input
-                    name="subject"
-                    value={form.subject}
-                    onChange={handleChange}
-                    placeholder="e.g. Mathematics"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
+                  {subjects.length > 0 ? (
+                    <select
+                      name="subject"
+                      value={form.subject}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="">Select subject</option>
+                      {subjects
+                        .filter(sub => {
+                          if (!form.teacherId) return true;
+                          return teacherAssignments.some(a => a.teacherId === form.teacherId && a.subjectId === sub.id);
+                        })
+                        .map((sub) => (
+                        <option key={sub.id} value={sub.name}>
+                          {sub.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs font-medium">
+                      ⚠️ No active subjects configured. Please create subjects first in Franchise Settings / Subjects.
+                    </div>
+                  )}
 
                 </div>
 
-                {/* START TIME */}
+                {/* SCHOOL PERIOD */}
 
-                <div>
-
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Start Time *
-                  </label>
-
-                  <input
-                    type="time"
-                    name="startTime"
-                    value={form.startTime}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
-
-                </div>
-
-                {/* END TIME */}
-
-                <div>
+                <div className="sm:col-span-2">
 
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    End Time *
+                    School Period *
                   </label>
 
-                  <input
-                    type="time"
-                    name="endTime"
-                    value={form.endTime}
-                    onChange={handleChange}
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
+                  {schoolPeriods.length > 0 ? (
+                    <>
+                      <select
+                        name="periodId"
+                        value={selectedPeriodId}
+                        onChange={handlePeriodChange}
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-medium"
+                      >
+                        <option value="">
+                          Select school period
+                        </option>
+
+                        {schoolPeriods.map((period) => (
+                          <option
+                            key={period.id}
+                            value={period.id}
+                          >
+                            {formatPeriodLabel(period)}
+                          </option>
+                        ))}
+                      </select>
+
+                      {editingId && !selectedPeriodId && form.startTime && form.endTime && (
+                        <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-medium">
+                          ⚠️ Warning: Existing timetable time ({form.startTime} - {form.endTime}) does not match any configured school period. Please select a valid period.
+                        </p>
+                      )}
+                    </>
+                  ) : (
+                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs font-medium">
+                      No active school periods configured. Please create school periods first in Franchise Settings / School Periods.
+                    </div>
+                  )}
 
                 </div>
 
@@ -884,13 +1067,34 @@ export const TimetablePage: React.FC = () => {
                     Class *
                   </label>
 
-                  <input
-                    name="className"
-                    value={form.className}
-                    onChange={handleChange}
-                    placeholder="e.g. 10"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
+                  {classes.length > 0 ? (
+                    <select
+                      name="className"
+                      value={form.className}
+                      onChange={handleChange}
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    >
+                      <option value="">Select class</option>
+                      {classes
+                        .filter(cls => {
+                          if (!form.teacherId) return true;
+                          return teacherAssignments.some(a => a.teacherId === form.teacherId && a.classId === cls.id);
+                        })
+                        .map((cls) => (
+                        <option key={cls.id} value={cls.name}>
+                          {cls.name}
+                        </option>
+                      ))}
+                    </select>
+                  ) : (
+                    <input
+                      name="className"
+                      value={form.className}
+                      onChange={handleChange}
+                      placeholder="e.g. 10"
+                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                    />
+                  )}
 
                 </div>
 
@@ -902,13 +1106,47 @@ export const TimetablePage: React.FC = () => {
                     Section
                   </label>
 
-                  <input
-                    name="section"
-                    value={form.section}
-                    onChange={handleChange}
-                    placeholder="e.g. A"
-                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                  />
+                  {(() => {
+                    const selectedClassObj = classes.find(
+                      (c) => c.name === form.className
+                    );
+                    const availableSections = selectedClassObj
+                      ? sections.filter((s) => s.classId === selectedClassObj.id)
+                      : sections;
+
+                    if (availableSections.length > 0) {
+                      return (
+                        <select
+                          name="section"
+                          value={form.section}
+                          onChange={handleChange}
+                          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                        >
+                          <option value="">Select section (optional)</option>
+                          {availableSections
+                            .filter(sec => {
+                              if (!form.teacherId) return true;
+                              return teacherAssignments.some(a => a.teacherId === form.teacherId && a.classId === sec.classId && a.sectionId === sec.id);
+                            })
+                            .map((sec) => (
+                            <option key={sec.id} value={sec.name}>
+                              {sec.name}
+                            </option>
+                          ))}
+                        </select>
+                      );
+                    }
+
+                    return (
+                      <input
+                        name="section"
+                        value={form.section}
+                        onChange={handleChange}
+                        placeholder="e.g. A"
+                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                      />
+                    );
+                  })()}
 
                 </div>
 
