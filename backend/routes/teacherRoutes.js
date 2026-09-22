@@ -6,65 +6,66 @@ const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProte
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
-  createTeacher,
-  getTeachers,
-  getTeacherById,
-  updateTeacher,
-  deleteTeacher,
+createTeacher,
+getTeachers,
+getTeacherById,
+updateTeacher,
+deleteTeacher,
 } = require("../controllers/teacherController");
 
-// View access
+// Teachers can be viewed by teaching management staff.
 const teacherViewAccess = allowRoles(
-  "PRINCIPAL",
-  "HOD",
-  "TEACHER",
-  "FRANCHISE_ADMIN"
+"PRINCIPAL",
+"HOD",
+"TEACHER",
+"FRANCHISE_ADMIN"
 );
 
-// Management access
+// Teacher management is restricted to management roles.
 const teacherManageAccess = allowRoles(
-  "PRINCIPAL",
-  "HOD",
-  "FRANCHISE_ADMIN"
+"PRINCIPAL",
+"HOD",
+"FRANCHISE_ADMIN"
 );
 
-// View teachers
+// Get all teachers
 router.get(
-  "/",
-  teacherOrFranchiseProtect,
-  teacherViewAccess,
-  getTeachers
+"/",
+teacherOrFranchiseProtect,
+teacherViewAccess,
+getTeachers
 );
 
+// Get teacher by ID
 router.get(
-  "/:id",
-  teacherOrFranchiseProtect,
-  teacherViewAccess,
-  getTeacherById
+"/:id",
+teacherOrFranchiseProtect,
+teacherViewAccess,
+getTeacherById
 );
 
 // Create teacher
 router.post(
-  "/",
-  teacherOrFranchiseProtect,
-  teacherManageAccess,
-  createTeacher
+"/",
+teacherOrFranchiseProtect,
+teacherManageAccess,
+createTeacher
 );
 
 // Update teacher
 router.put(
-  "/:id",
-  teacherOrFranchiseProtect,
-  teacherManageAccess,
-  updateTeacher
+"/:id",
+teacherOrFranchiseProtect,
+teacherManageAccess,
+updateTeacher
 );
 
-// Delete teacher
+// Deactivate teacher
 router.delete(
-  "/:id",
-  teacherOrFranchiseProtect,
-  teacherManageAccess,
-  deleteTeacher
+"/:id",
+teacherOrFranchiseProtect,
+teacherManageAccess,
+deleteTeacher
 );
 
 module.exports = router;

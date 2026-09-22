@@ -93,38 +93,42 @@ Teacher.belongsTo(Franchise, {
   as: "franchise",
 });
 
-
-
+///////////////////////////////////////////////////////////////////////////
 Franchise.hasMany(Class, {
-  foreignKey: "franchiseId",
-  as: "classes",
+foreignKey: "franchiseId",
+as: "classes",
 });
 
 Class.belongsTo(Franchise, {
-  foreignKey: "franchiseId",
-  as: "franchise",
+foreignKey: "franchiseId",
+as: "franchise",
 });
 
 Franchise.hasMany(Section, {
-  foreignKey: "franchiseId",
-  as: "sections",
+foreignKey: "franchiseId",
+as: "sections",
 });
 
 Section.belongsTo(Franchise, {
-  foreignKey: "franchiseId",
-  as: "franchise",
+foreignKey: "franchiseId",
+as: "franchise",
 });
 
 Class.hasMany(Section, {
-  foreignKey: "classId",
-  as: "sections",
-  onDelete: "CASCADE",
+foreignKey: "classId",
+as: "sections",
+onDelete: "RESTRICT",
+onUpdate: "CASCADE",
 });
 
 Section.belongsTo(Class, {
-  foreignKey: "classId",
-  as: "class",
+foreignKey: "classId",
+as: "class",
+onDelete: "RESTRICT",
+onUpdate: "CASCADE",
 });
+///////////////////////////////////////////////////////////////
+
 
 Franchise.hasMany(Subject, {
   foreignKey: "franchiseId",
@@ -429,26 +433,38 @@ Message.belongsTo(Conversation, {
   foreignKey: "conversationId",
   as: "conversation",
 });
+////////////////////////////////////////////////////////////////////////////
 
 Student.belongsTo(Class, {
-  foreignKey: "classId",
-  as: "class",
+foreignKey: "classId",
+as: "class",
+onDelete: "SET NULL",
+onUpdate: "CASCADE",
 });
 
 Student.belongsTo(Section, {
-  foreignKey: "sectionId",
-  as: "section",
+foreignKey: "sectionId",
+as: "section",
+onDelete: "SET NULL",
+onUpdate: "CASCADE",
 });
 
 Class.hasMany(Student, {
-  foreignKey: "classId",
-  as: "students",
+foreignKey: "classId",
+as: "students",
+onDelete: "SET NULL",
+onUpdate: "CASCADE",
 });
 
 Section.hasMany(Student, {
-  foreignKey: "sectionId",
-  as: "students",
+foreignKey: "sectionId",
+as: "students",
+onDelete: "SET NULL",
+onUpdate: "CASCADE",
 });
+
+
+//////////////////////////////////////////////////////
 
 Class.hasMany(Homework, {
   foreignKey: "classId",

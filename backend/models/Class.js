@@ -9,7 +9,6 @@ module.exports = (sequelize) => {
         defaultValue: DataTypes.UUIDV4,
         primaryKey: true,
       },
-
       franchiseId: {
         type: DataTypes.UUID,
         allowNull: false,
@@ -37,6 +36,7 @@ module.exports = (sequelize) => {
 
       isActive: {
         type: DataTypes.BOOLEAN,
+        allowNull: false,
         defaultValue: true,
       },
     },
@@ -44,6 +44,7 @@ module.exports = (sequelize) => {
       tableName: "classes",
       timestamps: true,
     }
+
   );
 
   return Class;

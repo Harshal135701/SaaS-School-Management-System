@@ -15,6 +15,7 @@ import {
   EyeOff,
   Edit,
   Trash2,
+  RotateCcw,
 } from 'lucide-react';
 import api from '../../services/api';
 
@@ -25,8 +26,13 @@ interface Teacher {
   phone?: string;
   panNumber?: string;
   aadhaarNumber?: string;
-  subject?: string;
-  department?: string;
+  staffType?: 'TEACHING' | 'NON_TEACHING';
+  role?: 'TEACHER' | 'HOD' | 'PRINCIPAL' | 'ACCOUNTANT' | 'DATA_ENTRY' | 'SUPPORT';
+  dateOfBirth?: string;
+  gender?: 'MALE' | 'FEMALE' | 'OTHER';
+  qualification?: string;
+  joiningDate?: string;
+  address?: string;
   status?: 'ACTIVE' | 'INACTIVE';
 }
 
@@ -34,18 +40,46 @@ interface ClassItem {
   id: string;
   name: string;
   code?: string;
+  isActive?: boolean;
 }
 
 interface SectionItem {
   id: string;
   name: string;
   classId: string;
+  isActive?: boolean;
 }
 
 interface SubjectItem {
   id: string;
   name: string;
   code?: string;
+  isActive?: boolean;
+}
+
+interface Assignment {
+  id: string;
+  teacherId: string;
+  classId: string;
+  sectionId: string;
+  subjectId?: string | null;
+  status: 'ACTIVE' | 'INACTIVE';
+  teacher?: {
+    id: string;
+    name: string;
+  };
+  class?: {
+    id: string;
+    name: string;
+  };
+  section?: {
+    id: string;
+    name: string;
+  };
+  subject?: {
+    id: string;
+    name: string;
+  } | null;
 }
 
 interface TeacherForm {
@@ -54,13 +88,18 @@ interface TeacherForm {
   phone: string;
   panNumber: string;
   aadhaarNumber: string;
-  subject: string;
-  department: string;
+  staffType: 'TEACHING' | 'NON_TEACHING';
+  role: 'TEACHER' | 'HOD' | 'PRINCIPAL' | 'ACCOUNTANT' | 'DATA_ENTRY' | 'SUPPORT';
+  dateOfBirth: string;
+  gender: 'MALE' | 'FEMALE' | 'OTHER' | '';
+  qualification: string;
+  joiningDate: string;
+  address: string;
   password: string;
   confirmPassword: string;
-  classId?: string;
-  sectionId?: string;
-  subjectId?: string;
+  classId: string;
+  sectionId: string;
+  subjectId: string;
 }
 
 const emptyForm: TeacherForm = {
@@ -69,8 +108,13 @@ const emptyForm: TeacherForm = {
   phone: '',
   panNumber: '',
   aadhaarNumber: '',
-  subject: '',
-  department: '',
+  staffType: 'TEACHING',
+  role: 'TEACHER',
+  dateOfBirth: '',
+  gender: '',
+  qualification: '',
+  joiningDate: '',
+  address: '',
   password: '',
   confirmPassword: '',
   classId: '',
@@ -83,7 +127,7 @@ export const TeachersPage: React.FC = () => {
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [sections, setSections] = useState<SectionItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
-  const [assignments, setAssignments] = useState<any[]>([]);
+  const [assignments, setAssignments] = useState<Assignment[]>([]);
 
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -100,15 +144,28 @@ export const TeachersPage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      const [teachersRes, classesRes, assignmentsRes, subjectsRes] = await Promise.all([
+      const [
+        teachersRes,
+        classesRes,
+        assignmentsRes,
+        subjectsRes,
+      ] = await Promise.all([
         api.get('/franchise/teachers', {
           params: {
             limit: 100,
           },
         }),
-        api.get('/franchise/classes').catch(() => ({ data: { success: false, data: [] } })),
-        api.get('/franchise/teacher-assignments').catch(() => ({ data: { success: false, data: [] } })),
-        api.get('/franchise/subjects').catch(() => ({ data: { success: false, data: [] } })),
+
+        api.get('/franchise/classes'),
+
+        api.get('/franchise/teacher-assignments', {
+          params: {
+            status: 'ACTIVE',
+            limit: 100,
+          },
+        }),
+
+        api.get('/franchise/subjects'),
       ]);
 
       if (teachersRes.data?.success) {
@@ -119,14 +176,26 @@ export const TeachersPage: React.FC = () => {
 
       if (classesRes.data?.success && Array.isArray(classesRes.data.data)) {
         setClasses(classesRes.data.data);
+      } else {
+        setClasses([]);
       }
 
-      if (assignmentsRes.data?.success && Array.isArray(assignmentsRes.data.data)) {
+      if (
+        assignmentsRes.data?.success &&
+        Array.isArray(assignmentsRes.data.data)
+      ) {
         setAssignments(assignmentsRes.data.data);
+      } else {
+        setAssignments([]);
       }
 
-      if (subjectsRes.data?.success && Array.isArray(subjectsRes.data.data)) {
+      if (
+        subjectsRes.data?.success &&
+        Array.isArray(subjectsRes.data.data)
+      ) {
         setSubjects(subjectsRes.data.data);
+      } else {
+        setSubjects([]);
       }
     } catch (err) {
       console.error('Error fetching teachers:', err);
@@ -145,8 +214,14 @@ export const TeachersPage: React.FC = () => {
       setSections([]);
       return;
     }
+
     try {
-      const res = await api.get('/franchise/sections', { params: { classId } });
+      const res = await api.get('/franchise/sections', {
+        params: {
+          classId,
+        },
+      });
+
       if (res.data?.success && Array.isArray(res.data.data)) {
         setSections(res.data.data);
       } else {
@@ -167,24 +242,17 @@ export const TeachersPage: React.FC = () => {
     setIsModalOpen(true);
   };
 
-  const openEditModal = (teacher: Teacher) => {
+  const openEditModal = async (teacher: Teacher) => {
     setEditingTeacher(teacher);
 
-    const existingAssignment = assignments.find((a) => a.teacherId === teacher.id);
+    const existingAssignment = assignments.find(
+      (assignment) => assignment.teacherId === teacher.id
+    );
+
     if (existingAssignment?.classId) {
-      fetchSectionsForClass(existingAssignment.classId);
+      await fetchSectionsForClass(existingAssignment.classId);
     } else {
       setSections([]);
-    }
-
-    let initialSubjectId = existingAssignment?.subjectId || '';
-    if (!initialSubjectId && teacher.subject) {
-      const matched = subjects.find(
-        (s) => s.name.trim().toLowerCase() === teacher.subject?.trim().toLowerCase()
-      );
-      if (matched) {
-        initialSubjectId = matched.id;
-      }
     }
 
     setForm({
@@ -193,13 +261,18 @@ export const TeachersPage: React.FC = () => {
       phone: teacher.phone || '',
       panNumber: teacher.panNumber || '',
       aadhaarNumber: teacher.aadhaarNumber || '',
-      subject: teacher.subject || '',
-      department: teacher.department || '',
+      staffType: teacher.staffType || 'TEACHING',
+      role: teacher.role || 'TEACHER',
+      dateOfBirth: teacher.dateOfBirth || '',
+      gender: teacher.gender || '',
+      qualification: teacher.qualification || '',
+      joiningDate: teacher.joiningDate || '',
+      address: teacher.address || '',
       password: '',
       confirmPassword: '',
       classId: existingAssignment?.classId || '',
       sectionId: existingAssignment?.sectionId || '',
-      subjectId: initialSubjectId,
+      subjectId: existingAssignment?.subjectId || '',
     });
 
     setError(null);
@@ -219,7 +292,7 @@ export const TeachersPage: React.FC = () => {
   };
 
   const handleChange = (
-    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement>
+    e: React.ChangeEvent<HTMLInputElement | HTMLSelectElement | HTMLTextAreaElement>
   ) => {
     const { name, value } = e.target;
 
@@ -230,11 +303,24 @@ export const TeachersPage: React.FC = () => {
 
     if (name === 'classId') {
       fetchSectionsForClass(value);
+
       setForm((prev) => ({
         ...prev,
         classId: value,
         sectionId: '',
       }));
+    }
+
+    if (name === 'staffType' && value === 'NON_TEACHING') {
+      setForm((prev) => ({
+        ...prev,
+        staffType: 'NON_TEACHING',
+        classId: '',
+        sectionId: '',
+        subjectId: '',
+      }));
+
+      setSections([]);
     }
   };
 
@@ -251,6 +337,11 @@ export const TeachersPage: React.FC = () => {
       return;
     }
 
+    if (!form.panNumber.trim() && !editingTeacher) {
+      setError('PAN number is required.');
+      return;
+    }
+
     if (!editingTeacher) {
       if (!form.password) {
         setError('Password is required.');
@@ -263,35 +354,43 @@ export const TeachersPage: React.FC = () => {
       }
     }
 
+    if (form.classId && !form.sectionId) {
+      setError(
+        'Please select a section for the assigned class, or leave class empty.'
+      );
+      return;
+    }
+
+    if (
+      form.staffType === 'NON_TEACHING' &&
+      (form.classId || form.sectionId || form.subjectId)
+    ) {
+      setError('Non-teaching staff cannot have teaching assignments.');
+      return;
+    }
+
     try {
       setSaving(true);
       setError(null);
 
-      if (form.classId && !form.sectionId) {
-        setError('Please select a section for the assigned class, or leave class empty.');
-        return;
-      }
-
-      const payload: {
-        name: string;
-        email: string;
-        phone?: string;
-        panNumber?: string | null;
-        aadhaarNumber?: string | null;
-        subject?: string;
-        department?: string;
-        password?: string;
-      } = {
+      const payload: Record<string, any> = {
         name: form.name.trim(),
         email: form.email.trim(),
-        phone: form.phone.trim() || undefined,
-        panNumber: form.panNumber.trim() || null,
+        phone: form.phone.trim() || null,
+        staffType: form.staffType,
+        role: form.role,
+        dateOfBirth: form.dateOfBirth || null,
+        gender: form.gender || null,
+        qualification: form.qualification.trim() || null,
+        joiningDate: form.joiningDate || null,
+        address: form.address.trim() || null,
+        panNumber: form.panNumber.trim().toUpperCase(),
         aadhaarNumber: form.aadhaarNumber.trim() || null,
-        subject: form.subject.trim() || undefined,
-        department: form.department.trim() || undefined,
       };
 
       if (!editingTeacher) {
+        payload.password = form.password;
+      } else if (form.password) {
         payload.password = form.password;
       }
 
@@ -303,43 +402,44 @@ export const TeachersPage: React.FC = () => {
           payload
         );
       } else {
-        const createRes = await api.post('/franchise/teachers', payload);
+        const createRes = await api.post(
+          '/franchise/teachers',
+          payload
+        );
+
         savedTeacherId = createRes.data?.data?.id;
       }
 
-      if (savedTeacherId) {
-        const existingAssignment = assignments.find((a) => a.teacherId === savedTeacherId);
-        if (form.classId && form.sectionId) {
-          let targetSubjectId = form.subjectId || null;
-          if (!targetSubjectId && form.subject) {
-            const matched = subjects.find(
-              (s) => s.name.trim().toLowerCase() === form.subject.trim().toLowerCase()
-            );
-            if (matched) {
-              targetSubjectId = matched.id;
-            }
-          }
+      if (savedTeacherId && form.staffType === 'TEACHING') {
+        const existingAssignment = assignments.find(
+          (assignment) =>
+            assignment.teacherId === savedTeacherId &&
+            assignment.status === 'ACTIVE'
+        );
 
+        if (form.classId && form.sectionId) {
           const assignmentPayload = {
             teacherId: savedTeacherId,
             classId: form.classId,
             sectionId: form.sectionId,
-            subjectId: targetSubjectId,
+            subjectId: form.subjectId || null,
           };
 
           if (existingAssignment) {
-            await api.put(`/franchise/teacher-assignments/${existingAssignment.id}`, assignmentPayload).catch((assignErr) => {
-              console.warn('Failed to update teacher assignment:', assignErr);
-            });
+            await api.put(
+              `/franchise/teacher-assignments/${existingAssignment.id}`,
+              assignmentPayload
+            );
           } else {
-            await api.post('/franchise/teacher-assignments', assignmentPayload).catch((assignErr) => {
-              console.warn('Failed to create teacher assignment:', assignErr);
-            });
+            await api.post(
+              '/franchise/teacher-assignments',
+              assignmentPayload
+            );
           }
-        } else if (!form.classId && existingAssignment) {
-          await api.delete(`/franchise/teacher-assignments/${existingAssignment.id}`).catch((delErr) => {
-            console.warn('Failed to remove teacher assignment:', delErr);
-          });
+        } else if (existingAssignment) {
+          await api.delete(
+            `/franchise/teacher-assignments/${existingAssignment.id}`
+          );
         }
       }
 
@@ -350,7 +450,7 @@ export const TeachersPage: React.FC = () => {
 
       setError(
         err.response?.data?.message ||
-          'Failed to save teacher.'
+        'Failed to save teacher.'
       );
     } finally {
       setSaving(false);
@@ -359,7 +459,7 @@ export const TeachersPage: React.FC = () => {
 
   const handleDelete = async (teacher: Teacher) => {
     const confirmed = window.confirm(
-      `Are you sure you want to delete ${teacher.name}?`
+      `Are you sure you want to deactivate ${teacher.name}?`
     );
 
     if (!confirmed) return;
@@ -373,13 +473,49 @@ export const TeachersPage: React.FC = () => {
 
       await fetchTeachers();
     } catch (err: any) {
-      console.error('Error deleting teacher:', err);
+      console.error('Error deactivating teacher:', err);
 
       setError(
         err.response?.data?.message ||
-          'Failed to delete teacher.'
+        'Failed to deactivate teacher.'
       );
     }
+  };
+
+  const handleReactivate = async (teacher: Teacher) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to reactivate ${teacher.name}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError(null);
+
+      await api.put(
+        `/franchise/teachers/${teacher.id}`,
+        {
+          status: 'ACTIVE',
+        }
+      );
+
+      await fetchTeachers();
+    } catch (err: any) {
+      console.error('Error reactivating teacher:', err);
+
+      setError(
+        err.response?.data?.message ||
+        'Failed to reactivate teacher.'
+      );
+    }
+  };
+
+  const getTeacherAssignments = (teacherId: string) => {
+    return assignments.filter(
+      (assignment) =>
+        assignment.teacherId === teacherId &&
+        assignment.status === 'ACTIVE'
+    );
   };
 
   return (
@@ -393,7 +529,7 @@ export const TeachersPage: React.FC = () => {
           </h1>
 
           <p className="text-xs text-slate-500 mt-1">
-            Manage teachers and faculty members of your school.
+            Manage teachers, faculty information and teaching assignments.
           </p>
         </div>
 
@@ -405,9 +541,8 @@ export const TeachersPage: React.FC = () => {
             title="Refresh teachers"
           >
             <RefreshCw
-              className={`w-4 h-4 ${
-                loading ? 'animate-spin' : ''
-              }`}
+              className={`w-4 h-4 ${loading ? 'animate-spin' : ''
+                }`}
             />
           </button>
 
@@ -452,108 +587,132 @@ export const TeachersPage: React.FC = () => {
         </div>
       ) : (
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
-          {teachers.map((teacher) => (
-            <Card
-              key={teacher.id}
-              hoverLift
-              padding="md"
-              className="flex flex-col justify-between space-y-4"
-            >
-              <div className="space-y-3">
-                <div className="flex items-start justify-between">
-                  <Avatar
-                    name={teacher.name}
-                    size="lg"
-                    status={
-                      teacher.status === 'INACTIVE'
-                        ? undefined
-                        : 'online'
-                    }
-                  />
+          {teachers.map((teacher) => {
+            const teacherAssignments = getTeacherAssignments(teacher.id);
 
-                  <Badge variant="indigo" size="sm">
-                    Teacher
-                  </Badge>
-                </div>
+            return (
+              <Card
+                key={teacher.id}
+                hoverLift
+                padding="md"
+                className="flex flex-col justify-between space-y-4"
+              >
+                <div className="space-y-3">
+                  <div className="flex items-start justify-between">
+                    <Avatar
+                      name={teacher.name}
+                      size="lg"
+                      status={
+                        teacher.status === 'INACTIVE'
+                          ? undefined
+                          : 'online'
+                      }
+                    />
 
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
-                    {teacher.name}
-                  </h3>
+                    <Badge
+                      variant={
+                        teacher.status === 'INACTIVE'
+                          ? 'default'
+                          : 'indigo'
+                      }
+                      size="sm"
+                    >
+                      {teacher.role || 'TEACHER'}
+                    </Badge>
+                  </div>
 
-                  <span className="text-xs font-semibold text-blue-600 block">
-                    {teacher.subject ||
-                      teacher.department ||
-                      'Teacher'}
-                  </span>
+                  <div>
+                    <h3 className="text-sm font-extrabold text-slate-900">
+                      {teacher.name}
+                    </h3>
 
-                  {assignments
-                    .filter((a) => a.teacherId === teacher.id)
-                    .map((a) => (
+                    <span className="text-xs font-semibold text-blue-600 block">
+                      {teacher.qualification ||
+                        teacher.staffType ||
+                        'Faculty'}
+                    </span>
+
+                    {teacherAssignments.map((assignment) => (
                       <span
-                        key={a.id}
+                        key={assignment.id}
                         className="inline-flex items-center text-[10px] font-bold bg-indigo-50 text-indigo-700 px-2 py-0.5 rounded-full border border-indigo-100 mt-1.5 mr-1"
                       >
-                        {a.class?.name || 'Class'} - {a.section?.name || 'Sec'}
+                        {assignment.class?.name || 'Class'} -{' '}
+                        {assignment.section?.name || 'Section'}
+                        {assignment.subject?.name
+                          ? ` • ${assignment.subject.name}`
+                          : ''}
                       </span>
                     ))}
-                </div>
-
-                <div className="space-y-1.5 text-xs text-slate-500 pt-2 border-t border-slate-100">
-                  <div className="flex items-center gap-2">
-                    <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
-
-                    <span className="truncate">
-                      {teacher.email || '—'}
-                    </span>
                   </div>
 
-                  <div className="flex items-center gap-2">
-                    <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+                  <div className="space-y-1.5 text-xs text-slate-500 pt-2 border-t border-slate-100">
+                    <div className="flex items-center gap-2">
+                      <Mail className="w-3.5 h-3.5 text-slate-400 shrink-0" />
 
-                    <span>
-                      {teacher.phone || '—'}
-                    </span>
+                      <span className="truncate">
+                        {teacher.email || '—'}
+                      </span>
+                    </div>
+
+                    <div className="flex items-center gap-2">
+                      <Phone className="w-3.5 h-3.5 text-slate-400 shrink-0" />
+
+                      <span>
+                        {teacher.phone || '—'}
+                      </span>
+                    </div>
                   </div>
                 </div>
-              </div>
 
-              <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
-                <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
-                  <Shield className="w-3 h-3 text-emerald-500" />
-                  {teacher.status === 'INACTIVE'
-                    ? 'Inactive'
-                    : 'Active'}
-                </span>
+                <div className="pt-2 border-t border-slate-100 flex items-center justify-between">
+                  <span className="text-[11px] font-bold text-slate-400 flex items-center gap-1">
+                    <Shield className="w-3 h-3 text-emerald-500" />
 
-                <div className="flex items-center gap-1">
-                  <button
-                    onClick={() => openEditModal(teacher)}
-                    className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
-                    title="Edit teacher"
-                  >
-                    <Edit className="w-4 h-4" />
-                  </button>
+                    {teacher.status === 'INACTIVE'
+                      ? 'Inactive'
+                      : 'Active'}
+                  </span>
 
-                  <button
-                    onClick={() => handleDelete(teacher)}
-                    className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
-                    title="Delete teacher"
-                  >
-                    <Trash2 className="w-4 h-4" />
-                  </button>
+                  <div className="flex items-center gap-1">
+                    <button
+                      onClick={() => openEditModal(teacher)}
+                      className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"
+                      title="Edit teacher"
+                    >
+                      <Edit className="w-4 h-4" />
+                    </button>
+
+                    {teacher.status !== 'INACTIVE' ? (
+                      <button
+                        onClick={() => handleDelete(teacher)}
+                        className="p-1.5 text-slate-400 hover:text-rose-600 hover:bg-rose-50 rounded-lg"
+                        title="Deactivate teacher"
+                      >
+                        <Trash2 className="w-4 h-4" />
+                      </button>
+                    ) : (
+                      <button
+                        onClick={() => handleReactivate(teacher)}
+                        className="p-1.5 text-slate-400 hover:text-emerald-600 hover:bg-emerald-50 rounded-lg"
+                        title="Reactivate teacher"
+                      >
+                        <RotateCcw className="w-4 h-4" />
+                      </button>
+                    )}
+                  </div>
                 </div>
-              </div>
-            </Card>
-          ))}
+              </Card>
+            );
+          })}
         </div>
       )}
 
-      {/* ADD / EDIT TEACHER MODAL */}
+      {/* ADD / EDIT MODAL */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
-          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-2xl max-h-[90vh] overflow-y-auto">
-            {/* MODAL HEADER */}
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-3xl max-h-[90vh] overflow-y-auto">
+            {/* HEADER */}
             <div className="flex items-center justify-between p-5 border-b border-slate-100">
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">
@@ -564,8 +723,8 @@ export const TeachersPage: React.FC = () => {
 
                 <p className="text-xs text-slate-500 mt-1">
                   {editingTeacher
-                    ? 'Update teacher information.'
-                    : 'Create a teacher account for your school.'}
+                    ? 'Update teacher information and assignment.'
+                    : 'Create a teacher account and optionally assign a class.'}
                 </p>
               </div>
 
@@ -581,7 +740,7 @@ export const TeachersPage: React.FC = () => {
             {/* FORM */}
             <form
               onSubmit={handleSubmit}
-              className="p-5 space-y-4"
+              className="p-5 space-y-5"
             >
               {error && (
                 <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-bold">
@@ -589,234 +748,368 @@ export const TeachersPage: React.FC = () => {
                 </div>
               )}
 
-              <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                {/* NAME */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Teacher Name *
-                  </label>
+              {/* BASIC INFORMATION */}
+              <div>
+                <h3 className="text-sm font-extrabold text-slate-800 mb-3">
+                  Basic Information
+                </h3>
 
-                  <input
-                    name="name"
-                    value={form.name}
-                    onChange={handleChange}
-                    required
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="e.g. Dr. Rajesh Verma"
-                  />
-                </div>
-
-                {/* EMAIL */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Email *
-                  </label>
-
-                  <input
-                    name="email"
-                    type="email"
-                    value={form.email}
-                    onChange={handleChange}
-                    required
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="teacher@school.edu"
-                  />
-                </div>
-
-                {/* PHONE */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Phone
-                  </label>
-
-                  <input
-                    name="phone"
-                    value={form.phone}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="+91 98765 00000"
-                  />
-                </div>
-
-                {/* PAN CARD NUMBER */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    PAN CARD NUMBER <span className="font-normal text-slate-400">(Optional)</span>
-                  </label>
-
-                  <input
-                    name="panNumber"
-                    value={form.panNumber}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="e.g. ABCDE1234F"
-                  />
-                </div>
-
-                {/* AADHAAR CARD NUMBER */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    AADHAAR CARD NUMBER <span className="font-normal text-slate-400">(Optional)</span>
-                  </label>
-
-                  <input
-                    name="aadhaarNumber"
-                    value={form.aadhaarNumber}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="e.g. 1234 5678 9012"
-                  />
-                </div>
-
-                {/* SUBJECT */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Subject
-                  </label>
-
-                  <input
-                    name="subject"
-                    value={form.subject}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="e.g. Mathematics"
-                  />
-                </div>
-
-                {/* DEPARTMENT */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Department
-                  </label>
-
-                  <input
-                    name="department"
-                    value={form.department}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                    placeholder="e.g. Mathematics Department"
-                  />
-                </div>
-
-                {/* ASSIGNED CLASS (OPTIONAL) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Assigned Class <span className="font-normal text-slate-400">(Optional)</span>
-                  </label>
-                  <select
-                    name="classId"
-                    value={form.classId}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
-                  >
-                    <option value="">-- None / Select Class --</option>
-                    {classes.map((cls) => (
-                      <option key={cls.id} value={cls.id}>
-                        {cls.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* ASSIGNED SECTION (OPTIONAL) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Assigned Section <span className="font-normal text-slate-400">(Optional)</span>
-                  </label>
-                  <select
-                    name="sectionId"
-                    value={form.sectionId}
-                    onChange={handleChange}
-                    disabled={!form.classId}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
-                  >
-                    <option value="">
-                      {!form.classId ? '-- Select Class First --' : '-- Select Section --'}
-                    </option>
-                    {sections.map((sec) => (
-                      <option key={sec.id} value={sec.id}>
-                        {sec.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* ASSIGNED MASTER SUBJECT (OPTIONAL) */}
-                <div>
-                  <label className="block text-xs font-bold text-slate-600 mb-1">
-                    Assigned Master Subject <span className="font-normal text-slate-400">(Optional)</span>
-                  </label>
-                  <select
-                    name="subjectId"
-                    value={form.subjectId || ''}
-                    onChange={handleChange}
-                    className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
-                  >
-                    <option value="">-- None / Select Subject --</option>
-                    {subjects.map((sub) => (
-                      <option key={sub.id} value={sub.id}>
-                        {sub.name}
-                      </option>
-                    ))}
-                  </select>
-                </div>
-
-                {/* PASSWORD */}
-                {!editingTeacher && (
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                   <div>
                     <label className="block text-xs font-bold text-slate-600 mb-1">
-                      Password *
-                    </label>
-
-                    <div className="relative">
-                      <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
-
-                      <input
-                        name="password"
-                        type={showPassword ? 'text' : 'password'}
-                        value={form.password}
-                        onChange={handleChange}
-                        required
-                        className="w-full border border-slate-200 rounded-xl pl-9 pr-10 py-2.5 text-sm outline-none focus:border-blue-500"
-                        placeholder="Enter password"
-                      />
-
-                      <button
-                        type="button"
-                        onClick={() =>
-                          setShowPassword(!showPassword)
-                        }
-                        className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
-                      >
-                        {showPassword ? (
-                          <EyeOff className="w-4 h-4" />
-                        ) : (
-                          <Eye className="w-4 h-4" />
-                        )}
-                      </button>
-                    </div>
-                  </div>
-                )}
-
-                {/* CONFIRM PASSWORD */}
-                {!editingTeacher && (
-                  <div>
-                    <label className="block text-xs font-bold text-slate-600 mb-1">
-                      Confirm Password *
+                      Teacher Name *
                     </label>
 
                     <input
-                      name="confirmPassword"
-                      type={showPassword ? 'text' : 'password'}
-                      value={form.confirmPassword}
+                      name="name"
+                      value={form.name}
                       onChange={handleChange}
                       required
                       className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
-                      placeholder="Confirm password"
+                      placeholder="e.g. Rajesh Verma"
                     />
                   </div>
-                )}
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Email *
+                    </label>
+
+                    <input
+                      name="email"
+                      type="email"
+                      value={form.email}
+                      onChange={handleChange}
+                      required
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                      placeholder="teacher@school.edu"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Phone
+                    </label>
+
+                    <input
+                      name="phone"
+                      value={form.phone}
+                      onChange={handleChange}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                      placeholder="+91 98765 00000"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      PAN Number *
+                    </label>
+
+                    <input
+                      name="panNumber"
+                      value={form.panNumber}
+                      onChange={handleChange}
+                      required={!editingTeacher}
+                      maxLength={10}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm uppercase outline-none focus:border-blue-500"
+                      placeholder="ABCDE1234F"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Aadhaar Number
+                    </label>
+
+                    <input
+                      name="aadhaarNumber"
+                      value={form.aadhaarNumber}
+                      onChange={handleChange}
+                      maxLength={12}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                      placeholder="123456789012"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Gender
+                    </label>
+
+                    <select
+                      name="gender"
+                      value={form.gender}
+                      onChange={handleChange}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                    >
+                      <option value="">Select Gender</option>
+                      <option value="MALE">Male</option>
+                      <option value="FEMALE">Female</option>
+                      <option value="OTHER">Other</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Date of Birth
+                    </label>
+
+                    <input
+                      name="dateOfBirth"
+                      type="date"
+                      value={form.dateOfBirth}
+                      onChange={handleChange}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Qualification
+                    </label>
+
+                    <input
+                      name="qualification"
+                      value={form.qualification}
+                      onChange={handleChange}
+                      placeholder="e.g. M.Sc Mathematics, B.Ed"
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+                </div>
               </div>
+
+              {/* EMPLOYMENT */}
+              <div className="border-t border-slate-100 pt-5">
+                <h3 className="text-sm font-extrabold text-slate-800 mb-3">
+                  Employment
+                </h3>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Staff Type *
+                    </label>
+
+                    <select
+                      name="staffType"
+                      value={form.staffType}
+                      onChange={handleChange}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                    >
+                      <option value="TEACHING">Teaching</option>
+                      <option value="NON_TEACHING">
+                        Non-Teaching
+                      </option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Role *
+                    </label>
+
+                    <select
+                      name="role"
+                      value={form.role}
+                      onChange={handleChange}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                    >
+                      <option value="TEACHER">Teacher</option>
+                      <option value="HOD">HOD</option>
+                      <option value="PRINCIPAL">Principal</option>
+                      <option value="ACCOUNTANT">Accountant</option>
+                      <option value="DATA_ENTRY">Data Entry</option>
+                      <option value="SUPPORT">Support</option>
+                    </select>
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Joining Date
+                    </label>
+
+                    <input
+                      name="joiningDate"
+                      type="date"
+                      value={form.joiningDate}
+                      onChange={handleChange}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-xs font-bold text-slate-600 mb-1">
+                      Address
+                    </label>
+
+                    <textarea
+                      name="address"
+                      value={form.address}
+                      onChange={handleChange}
+                      rows={2}
+                      className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 resize-none"
+                      placeholder="Teacher residential address"
+                    />
+                  </div>
+                </div>
+              </div>
+
+              {/* TEACHING ASSIGNMENT */}
+              {form.staffType === 'TEACHING' && (
+                <div className="border-t border-slate-100 pt-5">
+                  <h3 className="text-sm font-extrabold text-slate-800 mb-1">
+                    Teaching Assignment
+                  </h3>
+
+                  <p className="text-[11px] text-slate-400 mb-3">
+                    Assign the teacher to a class, section and subject.
+                  </p>
+
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">
+                        Class
+                      </label>
+
+                      <select
+                        name="classId"
+                        value={form.classId}
+                        onChange={handleChange}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                      >
+                        <option value="">No Assignment</option>
+
+                        {classes
+                          .filter((cls) => cls.isActive !== false)
+                          .map((cls) => (
+                            <option key={cls.id} value={cls.id}>
+                              {cls.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">
+                        Section
+                      </label>
+
+                      <select
+                        name="sectionId"
+                        value={form.sectionId}
+                        onChange={handleChange}
+                        disabled={!form.classId}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
+                      >
+                        <option value="">
+                          {!form.classId
+                            ? 'Select Class First'
+                            : 'Select Section'}
+                        </option>
+
+                        {sections
+                          .filter((section) => section.isActive !== false)
+                          .map((section) => (
+                            <option
+                              key={section.id}
+                              value={section.id}
+                            >
+                              {section.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">
+                        Subject
+                      </label>
+
+                      <select
+                        name="subjectId"
+                        value={form.subjectId}
+                        onChange={handleChange}
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
+                      >
+                        <option value="">No Subject</option>
+
+                        {subjects
+                          .filter((subject) => subject.isActive !== false)
+                          .map((subject) => (
+                            <option
+                              key={subject.id}
+                              value={subject.id}
+                            >
+                              {subject.name}
+                            </option>
+                          ))}
+                      </select>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {/* PASSWORD */}
+              {!editingTeacher && (
+                <div className="border-t border-slate-100 pt-5">
+                  <h3 className="text-sm font-extrabold text-slate-800 mb-3">
+                    Account Security
+                  </h3>
+
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">
+                        Password *
+                      </label>
+
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-3 w-4 h-4 text-slate-400" />
+
+                        <input
+                          name="password"
+                          type={showPassword ? 'text' : 'password'}
+                          value={form.password}
+                          onChange={handleChange}
+                          required
+                          className="w-full border border-slate-200 rounded-xl pl-9 pr-10 py-2.5 text-sm outline-none focus:border-blue-500"
+                          placeholder="Enter password"
+                        />
+
+                        <button
+                          type="button"
+                          onClick={() =>
+                            setShowPassword(!showPassword)
+                          }
+                          className="absolute right-3 top-2.5 text-slate-400 hover:text-slate-600"
+                        >
+                          {showPassword ? (
+                            <EyeOff className="w-4 h-4" />
+                          ) : (
+                            <Eye className="w-4 h-4" />
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div>
+                      <label className="block text-xs font-bold text-slate-600 mb-1">
+                        Confirm Password *
+                      </label>
+
+                      <input
+                        name="confirmPassword"
+                        type={showPassword ? 'text' : 'password'}
+                        value={form.confirmPassword}
+                        onChange={handleChange}
+                        required
+                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500"
+                        placeholder="Confirm password"
+                      />
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {/* ACTIONS */}
               <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
@@ -837,8 +1130,8 @@ export const TeachersPage: React.FC = () => {
                   {saving
                     ? 'Saving...'
                     : editingTeacher
-                    ? 'Update Teacher'
-                    : 'Add Teacher'}
+                      ? 'Update Teacher'
+                      : 'Add Teacher'}
                 </button>
               </div>
             </form>

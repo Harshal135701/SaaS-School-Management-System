@@ -12,18 +12,25 @@ const {
   deleteSubject,
 } = require("../controllers/subjectController");
 
-const academicAccess = allowRoles(
+const viewAccess = allowRoles(
+  "FRANCHISE_ADMIN",
   "PRINCIPAL",
   "HOD",
   "TEACHER",
-  "DATA_ENTRY",
-  "FRANCHISE_ADMIN"
+  "DATA_ENTRY"
 );
 
-router.get("/", franchiseProtect, academicAccess, getSubjects);
-router.get("/:id", franchiseProtect, academicAccess, getSubjectById);
-router.post("/", franchiseProtect, academicAccess, createSubject);
-router.put("/:id", franchiseProtect, academicAccess, updateSubject);
-router.delete("/:id", franchiseProtect, academicAccess, deleteSubject);
+const manageAccess = allowRoles(
+  "FRANCHISE_ADMIN",
+  "PRINCIPAL",
+  "HOD",
+  "DATA_ENTRY"
+);
+
+router.get("/", franchiseProtect, viewAccess, getSubjects);
+router.get("/:id", franchiseProtect, viewAccess, getSubjectById);
+router.post("/", franchiseProtect, manageAccess, createSubject);
+router.put("/:id", franchiseProtect, manageAccess, updateSubject);
+router.delete("/:id", franchiseProtect, manageAccess, deleteSubject);
 
 module.exports = router;
