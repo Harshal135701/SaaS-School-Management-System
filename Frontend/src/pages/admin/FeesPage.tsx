@@ -205,7 +205,7 @@ export const FeesPage: React.FC = () => {
     try {
       setLoadingFees(true);
       setFeesError(null);
-      
+
       // Also fetch classes and sections here so they are available globally
       api.get("/franchise/classes").then(res => setClasses(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
       api.get("/franchise/sections").then(res => setSections(Array.isArray(res.data?.data) ? res.data.data : [])).catch(console.error);
@@ -214,8 +214,8 @@ export const FeesPage: React.FC = () => {
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
+          ? res.data
+          : [];
       setStudentFees(list);
     } catch (err: any) {
       console.error("Failed to load student fees:", err);
@@ -233,8 +233,8 @@ export const FeesPage: React.FC = () => {
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
+          ? res.data
+          : [];
       setInstallments(list);
     } catch (err: any) {
       console.error("Failed to load installments:", err);
@@ -252,8 +252,8 @@ export const FeesPage: React.FC = () => {
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
+          ? res.data
+          : [];
       setPayments(list);
     } catch (err: any) {
       console.error("Failed to load payments:", err);
@@ -267,19 +267,19 @@ export const FeesPage: React.FC = () => {
     try {
       setLoadingCategories(true);
       setCategoriesError(null);
-      
+
       const [res, classRes, secRes] = await Promise.all([
         api.get("/fee-categories"),
         api.get("/franchise/classes").catch(() => ({ data: { data: [] } })),
         api.get("/franchise/sections").catch(() => ({ data: { data: [] } }))
       ]);
-      
+
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
-        
+          ? res.data
+          : [];
+
       // Sort according to user preference
       const desiredOrder = ["tuition fee", "uniform", "i-card", "transport", "other"];
       list.sort((a: any, b: any) => {
@@ -287,15 +287,15 @@ export const FeesPage: React.FC = () => {
         const bName = b.name.toLowerCase();
         const aIdx = desiredOrder.indexOf(aName);
         const bIdx = desiredOrder.indexOf(bName);
-        
+
         if (aIdx !== -1 && bIdx !== -1) return aIdx - bIdx;
         if (aIdx !== -1) return -1;
         if (bIdx !== -1) return 1;
         return aName.localeCompare(bName);
       });
-      
+
       setCategories(list);
-      
+
       setClasses(Array.isArray(classRes.data?.data) ? classRes.data.data : []);
       setSections(Array.isArray(secRes.data?.data) ? secRes.data.data : []);
     } catch (err: any) {
@@ -314,8 +314,8 @@ export const FeesPage: React.FC = () => {
       const list = Array.isArray(res.data?.data)
         ? res.data.data
         : Array.isArray(res.data)
-        ? res.data
-        : [];
+          ? res.data
+          : [];
       setStudents(list);
     } catch (err) {
       console.error("Failed to load student list for selection:", err);
@@ -405,7 +405,7 @@ export const FeesPage: React.FC = () => {
   };
 
   // Filtered lists for each tab
-  
+
 
   const filteredInstallments = useMemo(() => {
     const q = search.trim().toLowerCase();
@@ -449,7 +449,7 @@ export const FeesPage: React.FC = () => {
   // HANDLERS: ASSIGN STUDENT FEE
   // ==========================================
 
-  
+
 
   const handleOpenAssignModal = () => {
     loadCategories();
@@ -474,7 +474,7 @@ export const FeesPage: React.FC = () => {
     }
   }, [isAssignModalOpen, categories, assignForm.items]);
 
-    // GROUPED STUDENT FEES FOR DASHBOARD
+  // GROUPED STUDENT FEES FOR DASHBOARD
   const groupedStudentFees = useMemo(() => {
     const groups: Record<string, any> = {};
     studentFees.forEach(fee => {
@@ -489,7 +489,7 @@ export const FeesPage: React.FC = () => {
         };
       }
       groups[sId].fees.push(fee);
-      
+
       const payable = Number(fee.finalAmount) || 0;
       let paid = 0;
       fee.installments?.forEach((inst: any) => {
@@ -497,11 +497,11 @@ export const FeesPage: React.FC = () => {
           paid += Number(pay.amount) || 0;
         });
       });
-      
+
       groups[sId].totalPayable += payable;
       groups[sId].totalPaid += paid;
     });
-    
+
     return Object.values(groups).map(g => {
       g.fees.sort((a: any, b: any) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime());
       g.totalPending = Math.max(g.totalPayable - g.totalPaid, 0);
@@ -509,7 +509,7 @@ export const FeesPage: React.FC = () => {
       return g;
     });
   }, [studentFees]);
-  
+
   const filteredGroupedFees = useMemo(() => {
     return groupedStudentFees.filter(g => {
       if (search && !g.student?.name?.toLowerCase().includes(search.toLowerCase())) return false;
@@ -542,7 +542,7 @@ export const FeesPage: React.FC = () => {
           const feePaid = fee.installments?.reduce((sum: number, inst: any) => {
             return sum + (inst.payments?.reduce((s: number, p: any) => s + Number(p.amount || 0), 0) || 0);
           }, 0) || 0;
-          
+
           if (Number(fee.finalAmount) > feePaid) {
             targetFee = fee;
             break;
@@ -578,11 +578,12 @@ export const FeesPage: React.FC = () => {
           amount: unassignedFeeAmount,
           dueDate: today,
         });
-        
+
         const createdInst = res.data?.data || res.data;
         if (createdInst && createdInst.id) {
           createdInst.studentFee = {
             ...targetFee,
+            studentId: targetFee.studentId || group.student?.id,
             student: group.student,
           };
           setPaymentTargetInstallment(createdInst);
@@ -612,7 +613,7 @@ export const FeesPage: React.FC = () => {
     const { student, totalPayable, totalPaid, totalPending, fees } = group;
     const className = classes.find(c => c.id === student?.classId)?.name || 'Unknown';
     const sectionName = sections.find(s => s.id === student?.sectionId)?.name || 'Unknown';
-    
+
     let breakdownHtml = fees.map((fee: any) => {
       const isOther = fee.category?.name.toLowerCase() === "other";
       const name = isOther && fee.remarks ? fee.remarks.split('|')[0].trim() : fee.category?.name;
@@ -648,7 +649,7 @@ export const FeesPage: React.FC = () => {
         });
       });
     });
-    
+
     if (!paymentsHtml) {
       paymentsHtml = `<tr><td colspan="5" style="text-align: center; color: #64748b;">No payments recorded yet.</td></tr>`;
     }
@@ -751,7 +752,7 @@ export const FeesPage: React.FC = () => {
         </body>
       </html>
     `;
-    
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(content);
@@ -813,7 +814,7 @@ export const FeesPage: React.FC = () => {
         </body>
       </html>
     `;
-    
+
     const printWindow = window.open('', '_blank');
     if (printWindow) {
       printWindow.document.write(content);
@@ -832,7 +833,7 @@ export const FeesPage: React.FC = () => {
       triggerError("Please select a student.");
       return;
     }
-    
+
     // Validation
     const validItems = assignForm.items.filter(item => item.feeCategoryId && Number(item.originalAmount) > 0);
     if (validItems.length === 0) {
@@ -844,14 +845,14 @@ export const FeesPage: React.FC = () => {
 
     try {
       setSubmitting(true);
-      
+
       const promises = validItems.map(item => {
         let remarks = assignForm.remarks.trim();
         const category = categories.find(c => c.id === item.feeCategoryId);
         if (category?.name.toLowerCase() === "other" && item.customName.trim()) {
-           remarks = remarks ? `${item.customName.trim()} | ${remarks}` : item.customName.trim();
+          remarks = remarks ? `${item.customName.trim()} | ${remarks}` : item.customName.trim();
         }
-        
+
         return api.post("/student-fees", {
           studentId: assignForm.studentId,
           feeCategoryId: item.feeCategoryId,
@@ -863,7 +864,7 @@ export const FeesPage: React.FC = () => {
 
       const results = await Promise.allSettled(promises);
       const failed = results.filter(r => r.status === 'rejected');
-      
+
       if (failed.length === 0) {
         triggerSuccess(`Successfully assigned ${validItems.length} fee(s).`);
         setIsAssignModalOpen(false);
@@ -891,7 +892,7 @@ export const FeesPage: React.FC = () => {
     return Math.max(0, orig - (orig * disc) / 100);
   }, [editFeeForm.originalAmount, editFeeForm.discountPercent]);
 
-  
+
 
   const handleEditFeeSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -953,7 +954,7 @@ export const FeesPage: React.FC = () => {
       if ((res.status >= 200 && res.status < 300) || res.data?.success) {
         triggerSuccess("Student fee deleted successfully.");
         await Promise.all([loadStudentFees(), loadFeeSummary(), loadInstallments()]);
-        
+
         if (selectedFeeDetails) {
           const newFees = selectedFeeDetails.fees.filter((f: any) => f.id !== id);
           if (newFees.length === 0) {
@@ -1041,7 +1042,7 @@ export const FeesPage: React.FC = () => {
         triggerError("This installment number already exists for this fee.");
         return;
       }
-      
+
       const existingTotal = fee.installments?.reduce((sum, i) => sum + Number(i.amount), 0) || 0;
       if (existingTotal + amt > Number(fee.finalAmount) + 0.001) {
         triggerError(`Installment total cannot exceed fee payable amount (₹${Number(fee.finalAmount).toFixed(2)}).`);
@@ -1189,9 +1190,12 @@ export const FeesPage: React.FC = () => {
     }
 
     // Resolve studentId from installment hierarchy
+    // Resolve studentId from installment / student fee / selected group
     const studentId =
       paymentTargetInstallment.studentFee?.studentId ||
-      paymentTargetInstallment.studentFee?.student?.id;
+      paymentTargetInstallment.studentFee?.student?.id ||
+      selectedFeeDetails?.student?.id ||
+      paymentTargetInstallment.studentId;
 
     if (!studentId) {
       triggerError("Unable to locate associated student for this installment.");
@@ -1497,20 +1501,18 @@ export const FeesPage: React.FC = () => {
               setActiveTab("student-fees");
               setSearch("");
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === "student-fees"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${activeTab === "student-fees"
+              ? "bg-white text-blue-600 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+              }`}
           >
             <CreditCard className="w-3.5 h-3.5" />
             <span>Student Fees</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                activeTab === "student-fees"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-slate-200 text-slate-600"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "student-fees"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-slate-200 text-slate-600"
+                }`}
             >
               {groupedStudentFees.length}
             </span>
@@ -1521,20 +1523,18 @@ export const FeesPage: React.FC = () => {
               setActiveTab("installments");
               setSearch("");
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === "installments"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${activeTab === "installments"
+              ? "bg-white text-blue-600 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+              }`}
           >
             <Calendar className="w-3.5 h-3.5" />
             <span>Installments</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                activeTab === "installments"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-slate-200 text-slate-600"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "installments"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-slate-200 text-slate-600"
+                }`}
             >
               {installments.length}
             </span>
@@ -1545,20 +1545,18 @@ export const FeesPage: React.FC = () => {
               setActiveTab("payments");
               setSearch("");
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === "payments"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${activeTab === "payments"
+              ? "bg-white text-blue-600 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+              }`}
           >
             <Receipt className="w-3.5 h-3.5" />
             <span>Payment History</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                activeTab === "payments"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-slate-200 text-slate-600"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "payments"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-slate-200 text-slate-600"
+                }`}
             >
               {payments.length}
             </span>
@@ -1569,20 +1567,18 @@ export const FeesPage: React.FC = () => {
               setActiveTab("categories");
               setSearch("");
             }}
-            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${
-              activeTab === "categories"
-                ? "bg-white text-blue-600 shadow-sm"
-                : "text-slate-600 hover:text-slate-900"
-            }`}
+            className={`px-4 py-2 rounded-lg text-xs font-bold transition whitespace-nowrap cursor-pointer flex items-center gap-2 ${activeTab === "categories"
+              ? "bg-white text-blue-600 shadow-sm"
+              : "text-slate-600 hover:text-slate-900"
+              }`}
           >
             <Tag className="w-3.5 h-3.5" />
             <span>Fee Categories</span>
             <span
-              className={`px-1.5 py-0.5 rounded-full text-[10px] ${
-                activeTab === "categories"
-                  ? "bg-blue-100 text-blue-700"
-                  : "bg-slate-200 text-slate-600"
-              }`}
+              className={`px-1.5 py-0.5 rounded-full text-[10px] ${activeTab === "categories"
+                ? "bg-blue-100 text-blue-700"
+                : "bg-slate-200 text-slate-600"
+                }`}
             >
               {categories.length}
             </span>
@@ -1599,10 +1595,10 @@ export const FeesPage: React.FC = () => {
               activeTab === "student-fees"
                 ? "Search student or category..."
                 : activeTab === "installments"
-                ? "Search student or status..."
-                : activeTab === "payments"
-                ? "Search student, receipt, or ref #..."
-                : "Search fee categories..."
+                  ? "Search student or status..."
+                  : activeTab === "payments"
+                    ? "Search student, receipt, or ref #..."
+                    : "Search fee categories..."
             }
             className="w-full pl-10 pr-4 py-2 rounded-xl border border-slate-200 outline-none focus:ring-2 focus:ring-blue-500/20 focus:border-blue-500 text-xs text-slate-800 placeholder-slate-400 transition"
           />
@@ -1687,8 +1683,8 @@ export const FeesPage: React.FC = () => {
 
                     return (
                       <tr key={student.id} className="hover:bg-slate-50/70 transition cursor-pointer" onClick={() => {
-                          setSelectedFeeDetails(group);
-                          setIsDetailsModalOpen(true);
+                        setSelectedFeeDetails(group);
+                        setIsDetailsModalOpen(true);
                       }}>
                         <td className="px-5 py-4">
                           <div className="font-bold text-sm text-slate-900">
@@ -1702,24 +1698,23 @@ export const FeesPage: React.FC = () => {
                         <td className="px-5 py-4 text-sm font-extrabold text-slate-900">
                           ₹{Number(totalPayable || 0).toLocaleString("en-IN")}
                         </td>
-                        
+
                         <td className="px-5 py-4 text-sm font-bold text-emerald-600">
                           ₹{Number(totalPaid || 0).toLocaleString("en-IN")}
                         </td>
-                        
+
                         <td className="px-5 py-4 text-sm font-bold text-amber-600">
                           ₹{Number(totalPending || 0).toLocaleString("en-IN")}
                         </td>
-                        
+
                         <td className="px-5 py-4">
-                           <span
-                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase ${
-                              status === "PAID"
-                                ? "bg-emerald-100 text-emerald-700"
-                                : status === "PARTIAL"
+                          <span
+                            className={`inline-flex items-center gap-1.5 px-2.5 py-1 rounded-full text-[11px] font-bold tracking-wide uppercase ${status === "PAID"
+                              ? "bg-emerald-100 text-emerald-700"
+                              : status === "PARTIAL"
                                 ? "bg-amber-100 text-amber-700"
                                 : "bg-rose-100 text-rose-700"
-                            }`}
+                              }`}
                           >
                             {status}
                           </span>
@@ -1879,10 +1874,10 @@ export const FeesPage: React.FC = () => {
                         <td className="px-5 py-4 text-xs font-semibold text-slate-600">
                           {inst.dueDate
                             ? new Date(inst.dueDate).toLocaleDateString("en-IN", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                              })
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                            })
                             : "—"}
                         </td>
 
@@ -2056,12 +2051,12 @@ export const FeesPage: React.FC = () => {
                         <td className="px-5 py-4 text-xs font-semibold text-slate-600">
                           {p.paymentDate
                             ? new Date(p.paymentDate).toLocaleDateString("en-IN", {
-                                year: "numeric",
-                                month: "short",
-                                day: "numeric",
-                                hour: "2-digit",
-                                minute: "2-digit",
-                              })
+                              year: "numeric",
+                              month: "short",
+                              day: "numeric",
+                              hour: "2-digit",
+                              minute: "2-digit",
+                            })
                             : "—"}
                         </td>
 
@@ -2177,10 +2172,10 @@ export const FeesPage: React.FC = () => {
                       <td className="px-5 py-4 text-xs font-semibold text-slate-500">
                         {cat.createdAt
                           ? new Date(cat.createdAt).toLocaleDateString("en-IN", {
-                              year: "numeric",
-                              month: "short",
-                              day: "numeric",
-                            })
+                            year: "numeric",
+                            month: "short",
+                            day: "numeric",
+                          })
                           : "—"}
                       </td>
                     </tr>
@@ -2256,12 +2251,12 @@ export const FeesPage: React.FC = () => {
                       <Plus className="w-3 h-3" /> Add Fee Item
                     </button>
                   </div>
-                  
+
                   <div className="space-y-3">
                     {assignForm.items.map((item, index) => {
                       const selectedCat = categories.find(c => c.id === item.feeCategoryId);
                       const isOther = selectedCat?.name.toLowerCase() === "other";
-                      
+
                       return (
                         <div key={item.id} className="p-3 bg-slate-50 border border-slate-100 rounded-xl relative group">
                           {assignForm.items.length > 1 && (
@@ -2269,14 +2264,14 @@ export const FeesPage: React.FC = () => {
                               type="button"
                               onClick={() => {
                                 const newItems = assignForm.items.filter(i => i.id !== item.id);
-                                setAssignForm({...assignForm, items: newItems});
+                                setAssignForm({ ...assignForm, items: newItems });
                               }}
                               className="absolute -top-2 -right-2 p-1.5 bg-red-100 text-red-600 rounded-full opacity-0 group-hover:opacity-100 transition shadow-sm"
                             >
                               <X className="w-3 h-3" />
                             </button>
                           )}
-                          
+
                           <div className="grid grid-cols-1 md:grid-cols-3 gap-3">
                             <div>
                               <select
@@ -2567,189 +2562,189 @@ export const FeesPage: React.FC = () => {
             </div>
 
             <div className="p-6 overflow-y-auto space-y-6 flex-1 bg-slate-50/50">
-               {/* Summary */}
-               <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                  <div className="bg-white border border-slate-200 p-4 rounded-2xl">
-                     <p className="text-[11px] font-bold text-slate-500 uppercase">Total Payable</p>
-                     <p className="text-xl font-black text-slate-900">₹{Number(selectedFeeDetails.totalPayable).toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="bg-white border border-emerald-200 p-4 rounded-2xl">
-                     <p className="text-[11px] font-bold text-emerald-600 uppercase">Total Paid</p>
-                     <p className="text-xl font-black text-emerald-700">₹{Number(selectedFeeDetails.totalPaid).toLocaleString('en-IN')}</p>
-                  </div>
-                  <div className="bg-white border border-amber-200 p-4 rounded-2xl">
-                     <p className="text-[11px] font-bold text-amber-600 uppercase">Total Pending</p>
-                     <p className="text-xl font-black text-amber-700">₹{Number(selectedFeeDetails.totalPending).toLocaleString('en-IN')}</p>
-                  </div>
-               </div>
-               
-               {/* Category Breakdown */}
-               <div>
-                 <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide">Category Breakdown</h3>
-                 <div className="space-y-3">
-                   {selectedFeeDetails.fees.map((fee: any) => {
-                     const isOther = fee.category?.name.toLowerCase() === "other";
-                     const name = isOther && fee.remarks ? fee.remarks.split('|')[0].trim() : fee.category?.name;
-                     const orig = Number(fee.originalAmount);
-                     const disc = Number(fee.discountPercent);
-                     const pay = Number(fee.finalAmount);
-                     let paid = 0;
-                     fee.installments?.forEach((inst: any) => {
-                       inst.payments?.forEach((p: any) => paid += Number(p.amount));
-                     });
-                     const pend = Math.max(pay - paid, 0);
-                     
-                     return (
-                       <div key={fee.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
-                         <div>
-                           <h4 className="font-bold text-slate-900">{name}</h4>
-                           <div className="text-xs text-slate-500 mt-1 flex items-center gap-3">
-                             <span>Original: ₹{orig.toLocaleString('en-IN')}</span>
-                             {disc > 0 && <span className="text-purple-600 font-semibold">Discount: {disc}%</span>}
-                           </div>
-                         </div>
-                         <div className="flex items-center gap-6 text-sm font-bold">
-                           <div className="text-center">
-                             <div className="text-[10px] text-slate-400 uppercase">Payable</div>
-                             <div className="text-slate-900">₹{pay.toLocaleString('en-IN')}</div>
-                           </div>
-                           <div className="text-center">
-                             <div className="text-[10px] text-emerald-600 uppercase">Paid</div>
-                             <div className="text-emerald-700">₹{paid.toLocaleString('en-IN')}</div>
-                           </div>
-                           <div className="text-center">
-                             <div className="text-[10px] text-amber-600 uppercase">Pending</div>
-                             <div className="text-amber-700">₹{pend.toLocaleString('en-IN')}</div>
-                           </div>
-                           
-                           <button
-                              onClick={() => {
-                                 setIsDetailsModalOpen(false);
-                                   setEditingFee(fee);
-                                 setEditFeeForm({
-                                   originalAmount: fee.originalAmount?.toString() || "",
-                                   discountPercent: fee.discountPercent?.toString() || "0",
-                                   remarks: fee.remarks || "",
-                                 });
-                                 setIsEditFeeModalOpen(true);
-                              }}
-                              className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition"
-                           >
-                             <Pencil className="w-4 h-4" />
-                           </button>
-                           
-                           {paid === 0 && (
-                             <button
-                               onClick={() => handleDeleteStudentFee(fee.id)}
-                               className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 hover:bg-rose-100 transition"
-                             >
-                               <Trash2 className="w-4 h-4" />
-                             </button>
-                           )}
-                         </div>
-                       </div>
-                     );
-                   })}
-                 </div>
-               </div>
-               
-               {/* Installments & Payments */}
-               <div>
-                  <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide flex items-center justify-between">
-                    Installments & Payments
-                    <button
-                      onClick={() => {
-                        setCreateInstallmentForm({ studentFeeId: selectedFeeDetails.fees[0]?.id || "", installmentNumber: 1, amount: "", dueDate: "" });
-                        setIsCreateInstallmentModalOpen(true);
-                      }}
-                      className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
-                    >
-                      <Plus className="w-3 h-3" /> Add Installment
-                    </button>
-                  </h3>
-                  
-                  <div className="space-y-4">
-                     {selectedFeeDetails.fees.map((fee: any) => (
-                       fee.installments?.length > 0 && (
-                         <div key={fee.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
-                           <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 font-bold text-sm text-slate-700">
-                             {fee.category?.name} Installments
-                           </div>
-                           <div className="divide-y divide-slate-100">
-                             {fee.installments.map((inst: any, idx: number) => {
-                               const paid = inst.payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0;
-                               const pending = Math.max(Number(inst.amount) - paid, 0);
-                               
-                               return (
-                                 <div key={inst.id} className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
-                                   <div>
-                                     <div className="font-bold text-sm text-slate-900">Installment #{inst.installmentNumber || idx + 1} &middot; ₹{Number(inst.amount).toLocaleString('en-IN')}</div>
-                                     <div className="text-xs text-slate-500 mt-0.5">Due: {new Date(inst.dueDate).toLocaleDateString()}</div>
-                                   </div>
-                                   
-                                   <div className="flex items-center gap-4">
-                                     <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${inst.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : inst.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
-                                       {inst.status}
-                                     </span>
-                                     
-                                     {inst.status !== "PAID" && (
-                                       <button
-                                         onClick={() => {
-                                           setPaymentTargetInstallment(inst);
-                                           setPaymentForm({
-                                             amount: pending.toString(),
-                                             paymentMethod: "CASH",
-                                             receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
-                                             remarks: "",
-                                           });
-                                           setIsRecordPaymentModalOpen(true);
-                                         }}
-                                         className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition"
-                                       >
-                                         Pay
-                                       </button>
-                                     )}
-                                   </div>
-                                   
-                                   {inst.payments && inst.payments.length > 0 && (
-                                     <div className="w-full mt-3 bg-slate-50 rounded-xl border border-slate-200 p-3">
-                                       <div className="text-[10px] font-bold text-slate-500 uppercase mb-2">Payment Records</div>
-                                       <div className="space-y-2">
-                                          {inst.payments.map((p: any) => (
-                                            <div key={p.id} className="flex items-center justify-between text-xs">
-                                              <div className="flex items-center gap-2">
-                                                <span className="font-bold text-emerald-700">₹{Number(p.amount).toLocaleString('en-IN')}</span>
-                                                <span className="text-slate-500 font-medium bg-slate-200 px-1.5 py-0.5 rounded-md text-[9px]">{p.paymentMethod}</span>
-                                                <span className="text-slate-400">{new Date(p.paymentDate).toLocaleDateString()}</span>
-                                              </div>
-                                              <div className="flex items-center gap-2">
-                                                 <span className="text-slate-400 font-mono text-[10px]">{p.receiptNumber || p.referenceNumber}</span>
-                                                 <button 
-                                                    type="button" 
-                                                    onClick={(e) => {
-                                                        e.stopPropagation();
-                                                        handlePrintReceipt(p, selectedFeeDetails);
-                                                    }}
-                                                    className="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-300 transition"
-                                                    title="Download Receipt"
-                                                 >
-                                                   <Download className="w-3 h-3" />
-                                                 </button>
-                                              </div>
-                                            </div>
-                                          ))}
-                                       </div>
-                                     </div>
-                                   )}
-                                 </div>
-                               );
-                             })}
-                           </div>
-                         </div>
-                       )
-                     ))}
-                  </div>
-               </div>
+              {/* Summary */}
+              <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                <div className="bg-white border border-slate-200 p-4 rounded-2xl">
+                  <p className="text-[11px] font-bold text-slate-500 uppercase">Total Payable</p>
+                  <p className="text-xl font-black text-slate-900">₹{Number(selectedFeeDetails.totalPayable).toLocaleString('en-IN')}</p>
+                </div>
+                <div className="bg-white border border-emerald-200 p-4 rounded-2xl">
+                  <p className="text-[11px] font-bold text-emerald-600 uppercase">Total Paid</p>
+                  <p className="text-xl font-black text-emerald-700">₹{Number(selectedFeeDetails.totalPaid).toLocaleString('en-IN')}</p>
+                </div>
+                <div className="bg-white border border-amber-200 p-4 rounded-2xl">
+                  <p className="text-[11px] font-bold text-amber-600 uppercase">Total Pending</p>
+                  <p className="text-xl font-black text-amber-700">₹{Number(selectedFeeDetails.totalPending).toLocaleString('en-IN')}</p>
+                </div>
+              </div>
+
+              {/* Category Breakdown */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide">Category Breakdown</h3>
+                <div className="space-y-3">
+                  {selectedFeeDetails.fees.map((fee: any) => {
+                    const isOther = fee.category?.name.toLowerCase() === "other";
+                    const name = isOther && fee.remarks ? fee.remarks.split('|')[0].trim() : fee.category?.name;
+                    const orig = Number(fee.originalAmount);
+                    const disc = Number(fee.discountPercent);
+                    const pay = Number(fee.finalAmount);
+                    let paid = 0;
+                    fee.installments?.forEach((inst: any) => {
+                      inst.payments?.forEach((p: any) => paid += Number(p.amount));
+                    });
+                    const pend = Math.max(pay - paid, 0);
+
+                    return (
+                      <div key={fee.id} className="bg-white border border-slate-200 rounded-2xl p-4 flex flex-col md:flex-row gap-4 items-center justify-between">
+                        <div>
+                          <h4 className="font-bold text-slate-900">{name}</h4>
+                          <div className="text-xs text-slate-500 mt-1 flex items-center gap-3">
+                            <span>Original: ₹{orig.toLocaleString('en-IN')}</span>
+                            {disc > 0 && <span className="text-purple-600 font-semibold">Discount: {disc}%</span>}
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-6 text-sm font-bold">
+                          <div className="text-center">
+                            <div className="text-[10px] text-slate-400 uppercase">Payable</div>
+                            <div className="text-slate-900">₹{pay.toLocaleString('en-IN')}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-emerald-600 uppercase">Paid</div>
+                            <div className="text-emerald-700">₹{paid.toLocaleString('en-IN')}</div>
+                          </div>
+                          <div className="text-center">
+                            <div className="text-[10px] text-amber-600 uppercase">Pending</div>
+                            <div className="text-amber-700">₹{pend.toLocaleString('en-IN')}</div>
+                          </div>
+
+                          <button
+                            onClick={() => {
+                              setIsDetailsModalOpen(false);
+                              setEditingFee(fee);
+                              setEditFeeForm({
+                                originalAmount: fee.originalAmount?.toString() || "",
+                                discountPercent: fee.discountPercent?.toString() || "0",
+                                remarks: fee.remarks || "",
+                              });
+                              setIsEditFeeModalOpen(true);
+                            }}
+                            className="w-8 h-8 rounded-full bg-slate-100 flex items-center justify-center text-slate-600 hover:bg-slate-200 transition"
+                          >
+                            <Pencil className="w-4 h-4" />
+                          </button>
+
+                          {paid === 0 && (
+                            <button
+                              onClick={() => handleDeleteStudentFee(fee.id)}
+                              className="w-8 h-8 rounded-full bg-rose-50 flex items-center justify-center text-rose-600 hover:bg-rose-100 transition"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+
+              {/* Installments & Payments */}
+              <div>
+                <h3 className="text-sm font-bold text-slate-800 mb-3 uppercase tracking-wide flex items-center justify-between">
+                  Installments & Payments
+                  <button
+                    onClick={() => {
+                      setCreateInstallmentForm({ studentFeeId: selectedFeeDetails.fees[0]?.id || "", installmentNumber: 1, amount: "", dueDate: "" });
+                      setIsCreateInstallmentModalOpen(true);
+                    }}
+                    className="text-xs text-blue-600 font-bold hover:underline flex items-center gap-1"
+                  >
+                    <Plus className="w-3 h-3" /> Add Installment
+                  </button>
+                </h3>
+
+                <div className="space-y-4">
+                  {selectedFeeDetails.fees.map((fee: any) => (
+                    fee.installments?.length > 0 && (
+                      <div key={fee.id} className="bg-white border border-slate-200 rounded-2xl overflow-hidden">
+                        <div className="px-4 py-3 bg-slate-50 border-b border-slate-100 font-bold text-sm text-slate-700">
+                          {fee.category?.name} Installments
+                        </div>
+                        <div className="divide-y divide-slate-100">
+                          {fee.installments.map((inst: any, idx: number) => {
+                            const paid = inst.payments?.reduce((s: number, p: any) => s + Number(p.amount), 0) || 0;
+                            const pending = Math.max(Number(inst.amount) - paid, 0);
+
+                            return (
+                              <div key={inst.id} className="p-4 flex flex-col md:flex-row gap-4 justify-between items-start md:items-center">
+                                <div>
+                                  <div className="font-bold text-sm text-slate-900">Installment #{inst.installmentNumber || idx + 1} &middot; ₹{Number(inst.amount).toLocaleString('en-IN')}</div>
+                                  <div className="text-xs text-slate-500 mt-0.5">Due: {new Date(inst.dueDate).toLocaleDateString()}</div>
+                                </div>
+
+                                <div className="flex items-center gap-4">
+                                  <span className={`px-2 py-1 rounded-md text-[10px] font-bold uppercase ${inst.status === 'PAID' ? 'bg-emerald-100 text-emerald-700' : inst.status === 'PARTIAL' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'}`}>
+                                    {inst.status}
+                                  </span>
+
+                                  {inst.status !== "PAID" && (
+                                    <button
+                                      onClick={() => {
+                                        setPaymentTargetInstallment(inst);
+                                        setPaymentForm({
+                                          amount: pending.toString(),
+                                          paymentMethod: "CASH",
+                                          receiptNumber: `REC-${Date.now().toString().slice(-6)}`,
+                                          remarks: "",
+                                        });
+                                        setIsRecordPaymentModalOpen(true);
+                                      }}
+                                      className="px-3 py-1.5 bg-blue-600 text-white text-xs font-bold rounded-lg hover:bg-blue-700 transition"
+                                    >
+                                      Pay
+                                    </button>
+                                  )}
+                                </div>
+
+                                {inst.payments && inst.payments.length > 0 && (
+                                  <div className="w-full mt-3 bg-slate-50 rounded-xl border border-slate-200 p-3">
+                                    <div className="text-[10px] font-bold text-slate-500 uppercase mb-2">Payment Records</div>
+                                    <div className="space-y-2">
+                                      {inst.payments.map((p: any) => (
+                                        <div key={p.id} className="flex items-center justify-between text-xs">
+                                          <div className="flex items-center gap-2">
+                                            <span className="font-bold text-emerald-700">₹{Number(p.amount).toLocaleString('en-IN')}</span>
+                                            <span className="text-slate-500 font-medium bg-slate-200 px-1.5 py-0.5 rounded-md text-[9px]">{p.paymentMethod}</span>
+                                            <span className="text-slate-400">{new Date(p.paymentDate).toLocaleDateString()}</span>
+                                          </div>
+                                          <div className="flex items-center gap-2">
+                                            <span className="text-slate-400 font-mono text-[10px]">{p.receiptNumber || p.referenceNumber}</span>
+                                            <button
+                                              type="button"
+                                              onClick={(e) => {
+                                                e.stopPropagation();
+                                                handlePrintReceipt(p, selectedFeeDetails);
+                                              }}
+                                              className="w-6 h-6 rounded bg-slate-200 flex items-center justify-center text-slate-600 hover:bg-slate-300 transition"
+                                              title="Download Receipt"
+                                            >
+                                              <Download className="w-3 h-3" />
+                                            </button>
+                                          </div>
+                                        </div>
+                                      ))}
+                                    </div>
+                                  </div>
+                                )}
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    )
+                  ))}
+                </div>
+              </div>
             </div>
           </div>
         </div>
@@ -3036,7 +3031,7 @@ export const FeesPage: React.FC = () => {
                     ₹{Math.max(
                       0,
                       Number(paymentTargetInstallment.amount) -
-                        getInstallmentPaidAmount(paymentTargetInstallment)
+                      getInstallmentPaidAmount(paymentTargetInstallment)
                     ).toLocaleString("en-IN")}
                   </span>
                 </div>
@@ -3054,7 +3049,7 @@ export const FeesPage: React.FC = () => {
                   max={Math.max(
                     0,
                     Number(paymentTargetInstallment.amount) -
-                      getInstallmentPaidAmount(paymentTargetInstallment)
+                    getInstallmentPaidAmount(paymentTargetInstallment)
                   )}
                   value={paymentForm.amount}
                   onChange={(e) =>

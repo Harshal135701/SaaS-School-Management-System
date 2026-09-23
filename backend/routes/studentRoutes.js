@@ -22,6 +22,15 @@ const studentAccess = allowRoles(
   "FRANCHISE_ADMIN"
 );
 
+const studentReadAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "DATA_ENTRY",
+  "ACCOUNTANT",
+  "FRANCHISE_ADMIN"
+);
+
 // Parent - view own child only
 router.get(
   "/parent/:studentId",
@@ -33,14 +42,14 @@ router.get(
 router.get(
   "/",
   teacherOrFranchiseProtect,
-  studentAccess,
+  studentReadAccess,
   getStudents
 );
 
 router.get(
   "/:id",
   teacherOrFranchiseProtect,
-  studentAccess,
+  studentReadAccess,
   getStudentById
 );
 

@@ -59,69 +59,96 @@ export const Sidebar: React.FC<SidebarProps> = ({
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
 
-  const menuSections = [
-    {
-      title: 'MAIN',
-      items: [
-        { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' }
-      ]
-    },
-    {
-      title: 'MANAGEMENT',
-      items: [
-        { id: 'students', label: 'Students', icon: GraduationCap, path: '/admin/students' },
-        { id: 'teachers', label: 'Teachers & Staff', icon: Users, path: '/admin/teachers' },
-        { id: 'parents', label: 'Parents', icon: HeartHandshake, path: '/admin/parents' },
-        { id: 'staff_mgmt', label: 'Staff Management', icon: UserPlus, path: '#staff-provision', action: onOpenStaffModal, badge: 'Admin' }
-      ]
-    },
-    {
-      title: 'ACADEMICS',
-      items: [
-        { id: 'acad_mgmt', label: 'Academic Management', icon: BookOpen, path: '/admin/academics' },
-        { id: 'classes', label: 'Classes & Sections', icon: Building2, path: '/admin/classes' },
-        { id: 'subjects', label: 'Subjects', icon: BookMarked, path: '/admin/subjects' },
-        { id: 'timetable', label: 'Timetable', icon: CalendarDays, path: '/admin/timetable' },
-        { id: 'school_periods', label: 'School Periods', icon: Clock, path: '/admin/school-periods' }
-      ]
-    },
-    {
-      title: 'STUDENT LIFE',
-      items: [
-        { id: 'attendance', label: 'Attendance', icon: CheckCircle2, path: '/admin/attendance' },
-        { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/examinations' },
-        { id: 'homework', label: 'Homework', icon: ClipboardList, path: '/admin/homework' },
-        { id: 'leave', label: 'Leave Management', icon: CalendarOff, path: '/admin/leaves' }
-      ]
-    },
-    {
-      title: 'OPERATIONS',
-      items: [
-        { id: 'fees', label: 'Fees', icon: CreditCard, path: '/admin/fees' },
-        { id: 'salary', label: 'Salary', icon: Banknote, path: '/admin/salary' },
-        { id: 'watchman', label: 'Watchman', icon: Shield, path: '/admin/watchmen' },
-        { id: 'expenses', label: 'Expense', icon: Receipt, path: '/admin/expenses' },
-        { id: 'library', label: 'Library', icon: Library, path: '/admin/library' },
-        { id: 'transport', label: 'Transport', icon: Bus, path: '/admin/transport' },
-        { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' },
-        { id: 'notifications', label: 'Notifications', icon: MessageSquare, path: '/admin/notifications' }
-      ]
-    },
-    {
-      title: 'ANALYTICS',
-      items: [
-        { id: 'reports', label: 'Reports', icon: BarChart3, path: '/admin/reports' }
-      ]
-    },
-    {
-      title: 'SYSTEM',
-      items: [
-        { id: 'users', label: 'User Management', icon: ShieldCheck, path: '/admin/users' },
-        { id: 'audit', label: 'Audit Logs', icon: History, path: '/admin/audit' },
-        { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' }
-      ]
-    }
-  ];
+  const isAccountant = currentPath.startsWith('/accountant');
+
+  const menuSections = isAccountant
+    ? [
+      {
+        title: 'MAIN',
+        items: [
+          {
+            id: 'dashboard',
+            label: 'Dashboard',
+            icon: LayoutDashboard,
+            path: '/accountant/dashboard'
+          }
+        ]
+      },
+      {
+        title: 'FINANCE',
+        items: [
+          {
+            id: 'fees',
+            label: 'Fees',
+            icon: CreditCard,
+            path: '/accountant/fees'
+          }
+        ]
+      }
+    ]
+    : [
+      {
+        title: 'MAIN',
+        items: [
+          { id: 'dashboard', label: 'Dashboard', icon: LayoutDashboard, path: '/admin/dashboard' }
+        ]
+      },
+      {
+        title: 'MANAGEMENT',
+        items: [
+          { id: 'students', label: 'Students', icon: GraduationCap, path: '/admin/students' },
+          { id: 'teachers', label: 'Teachers & Staff', icon: Users, path: '/admin/teachers' },
+          { id: 'parents', label: 'Parents', icon: HeartHandshake, path: '/admin/parents' },
+          { id: 'staff_mgmt', label: 'Staff Management', icon: UserPlus, path: '#staff-provision', action: onOpenStaffModal, badge: 'Admin' }
+        ]
+      },
+      {
+        title: 'ACADEMICS',
+        items: [
+          { id: 'acad_mgmt', label: 'Academic Management', icon: BookOpen, path: '/admin/academics' },
+          { id: 'classes', label: 'Classes & Sections', icon: Building2, path: '/admin/classes' },
+          { id: 'subjects', label: 'Subjects', icon: BookMarked, path: '/admin/subjects' },
+          { id: 'timetable', label: 'Timetable', icon: CalendarDays, path: '/admin/timetable' },
+          { id: 'school_periods', label: 'School Periods', icon: Clock, path: '/admin/school-periods' }
+        ]
+      },
+      {
+        title: 'STUDENT LIFE',
+        items: [
+          { id: 'attendance', label: 'Attendance', icon: CheckCircle2, path: '/admin/attendance' },
+          { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/examinations' },
+          { id: 'homework', label: 'Homework', icon: ClipboardList, path: '/admin/homework' },
+          { id: 'leave', label: 'Leave Management', icon: CalendarOff, path: '/admin/leaves' }
+        ]
+      },
+      {
+        title: 'OPERATIONS',
+        items: [
+          { id: 'fees', label: 'Fees', icon: CreditCard, path: '/admin/fees' },
+          { id: 'salary', label: 'Salary', icon: Banknote, path: '/admin/salary' },
+          { id: 'watchman', label: 'Watchman', icon: Shield, path: '/admin/watchmen' },
+          { id: 'expenses', label: 'Expense', icon: Receipt, path: '/admin/expenses' },
+          { id: 'library', label: 'Library', icon: Library, path: '/admin/library' },
+          { id: 'transport', label: 'Transport', icon: Bus, path: '/admin/transport' },
+          { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' },
+          { id: 'notifications', label: 'Notifications', icon: MessageSquare, path: '/admin/notifications' }
+        ]
+      },
+      {
+        title: 'ANALYTICS',
+        items: [
+          { id: 'reports', label: 'Reports', icon: BarChart3, path: '/admin/reports' }
+        ]
+      },
+      {
+        title: 'SYSTEM',
+        items: [
+          { id: 'users', label: 'User Management', icon: ShieldCheck, path: '/admin/users' },
+          { id: 'audit', label: 'Audit Logs', icon: History, path: '/admin/audit' },
+          { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' }
+        ]
+      }
+    ];
 
   const handleItemClick = (item: any) => {
     if (item.action) {
@@ -290,7 +317,11 @@ export const Sidebar: React.FC<SidebarProps> = ({
               <div className="flex items-center gap-1 mt-0.5">
                 <CheckCircle2 className="w-3 h-3 text-blue-600 shrink-0" />
                 <span className="text-[10px] font-bold text-blue-600 tracking-wider uppercase truncate">
-                  {franchise ? 'FRANCHISE ADMIN' : 'ADMINISTRATOR'}
+                  {isAccountant
+                    ? 'ACCOUNTANT'
+                    : franchise
+                      ? 'FRANCHISE ADMIN'
+                      : 'ADMINISTRATOR'}
                 </span>
               </div>
             </div>

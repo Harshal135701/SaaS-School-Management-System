@@ -13,7 +13,7 @@ const login = async (req, res) => {
       });
     }
 
-    const teacher = await Teacher.findOne({
+    const teacher = await Teacher.scope("withPassword").findOne({
       where: { email },
       include: [
         {
@@ -30,6 +30,14 @@ const login = async (req, res) => {
         message: "Invalid email or password",
       });
     }
+
+    // console.log("LOGIN DEBUG:", {
+    //   email: teacher?.email,
+    //   passwordExists: !!teacher?.password,
+    //   passwordLength: teacher?.password?.length,
+    //   status: teacher?.status,
+    //   role: teacher?.role,
+    // });
 
     if (!teacher.password) {
       return res.status(403).json({

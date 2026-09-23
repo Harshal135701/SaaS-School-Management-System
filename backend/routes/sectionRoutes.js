@@ -20,8 +20,18 @@ const academicAccess = allowRoles(
   "FRANCHISE_ADMIN"
 );
 
-router.get("/", franchiseProtect, academicAccess, getSections);
-router.get("/:id", franchiseProtect, academicAccess, getSectionById);
+const sectionReadAccess = allowRoles(
+  "PRINCIPAL",
+  "HOD",
+  "TEACHER",
+  "DATA_ENTRY",
+  "ACCOUNTANT",
+  "FRANCHISE_ADMIN"
+);
+
+router.get("/", franchiseProtect, sectionReadAccess, getSections);
+router.get("/:id", franchiseProtect, sectionReadAccess, getSectionById);
+
 router.post("/", franchiseProtect, academicAccess, createSection);
 router.put("/:id", franchiseProtect, academicAccess, updateSection);
 router.delete("/:id", franchiseProtect, academicAccess, deleteSection);

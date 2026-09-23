@@ -12,9 +12,17 @@ const {
   deleteStudentFee,
 } = require("../controllers/studentFeeController");
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
+const { allowRoles } = require("../middleware/roleMiddleware");
 
-router.use(franchiseProtect);
+const financeAccess = allowRoles(
+  "PRINCIPAL",
+  "ACCOUNTANT",
+  "FRANCHISE_ADMIN"
+);
+
+router.use(teacherOrFranchiseProtect);
+router.use(financeAccess);
 
 router.get("/", getStudentFees);
 

@@ -58,8 +58,7 @@ import { ParentLayout } from './components/layout/ParentLayout';
 import { ParentDashboardPage } from './pages/parent/ParentDashboardPage';
 import { ChatPage } from './pages/chat/ChatPage';
 
-// Super Admin email — the only hardcoded check needed
-
+import { AccountantDashboardPage } from './pages/accountant/AccountantDashboardPage';
 
 export function App() {
   const [currentPath, setCurrentPath] = useState<string>('/login');
@@ -75,16 +74,18 @@ export function App() {
 
   const [currentUser, setCurrentUser] = useState<any>(null);
 
-  // Shared franchise list (all schools registered in the platform)
+  // Shared franchise list
   const [franchises, setFranchises] = useState<Franchise[]>([]);
 
-  // The franchise that the currently logged-in franchise admin belongs to
-  const [loggedInFranchise, setLoggedInFranchise] = useState<Franchise | null>(null);
+  // Logged-in franchise
+  const [loggedInFranchise, setLoggedInFranchise] =
+    useState<Franchise | null>(null);
 
   const showToast = (msg: string) => {
     setToastMessage(msg);
     setTimeout(() => setToastMessage(null), 3500);
   };
+
   const loadFranchiseDashboard = async (user?: any) => {
     try {
       const res = await api.get('/franchise/dashboard/');
@@ -126,7 +127,6 @@ export function App() {
 
       setLoggedInFranchise(null);
       return null;
-
     } catch (error) {
       console.error('Failed to fetch franchise dashboard:', error);
       setLoggedInFranchise(null);
@@ -135,11 +135,9 @@ export function App() {
   };
 
   useEffect(() => {
-    // Check active session in the current browser tab
     const token = sessionStorage.getItem('token');
 
     if (!token) {
-      // Clear any legacy persistent token so new sessions always start at Login page
       localStorage.removeItem('token');
       localStorage.removeItem('user');
       setIsAuthenticated(false);
@@ -161,8 +159,12 @@ export function App() {
       }
 
       let storedUser = null;
+
       try {
-        const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+        const userStr =
+          sessionStorage.getItem('user') ||
+          localStorage.getItem('user');
+
         if (userStr) {
           storedUser = JSON.parse(userStr);
         }
@@ -176,12 +178,15 @@ export function App() {
         setUserRole('Super Admin');
         setCurrentPath('/super-admin/dashboard');
         setIsAuthenticated(true);
-        // Fetch real franchises from backend on load
-        api.get('/system-admin/franchises').then(res => {
-          if (res.data?.success && Array.isArray(res.data.data)) {
-            setFranchises(res.data.data);
-          }
-        }).catch(() => {/* keep mock data if fetch fails */ });
+
+        api
+          .get('/system-admin/franchises')
+          .then((res) => {
+            if (res.data?.success && Array.isArray(res.data.data)) {
+              setFranchises(res.data.data);
+            }
+          })
+          .catch(() => { });
       } else if (decoded.role === 'FRANCHISE_ADMIN') {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
@@ -198,6 +203,10 @@ export function App() {
       } else if (decoded.role === 'TEACHER') {
         setUserRole('Teacher');
         setCurrentPath('/teacher/dashboard');
+        setIsAuthenticated(true);
+      } else if (decoded.role === 'ACCOUNTANT') {
+        setUserRole('Accountant');
+        setCurrentPath('/accountant/dashboard');
         setIsAuthenticated(true);
       } else if (decoded.role === 'PARENT') {
         setUserRole('Parent');
@@ -224,35 +233,42 @@ export function App() {
 
   const handleLoginSuccess = async (user?: any) => {
     console.log('USER RECEIVED IN APP:', user);
-    setIsAuthenticated(true);
-    if (user) setCurrentUser(user);
 
-    // System Admin / Super Admin
+    setIsAuthenticated(true);
+
+    if (user) {
+      setCurrentUser(user);
+    }
+
+    // System Admin
     if (user?.role === 'SYSTEM_ADMIN') {
       setUserRole('Super Admin');
       setLoggedInFranchise(null);
       setCurrentPath('/super-admin/dashboard');
-      // Fetch real franchises from backend immediately after login
-      api.get('/system-admin/franchises').then(res => {
-        if (res.data?.success && Array.isArray(res.data.data)) {
-          setFranchises(res.data.data);
-        }
-      }).catch(() => {/* keep mock data if fetch fails */ });
+
+      api
+        .get('/system-admin/franchises')
+        .then((res) => {
+          if (res.data?.success && Array.isArray(res.data.data)) {
+            setFranchises(res.data.data);
+          }
+        })
+        .catch(() => { });
 
       showToast(
         `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
       );
+
       return;
     }
 
-    // Franchise / School Admin
+    // Franchise Admin
     if (user?.role === 'FRANCHISE_ADMIN') {
       console.log('FRANCHISE ADMIN USER:', user);
+
       setUserRole('Franchise Admin');
 
       try {
-        // Fetch the actual school/franchise belonging to
-        // the currently logged-in Franchise Admin.
         const res = await api.get('/franchise/dashboard/');
 
         if (res.data?.success && res.data?.data?.franchise) {
@@ -284,9 +300,10 @@ export function App() {
 
             joinedDate: '',
           };
-          console.log('FRANCHISE CREATED FOR DASHBOARD:', franchise);
-          setLoggedInFranchise(franchise);
 
+          console.log('FRANCHISE CREATED FOR DASHBOARD:', franchise);
+
+          setLoggedInFranchise(franchise);
           setCurrentPath('/admin/dashboard');
 
           showToast(
@@ -341,10 +358,19 @@ export function App() {
       return;
     }
 
+    // Accountant
+    if (user?.role === 'ACCOUNTANT') {
+      setUserRole('Accountant');
+      setLoggedInFranchise(null);
+      setCurrentPath('/accountant/dashboard');
+      showToast(`Welcome back, ${user.name || 'Accountant'}!`);
+      return;
+    }
+
     // Parent
     if (user?.role === 'PARENT') {
       setUserRole('Parent');
-      setLoggedInFranchise(null); // Parent doesn't manage the franchise
+      setLoggedInFranchise(null);
       setCurrentPath('/parent/dashboard');
       showToast(`Welcome back, ${user.name || 'Parent'}!`);
       return;
@@ -363,14 +389,18 @@ export function App() {
     localStorage.removeItem('token');
     sessionStorage.removeItem('user');
     localStorage.removeItem('user');
+
     setIsAuthenticated(false);
     setLoggedInFranchise(null);
     setCurrentPath('/login');
+
     showToast('Signed out successfully.');
   };
 
   const handleStaffRegistered = (data: StaffRegistrationInput) => {
-    showToast(`Staff member ${data.fullName} (${data.role}) provisioned successfully! Credentials dispatched to ${data.email}.`);
+    showToast(
+      `Staff member ${data.fullName} (${data.role}) provisioned successfully! Credentials dispatched to ${data.email}.`
+    );
   };
 
   const handleFranchiseAdded = async (franchise: Franchise) => {
@@ -383,66 +413,110 @@ export function App() {
         address: franchise.address,
         city: franchise.city,
         state: franchise.state,
-        pincode: '400001', // Dummy pincode since UI doesn't have it
-        planId: franchise.plan // The UI now sets the real UUID here
+        pincode: '400001',
+        planId: franchise.plan,
       });
 
       if (!res.data?.success) {
-        throw new Error(res.data?.message || 'Server rejected creation');
+        throw new Error(
+          res.data?.message || 'Server rejected creation'
+        );
       }
 
-      // Use returned data if available
       const newFranchise = res.data?.data || franchise;
-      setFranchises(prev => [...prev, newFranchise]);
-      showToast(`Franchise school "${newFranchise.name}" (${newFranchise.code}) created successfully!`);
+
+      setFranchises((prev) => [...prev, newFranchise]);
+
+      showToast(
+        `Franchise school "${newFranchise.name}" (${newFranchise.code}) created successfully!`
+      );
     } catch (error: any) {
       console.error('Backend franchise creation failed:', error);
-      showToast(error.response?.data?.message || error.message || 'Failed to create franchise');
+
+      showToast(
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to create franchise'
+      );
+
       throw error;
     }
   };
 
   const handleFranchiseUpdated = async (franchise: Franchise) => {
     try {
-      const res = await api.patch(`/system-admin/franchises/${franchise.id}`, {
-        name: franchise.name,
-        code: franchise.code,
-        email: franchise.email,
-        phone: franchise.phone,
-        address: franchise.address,
-        city: franchise.city,
-        state: franchise.state
-      });
+      const res = await api.patch(
+        `/system-admin/franchises/${franchise.id}`,
+        {
+          name: franchise.name,
+          code: franchise.code,
+          email: franchise.email,
+          phone: franchise.phone,
+          address: franchise.address,
+          city: franchise.city,
+          state: franchise.state,
+        }
+      );
 
       if (!res.data?.success) {
-        throw new Error(res.data?.message || 'Server rejected update');
+        throw new Error(
+          res.data?.message || 'Server rejected update'
+        );
       }
 
       const refreshRes = await api.get('/system-admin/franchises');
-      if (refreshRes.data?.success && Array.isArray(refreshRes.data.data)) {
+
+      if (
+        refreshRes.data?.success &&
+        Array.isArray(refreshRes.data.data)
+      ) {
         setFranchises(refreshRes.data.data);
       }
 
       const updatedFranchise = res.data?.data || franchise;
-      showToast(`Franchise school "${updatedFranchise.name}" updated successfully!`);
+
+      showToast(
+        `Franchise school "${updatedFranchise.name}" updated successfully!`
+      );
     } catch (error: any) {
       console.error('Backend franchise update failed:', error);
-      showToast(error.response?.data?.message || error.message || 'Failed to update franchise');
+
+      showToast(
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to update franchise'
+      );
+
       throw error;
     }
   };
 
   const handleFranchiseDeleted = async (id: string) => {
     try {
-      const res = await api.delete(`/system-admin/franchises/${id}`);
+      const res = await api.delete(
+        `/system-admin/franchises/${id}`
+      );
+
       if (!res.data?.success) {
-        throw new Error(res.data?.message || 'Server rejected deletion');
+        throw new Error(
+          res.data?.message || 'Server rejected deletion'
+        );
       }
-      setFranchises(prev => prev.filter(f => f.id !== id));
-      showToast(`Franchise deleted successfully!`);
+
+      setFranchises((prev) =>
+        prev.filter((f) => f.id !== id)
+      );
+
+      showToast('Franchise deleted successfully!');
     } catch (error: any) {
       console.error('Backend franchise deletion failed:', error);
-      showToast(error.response?.data?.message || error.message || 'Failed to delete franchise (Endpoint likely missing)');
+
+      showToast(
+        error.response?.data?.message ||
+        error.message ||
+        'Failed to delete franchise (Endpoint likely missing)'
+      );
+
       throw error;
     }
   };
@@ -465,13 +539,16 @@ export function App() {
       );
 
       if (!response.data?.success) {
-        throw new Error(response.data?.message || 'Failed to create franchise admin');
+        throw new Error(
+          response.data?.message ||
+          'Failed to create franchise admin'
+        );
       }
 
       const createdAdmin = response.data.data;
 
-      setFranchises(prev =>
-        prev.map(f => {
+      setFranchises((prev) =>
+        prev.map((f) => {
           if (
             String(f.id) === String(data.schoolId) ||
             f.code === data.schoolId
@@ -517,13 +594,20 @@ export function App() {
     setEditFranchise(null);
   };
 
-  // ── AUTH PAGES ──
-  if (!isAuthenticated || currentPath === '/login' || currentPath === '/register' || currentPath === '/forgot-password') {
+  // AUTH PAGES
+  if (
+    !isAuthenticated ||
+    currentPath === '/login' ||
+    currentPath === '/register' ||
+    currentPath === '/forgot-password'
+  ) {
     if (currentPath === '/register') {
       return (
         <RegisterPage
           onRegisterSuccess={() => {
-            showToast('Unified Account created successfully! Please sign in.');
+            showToast(
+              'Unified Account created successfully! Please sign in.'
+            );
             setCurrentPath('/login');
           }}
           onNavigateLogin={() => setCurrentPath('/login')}
@@ -543,84 +627,184 @@ export function App() {
       <LoginPage
         onLoginSuccess={handleLoginSuccess}
         onNavigateRegister={() => setCurrentPath('/register')}
-        onNavigateForgotPassword={() => setCurrentPath('/forgot-password')}
+        onNavigateForgotPassword={() =>
+          setCurrentPath('/forgot-password')
+        }
       />
     );
   }
 
-  // ── 1. SUPER ADMIN VIEWS ──
-  if (userRole === 'Super Admin' || currentPath.startsWith('/super-admin')) {
+  // 1. SUPER ADMIN
+  if (
+    userRole === 'Super Admin' ||
+    currentPath.startsWith('/super-admin')
+  ) {
     const renderSuperAdminContent = () => {
       if (currentPath === '/super-admin/franchises') {
         return (
           <FranchisesPage
             onNavigate={(p) => setCurrentPath(p)}
-            onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
-            onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+            onOpenAddFranchiseModal={() =>
+              setIsAddSchoolModalOpen(true)
+            }
+            onOpenAddAdminModal={() =>
+              setIsAddAdminModalOpen(true)
+            }
             onEditFranchise={handleOpenEditSchoolModal}
             onDeleteFranchise={handleFranchiseDeleted}
             subView="all"
           />
         );
       }
+
       if (currentPath === '/super-admin/franchise-admins') {
         return (
           <FranchisesPage
             onNavigate={(p) => setCurrentPath(p)}
-            onOpenAddFranchiseModal={() => setIsAddSchoolModalOpen(true)}
-            onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+            onOpenAddFranchiseModal={() =>
+              setIsAddSchoolModalOpen(true)
+            }
+            onOpenAddAdminModal={() =>
+              setIsAddAdminModalOpen(true)
+            }
             onEditFranchise={handleOpenEditSchoolModal}
             onDeleteFranchise={handleFranchiseDeleted}
             subView="admins"
           />
         );
       }
+
       if (currentPath.startsWith('/super-admin/franchises/')) {
-        const id = currentPath.split('/super-admin/franchises/')[1];
-        return <FranchiseDetailPage franchiseId={id} franchiseList={franchises} onNavigate={(p) => setCurrentPath(p)} />;
+        const id = currentPath.split(
+          '/super-admin/franchises/'
+        )[1];
+
+        return (
+          <FranchiseDetailPage
+            franchiseId={id}
+            franchiseList={franchises}
+            onNavigate={(p) => setCurrentPath(p)}
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="overview" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="overview"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty/config') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="config" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="config"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty/monthly') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="monthly" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="monthly"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty/paid') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="paid" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="paid"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty/pending') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="pending" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="pending"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty/overdue') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="overdue" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="overdue"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/royalty/reports') {
-        return <RoyaltyPage onNavigate={(p) => setCurrentPath(p)} subView="reports" />;
+        return (
+          <RoyaltyPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="reports"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/contracts') {
-        return <ContractsPage onNavigate={(p) => setCurrentPath(p)} subView="all" />;
+        return (
+          <ContractsPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="all"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/contracts/active') {
-        return <ContractsPage onNavigate={(p) => setCurrentPath(p)} subView="active" />;
+        return (
+          <ContractsPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="active"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/contracts/expiring') {
-        return <ContractsPage onNavigate={(p) => setCurrentPath(p)} subView="expiring" />;
+        return (
+          <ContractsPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="expiring"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/contracts/expired') {
-        return <ContractsPage onNavigate={(p) => setCurrentPath(p)} subView="expired" />;
+        return (
+          <ContractsPage
+            onNavigate={(p) => setCurrentPath(p)}
+            subView="expired"
+          />
+        );
       }
+
       if (currentPath === '/super-admin/settings') {
-        return <SuperAdminSettingsPage onNavigate={(p) => setCurrentPath(p)} defaultTab="profile" />;
+        return (
+          <SuperAdminSettingsPage
+            onNavigate={(p) => setCurrentPath(p)}
+            defaultTab="profile"
+          />
+        );
       }
 
       return (
         <SuperAdminDashboardPage
           onNavigate={(p) => setCurrentPath(p)}
-          onOpenAddSchoolModal={() => setIsAddSchoolModalOpen(true)}
-          onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
+          onOpenAddSchoolModal={() =>
+            setIsAddSchoolModalOpen(true)
+          }
+          onOpenAddAdminModal={() =>
+            setIsAddAdminModalOpen(true)
+          }
           onEditFranchise={handleOpenEditSchoolModal}
           onDeleteFranchise={handleFranchiseDeleted}
           franchiseList={franchises}
@@ -635,15 +819,21 @@ export function App() {
         onNavigate={(path) => setCurrentPath(path)}
         onLogout={handleLogout}
         isAddSchoolModalOpen={isAddSchoolModalOpen}
-        onOpenAddSchoolModal={() => setIsAddSchoolModalOpen(true)}
+        onOpenAddSchoolModal={() =>
+          setIsAddSchoolModalOpen(true)
+        }
         onCloseAddSchoolModal={handleCloseSchoolModal}
         editFranchise={editFranchise}
         onFranchiseAdded={handleFranchiseAdded}
         onFranchiseUpdated={handleFranchiseUpdated}
         onAdminAdded={handleAdminAdded}
         isAddAdminModalOpen={isAddAdminModalOpen}
-        onOpenAddAdminModal={() => setIsAddAdminModalOpen(true)}
-        onCloseAddAdminModal={() => setIsAddAdminModalOpen(false)}
+        onOpenAddAdminModal={() =>
+          setIsAddAdminModalOpen(true)
+        }
+        onCloseAddAdminModal={() =>
+          setIsAddAdminModalOpen(false)
+        }
         franchises={franchises}
       >
         {renderSuperAdminContent()}
@@ -660,8 +850,11 @@ export function App() {
     );
   }
 
-  // ── 2. PRINCIPAL VIEWS ──
-  if (userRole === 'Principal' || currentPath.startsWith('/principal')) {
+  // 2. PRINCIPAL
+  if (
+    userRole === 'Principal' ||
+    currentPath.startsWith('/principal')
+  ) {
     return (
       <PrincipalLayout
         currentPath={currentPath}
@@ -669,8 +862,12 @@ export function App() {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {currentPath === '/principal/dashboard' || currentPath === '/principal' ? (
-          <PrincipalDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        {currentPath === '/principal/dashboard' ||
+          currentPath === '/principal' ? (
+          <PrincipalDashboardPage
+            user={currentUser}
+            onNavigate={(path) => setCurrentPath(path)}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Principal Portal.
@@ -689,8 +886,11 @@ export function App() {
     );
   }
 
-  // ── 3. HOD VIEWS ──
-  if (userRole === 'HOD' || currentPath.startsWith('/hod')) {
+  // 3. HOD
+  if (
+    userRole === 'HOD' ||
+    currentPath.startsWith('/hod')
+  ) {
     return (
       <HODLayout
         currentPath={currentPath}
@@ -698,8 +898,12 @@ export function App() {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {currentPath === '/hod/dashboard' || currentPath === '/hod' ? (
-          <HODDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        {currentPath === '/hod/dashboard' ||
+          currentPath === '/hod' ? (
+          <HODDashboardPage
+            user={currentUser}
+            onNavigate={(path) => setCurrentPath(path)}
+          />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in HOD Portal.
@@ -718,8 +922,11 @@ export function App() {
     );
   }
 
-  // ── 4. TEACHER VIEWS ──
-  if (userRole === 'Teacher' || currentPath.startsWith('/teacher')) {
+  // 4. TEACHER
+  if (
+    userRole === 'Teacher' ||
+    currentPath.startsWith('/teacher')
+  ) {
     return (
       <TeacherLayout
         currentPath={currentPath}
@@ -727,8 +934,12 @@ export function App() {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {currentPath === '/teacher/dashboard' || currentPath === '/teacher' ? (
-          <TeacherDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        {currentPath === '/teacher/dashboard' ||
+          currentPath === '/teacher' ? (
+          <TeacherDashboardPage
+            user={currentUser}
+            onNavigate={(path) => setCurrentPath(path)}
+          />
         ) : currentPath === '/teacher/chat' ? (
           <ChatPage user={currentUser} />
         ) : currentPath === '/teacher/timetable' ? (
@@ -740,7 +951,10 @@ export function App() {
         ) : currentPath === '/teacher/examinations' ? (
           <ExaminationPage />
         ) : currentPath === '/teacher/classes' ? (
-          <TeacherClassesPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+          <TeacherClassesPage
+            user={currentUser}
+            onNavigate={(path) => setCurrentPath(path)}
+          />
         ) : currentPath === '/teacher/students' ? (
           <StudentsPage />
         ) : (
@@ -761,8 +975,11 @@ export function App() {
     );
   }
 
-  // ── 5. PARENT VIEWS ──
-  if (userRole === 'Parent' || currentPath.startsWith('/parent')) {
+  // 5. PARENT
+  if (
+    userRole === 'Parent' ||
+    currentPath.startsWith('/parent')
+  ) {
     return (
       <ParentLayout
         currentPath={currentPath}
@@ -770,8 +987,13 @@ export function App() {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {currentPath === '/parent/dashboard' || currentPath === '/parent' || currentPath === '/parent/student-overview' ? (
-          <ParentDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
+        {currentPath === '/parent/dashboard' ||
+          currentPath === '/parent' ||
+          currentPath === '/parent/student-overview' ? (
+          <ParentDashboardPage
+            user={currentUser}
+            onNavigate={(path) => setCurrentPath(path)}
+          />
         ) : currentPath === '/parent/chat' ? (
           <ChatPage user={currentUser} />
         ) : (
@@ -792,49 +1014,89 @@ export function App() {
     );
   }
 
-  // ── 3. FRANCHISE / SCHOOL ADMIN VIEWS ──
-  // loggedInFranchise holds the specific school for this admin
+  // 6. ACCOUNTANT
+  if (
+    userRole === 'Accountant' ||
+    currentPath.startsWith('/accountant')
+  ) {
+    return (
+      <DashboardLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        onStaffRegistered={handleStaffRegistered}
+        franchise={loggedInFranchise}
+      >
+        {currentPath === '/accountant/dashboard' ? (
+          <AccountantDashboardPage />
+        ) : currentPath === '/accountant/fees' ? (
+          <FeesPage />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in Accountant Portal.
+          </div>
+        )}
+      </DashboardLayout>
+    );
+  }
+
+  // 7. FRANCHISE / SCHOOL ADMIN
   const renderDashboardContent = () => {
     switch (currentPath) {
       case '/admin/students':
         return <StudentsPage />;
+
       case '/admin/teachers':
         return <TeachersPage />;
+
       case '/admin/parents':
         return <ParentsPage />;
+
       case '/admin/classes':
         return <ClassesPage />;
+
       case '/admin/examinations':
         return <ExaminationPage />;
+
       case '/admin/fees':
         return <FeesPage />;
+
       case '/admin/salary':
         return <SalaryPage />;
+
       case '/admin/watchmen':
         return <WatchmenPage />;
+
       case '/admin/expenses':
         return <ExpensesPage />;
+
       case '/admin/attendance':
         return <AttendancePage />;
+
       case '/admin/homework':
         return <HomeworkPage user={currentUser} />;
-      case '/admin/timetable':
-        return <TimetablePage />;
+
       case '/admin/timetable':
         return <TimetablePage />;
 
       case '/admin/school-periods':
         return <SchoolPeriodsPage />;
+
       case '/admin/subjects':
         return <SubjectsPage />;
+
       case '/admin/library':
         return <LibraryPage />;
+
       case '/admin/transport':
         return <TransportPage />;
+
       case '/admin/chat':
         return <ChatPage user={currentUser} />;
+
       case '/admin/settings':
         return <SettingsPage />;
+
       case '/admin/leaves':
         return (
           <div className="space-y-6">
@@ -842,10 +1104,16 @@ export function App() {
               <div className="w-16 h-16 bg-amber-50 text-amber-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <CalendarOff className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Leave Management</h2>
+
+              <h2 className="text-xl font-bold text-slate-800 mb-2">
+                Leave Management
+              </h2>
+
               <p className="text-sm text-slate-500 mb-6">
-                Staff and student leave tracking and approval workflow. Backend leave management service is not yet provisioned.
+                Staff and student leave tracking and approval workflow.
+                Backend leave management service is not yet provisioned.
               </p>
+
               <button
                 type="button"
                 onClick={() => setCurrentPath('/admin/dashboard')}
@@ -856,6 +1124,7 @@ export function App() {
             </div>
           </div>
         );
+
       case '/admin/notifications':
         return (
           <div className="space-y-6">
@@ -863,10 +1132,17 @@ export function App() {
               <div className="w-16 h-16 bg-blue-50 text-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <MessageSquare className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Automated Notifications</h2>
+
+              <h2 className="text-xl font-bold text-slate-800 mb-2">
+                Automated Notifications
+              </h2>
+
               <p className="text-sm text-slate-500 mb-6">
-                Automated SMS, push notifications, and parent alerts. Dedicated notification delivery engine is not yet provisioned in the backend.
+                Automated SMS, push notifications, and parent alerts.
+                Dedicated notification delivery engine is not yet provisioned
+                in the backend.
               </p>
+
               <button
                 type="button"
                 onClick={() => setCurrentPath('/admin/dashboard')}
@@ -877,8 +1153,14 @@ export function App() {
             </div>
           </div>
         );
+
       case '/admin/notices':
-        return <NoticesPage onNavigate={(path) => setCurrentPath(path)} />;
+        return (
+          <NoticesPage
+            onNavigate={(path) => setCurrentPath(path)}
+          />
+        );
+
       case '/admin/reports':
         return (
           <div className="space-y-6">
@@ -886,10 +1168,16 @@ export function App() {
               <div className="w-16 h-16 bg-violet-50 text-violet-600 rounded-2xl flex items-center justify-center mx-auto mb-4">
                 <BarChart3 className="w-8 h-8" />
               </div>
-              <h2 className="text-xl font-bold text-slate-800 mb-2">Analytics & Reports</h2>
+
+              <h2 className="text-xl font-bold text-slate-800 mb-2">
+                Analytics & Reports
+              </h2>
+
               <p className="text-sm text-slate-500 mb-6">
-                Comprehensive reporting and data exports. Dedicated report generation service is not yet provisioned in the backend.
+                Comprehensive reporting and data exports. Dedicated report
+                generation service is not yet provisioned in the backend.
               </p>
+
               <button
                 type="button"
                 onClick={() => setCurrentPath('/admin/dashboard')}
@@ -900,13 +1188,13 @@ export function App() {
             </div>
           </div>
         );
+
       case '/admin/dashboard':
       default:
         return (
           <AdminDashboardPage
             onOpenStaffModal={() => setIsStaffModalOpen(true)}
             onNavigate={(path) => setCurrentPath(path)}
-            // Pass the logged-in franchise data so the dashboard is personalized
             franchise={loggedInFranchise}
           />
         );
@@ -920,7 +1208,6 @@ export function App() {
         onNavigate={(path) => setCurrentPath(path)}
         onLogout={handleLogout}
         onStaffRegistered={handleStaffRegistered}
-        // Pass franchise info to layout so sidebar/header can show school name
         franchise={loggedInFranchise}
       >
         {renderDashboardContent()}
