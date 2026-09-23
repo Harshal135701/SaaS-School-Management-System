@@ -1,5 +1,6 @@
 const { Attendance, Student } = require("../models");
 
+// create attendance 
 const createAttendance = async (req, res) => {
   try {
     const { studentId, date, status, remarks } = req.body;
