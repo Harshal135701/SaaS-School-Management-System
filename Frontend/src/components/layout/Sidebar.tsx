@@ -78,7 +78,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'ACADEMICS',
       items: [
-        { id: 'acad_mgmt', label: 'Academic Management', icon: BookOpen, path: '/admin/academics' },
         { id: 'classes', label: 'Classes & Sections', icon: Building2, path: '/admin/classes' },
         { id: 'subjects', label: 'Subjects', icon: BookMarked, path: '/admin/subjects' },
         { id: 'timetable', label: 'Timetable', icon: CalendarDays, path: '/admin/timetable' },
@@ -90,8 +89,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
       items: [
         { id: 'attendance', label: 'Attendance', icon: CheckCircle2, path: '/admin/attendance' },
         { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/examinations' },
-        { id: 'homework', label: 'Homework', icon: ClipboardList, path: '/admin/homework' },
-        { id: 'leave', label: 'Leave Management', icon: CalendarOff, path: '/admin/leaves' }
+        { id: 'homework', label: 'Homework', icon: ClipboardList, path: '/admin/homework' }
       ]
     },
     {
@@ -103,8 +101,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'expenses', label: 'Expense', icon: Receipt, path: '/admin/expenses' },
         { id: 'library', label: 'Library', icon: Library, path: '/admin/library' },
         { id: 'transport', label: 'Transport', icon: Bus, path: '/admin/transport' },
-        { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' },
-        { id: 'notifications', label: 'Notifications', icon: MessageSquare, path: '/admin/notifications' }
+        { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' }
       ]
     },
     {
@@ -116,8 +113,6 @@ export const Sidebar: React.FC<SidebarProps> = ({
     {
       title: 'SYSTEM',
       items: [
-        { id: 'users', label: 'User Management', icon: ShieldCheck, path: '/admin/users' },
-        { id: 'audit', label: 'Audit Logs', icon: History, path: '/admin/audit' },
         { id: 'settings', label: 'Settings', icon: Settings, path: '/admin/settings' }
       ]
     }
