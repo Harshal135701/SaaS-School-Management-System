@@ -1,3 +1,4 @@
+import { NotificationProvider } from '../../contexts/NotificationContext';
 import React, { useState } from 'react';
 import { ParentSidebar } from './ParentSidebar';
 import { ParentTopHeader } from './ParentTopHeader';
@@ -28,6 +29,7 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
   };
 
   return (
+    <NotificationProvider>
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden selection:bg-blue-100 selection:text-blue-900">
       <ParentSidebar 
         currentPath={currentPath}
@@ -82,5 +84,6 @@ export const ParentLayout: React.FC<ParentLayoutProps> = ({
         </div>
       </Modal>
     </div>
+    </NotificationProvider>
   );
 };

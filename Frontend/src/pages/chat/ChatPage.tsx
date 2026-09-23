@@ -1,3 +1,4 @@
+import { useNotifications } from '../../contexts/NotificationContext';
 import React, { useState, useEffect } from 'react';
 import { io, Socket } from 'socket.io-client';
 import api from '../../services/api';
@@ -20,6 +21,7 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
   const [isLoadingMessages, setIsLoadingMessages] = useState(false);
   const [isMobileListVisible, setIsMobileListVisible] = useState(true);
   const [errorMessage, setErrorMessage] = useState<string | null>(null);
+  const { refreshUnreadCount } = useNotifications();
 
   // New Chat Modal States (Parent Only)
   const [isNewChatOpen, setIsNewChatOpen] = useState(false);
@@ -91,6 +93,10 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           if (prev.some(m => String(m.id) === String(newMessage.id))) return prev;
           return [...prev, newMessage];
         });
+        // Since user is actively in this conversation, mark it as read immediately
+        api.put('/franchise/chat/messages/read', { conversationId: selectedConversation.id })
+          .then(() => refreshUnreadCount())
+          .catch(err => console.error("Failed to mark new message read:", err));
       }
 
       // 2. Update conversation list timestamp and move to top
@@ -150,6 +156,11 @@ export const ChatPage: React.FC<ChatPageProps> = ({ user }) => {
           console.error("Failed to load messages:", err);
         })
         .finally(() => setIsLoadingMessages(false));
+        
+      // Mark messages as read
+      api.put('/franchise/chat/messages/read', { conversationId: selectedConversation.id })
+        .then(() => refreshUnreadCount())
+        .catch(err => console.error("Failed to mark messages read:", err));
     }
   }, [selectedConversation, socket]);
 
