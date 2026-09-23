@@ -129,7 +129,7 @@ const getHomeworks = async (req, res) => {
         {
           model: Teacher,
           as: "teacher",
-          attributes: ["id", "name", "subject"],
+          attributes: ["id", "name"],
         },
         {
           model: Class,
@@ -216,7 +216,7 @@ const getHomeworkById = async (req, res) => {
         {
           model: Teacher,
           as: "teacher",
-          attributes: ["id", "name", "subject"],
+          attributes: ["id", "name"],
         },
         {
           model: Class,
