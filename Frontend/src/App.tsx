@@ -1,3 +1,4 @@
+
 import { useState, useEffect } from 'react';
 import { jwtDecode } from 'jwt-decode';
 import { LoginPage } from './pages/auth/LoginPage';
@@ -154,6 +155,7 @@ export function App() {
         localStorage.removeItem('token');
         sessionStorage.removeItem('user');
         localStorage.removeItem('user');
+
         setIsAuthenticated(false);
         setCurrentPath('/login');
         return;
@@ -169,7 +171,7 @@ export function App() {
         if (userStr) {
           storedUser = JSON.parse(userStr);
         }
-      } catch (e) { }
+      } catch (e) {}
 
       if (storedUser) {
         setCurrentUser(storedUser);
@@ -187,7 +189,7 @@ export function App() {
               setFranchises(res.data.data);
             }
           })
-          .catch(() => { });
+          .catch(() => {});
       } else if (decoded.role === 'FRANCHISE_ADMIN') {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
@@ -213,6 +215,10 @@ export function App() {
         setUserRole('Data Entry');
         setCurrentPath('/data-entry/dashboard');
         setIsAuthenticated(true);
+      } else if (decoded.role === 'SUPPORT') {
+        setUserRole('Support' as UserRole);
+        setCurrentPath('/support/transport');
+        setIsAuthenticated(true);
       } else if (decoded.role === 'PARENT') {
         setUserRole('Parent');
         setCurrentPath('/parent/dashboard');
@@ -222,15 +228,18 @@ export function App() {
         localStorage.removeItem('token');
         sessionStorage.removeItem('user');
         localStorage.removeItem('user');
+
         setIsAuthenticated(false);
         setCurrentPath('/login');
       }
     } catch (error) {
       console.error('Invalid authentication token:', error);
+
       sessionStorage.removeItem('token');
       localStorage.removeItem('token');
       sessionStorage.removeItem('user');
       localStorage.removeItem('user');
+
       setIsAuthenticated(false);
       setCurrentPath('/login');
     }
@@ -258,7 +267,7 @@ export function App() {
             setFranchises(res.data.data);
           }
         })
-        .catch(() => { });
+        .catch(() => {});
 
       showToast(
         `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
@@ -341,7 +350,9 @@ export function App() {
       setUserRole('Principal');
       setLoggedInFranchise(null);
       setCurrentPath('/principal/dashboard');
+
       showToast(`Welcome back, ${user.name || 'Principal'}!`);
+
       return;
     }
 
@@ -350,7 +361,9 @@ export function App() {
       setUserRole('HOD');
       setLoggedInFranchise(null);
       setCurrentPath('/hod/dashboard');
+
       showToast(`Welcome back, ${user.name || 'HOD'}!`);
+
       return;
     }
 
@@ -359,7 +372,9 @@ export function App() {
       setUserRole('Teacher');
       setLoggedInFranchise(null);
       setCurrentPath('/teacher/dashboard');
+
       showToast(`Welcome back, ${user.name || 'Teacher'}!`);
+
       return;
     }
 
@@ -368,7 +383,9 @@ export function App() {
       setUserRole('Accountant');
       setLoggedInFranchise(null);
       setCurrentPath('/accountant/dashboard');
+
       showToast(`Welcome back, ${user.name || 'Accountant'}!`);
+
       return;
     }
 
@@ -377,7 +394,20 @@ export function App() {
       setUserRole('Data Entry');
       setLoggedInFranchise(null);
       setCurrentPath('/data-entry/dashboard');
+
       showToast(`Welcome back, ${user.name || 'Data Entry'}!`);
+
+      return;
+    }
+
+    // Support
+    if (user?.role === 'SUPPORT') {
+      setUserRole('Support' as UserRole);
+      setLoggedInFranchise(null);
+      setCurrentPath('/support/transport');
+
+      showToast(`Welcome back, ${user.name || 'Support'}!`);
+
       return;
     }
 
@@ -386,7 +416,9 @@ export function App() {
       setUserRole('Parent');
       setLoggedInFranchise(null);
       setCurrentPath('/parent/dashboard');
+
       showToast(`Welcome back, ${user.name || 'Parent'}!`);
+
       return;
     }
 
@@ -449,8 +481,8 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-        error.message ||
-        'Failed to create franchise'
+          error.message ||
+          'Failed to create franchise'
       );
 
       throw error;
@@ -497,8 +529,8 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-        error.message ||
-        'Failed to update franchise'
+          error.message ||
+          'Failed to update franchise'
       );
 
       throw error;
@@ -527,8 +559,8 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-        error.message ||
-        'Failed to delete franchise (Endpoint likely missing)'
+          error.message ||
+          'Failed to delete franchise (Endpoint likely missing)'
       );
 
       throw error;
@@ -555,7 +587,7 @@ export function App() {
       if (!response.data?.success) {
         throw new Error(
           response.data?.message ||
-          'Failed to create franchise admin'
+            'Failed to create franchise admin'
         );
       }
 
@@ -593,7 +625,7 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-        'Failed to create franchise admin'
+          'Failed to create franchise admin'
       );
     }
   };
@@ -877,7 +909,7 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/principal/dashboard' ||
-          currentPath === '/principal' ? (
+        currentPath === '/principal' ? (
           <PrincipalDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -913,7 +945,7 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/hod/dashboard' ||
-          currentPath === '/hod' ? (
+        currentPath === '/hod' ? (
           <HODDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -928,7 +960,7 @@ export function App() {
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>{toastMessage}</span>
+              {toastMessage}
             </div>
           </div>
         )}
@@ -949,7 +981,7 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/teacher/dashboard' ||
-          currentPath === '/teacher' ? (
+        currentPath === '/teacher' ? (
           <TeacherDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -981,7 +1013,7 @@ export function App() {
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>{toastMessage}</span>
+              {toastMessage}
             </div>
           </div>
         )}
@@ -1002,8 +1034,8 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/parent/dashboard' ||
-          currentPath === '/parent' ||
-          currentPath === '/parent/student-overview' ? (
+        currentPath === '/parent' ||
+        currentPath === '/parent/student-overview' ? (
           <ParentDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -1020,7 +1052,7 @@ export function App() {
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>{toastMessage}</span>
+              {toastMessage}
             </div>
           </div>
         )}
@@ -1088,7 +1120,31 @@ export function App() {
     );
   }
 
-  // 7. FRANCHISE / SCHOOL ADMIN
+  // 8. SUPPORT
+  if (
+    userRole === ('Support' as UserRole) ||
+    currentPath.startsWith('/support')
+  ) {
+    return (
+      <DashboardLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        onStaffRegistered={handleStaffRegistered}
+        franchise={loggedInFranchise}
+      >
+        {currentPath === '/support/transport' ? (
+          <TransportPage />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in Support Portal.
+          </div>
+        )}
+      </DashboardLayout>
+    );
+  }
+
+  // 9. FRANCHISE / SCHOOL ADMIN
   const renderDashboardContent = () => {
     switch (currentPath) {
       case '/admin/students':
@@ -1280,3 +1336,4 @@ export function App() {
 }
 
 export default App;
+
