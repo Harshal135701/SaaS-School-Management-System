@@ -54,10 +54,21 @@ export const TeacherSidebar: React.FC<TeacherSidebarProps> = ({
       items: [
         { id: 't_classes', label: 'My Classes', icon: BookOpen, path: '/teacher/classes' },
         { id: 't_students', label: 'My Students', icon: Users, path: '/teacher/students' },
+        { id: 't_parents', label: 'Parents', icon: Users, path: '/teacher/parents' },
+        { id: 't_teachers', label: 'Teachers', icon: Users, path: '/teacher/teachers' },
+        { id: 't_subjects', label: 'Subjects', icon: BookOpen, path: '/teacher/subjects' },
         { id: 't_attendance', label: 'Attendance', icon: Calendar, path: '/teacher/attendance' },
         { id: 't_examinations', label: 'Examinations', icon: FileText, path: '/teacher/examinations' },
         { id: 't_assignments', label: 'Homework / Assignments', icon: BookMarked, path: '/teacher/assignments' },
-        { id: 't_timetable', label: 'Timetable', icon: Clock, path: '/teacher/timetable' }
+        { id: 't_timetable', label: 'Timetable', icon: Clock, path: '/teacher/timetable' },
+        { id: 't_school_periods', label: 'School Periods', icon: Clock, path: '/teacher/school-periods' }
+      ]
+    },
+    {
+      title: 'FACILITIES',
+      items: [
+        { id: 't_library', label: 'Library', icon: BookOpen, path: '/teacher/library' },
+        { id: 't_transport', label: 'Transport', icon: Users, path: '/teacher/transport' }
       ]
     },
     {

@@ -42,9 +42,19 @@ export const LoginForm: React.FC<LoginFormProps> = ({
       console.error('Login failed:', error);
 
       setIsLoading(false);
-      setError(
-        error.response?.data?.message || 'Invalid email or password.'
-      );
+            if (!error.response) {
+        setError('Network error. Please check your connection or server status.');
+      } else if (error.response.status >= 500) {
+        setError('Internal server error. Please try again later.');
+      } else {
+              if (!error.response) {
+        setError('Network error. Please check your connection or server status.');
+      } else if (error.response.status >= 500) {
+        setError('Internal server error. Please try again later.');
+      } else {
+        setError(error.response?.data?.message || 'Invalid email or password.');
+      }
+      }
     }
   };
 

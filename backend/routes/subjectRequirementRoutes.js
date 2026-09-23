@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -16,14 +16,14 @@ const adminAccess = allowRoles(
 
 router.post(
   "/",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   adminAccess,
   createSubjectRequirement
 );
 
 router.get(
   "/",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   allowRoles("FRANCHISE_ADMIN", "PRINCIPAL", "HOD", "TEACHER"),
   getSubjectRequirements
 );

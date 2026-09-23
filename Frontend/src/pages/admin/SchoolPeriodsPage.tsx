@@ -39,6 +39,8 @@ const API = '/school-periods';
 
 export const SchoolPeriodsPage: React.FC = () => {
   const [periods, setPeriods] = useState<SchoolPeriod[]>([]);
+  const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+  const isTeacher = userStr ? JSON.parse(userStr)?.role === 'TEACHER' : false;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -341,7 +343,7 @@ export const SchoolPeriodsPage: React.FC = () => {
                     </div>
                   </div>
 
-                  <div className="flex items-center gap-1">
+                  <div className={`${isTeacher ? "hidden" : "flex"} items-center gap-1`}>
                     <button
                       onClick={() => openEditModal(period)}
                       className="p-2 rounded-lg text-slate-400 hover:bg-slate-100 hover:text-slate-700"

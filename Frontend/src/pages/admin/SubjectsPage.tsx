@@ -31,6 +31,8 @@ const emptyForm = {
 
 export const SubjectsPage: React.FC = () => {
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
+  const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+  const isTeacher = userStr ? JSON.parse(userStr)?.role === 'TEACHER' : false;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -320,7 +322,7 @@ export const SubjectsPage: React.FC = () => {
                   </span>
 
                   {/* ACTIONS */}
-                  <div className="flex items-center gap-1">
+                  <div className={`${isTeacher ? "hidden" : "flex"} items-center gap-1`}>
 
                     <button
                       onClick={() =>

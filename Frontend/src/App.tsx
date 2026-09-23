@@ -741,8 +741,22 @@ export function App() {
           <ExaminationPage />
         ) : currentPath === '/teacher/classes' ? (
           <TeacherClassesPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
-        ) : currentPath === '/teacher/students' ? (
+                ) : currentPath === '/teacher/students' ? (
           <StudentsPage />
+        ) : currentPath === '/teacher/parents' ? (
+          <ParentsPage />
+        ) : currentPath === '/teacher/teachers' ? (
+          <TeachersPage />
+        ) : currentPath === '/teacher/subjects' ? (
+          <SubjectsPage />
+        ) : currentPath === '/teacher/school-periods' ? (
+          <SchoolPeriodsPage />
+                ) : currentPath === '/teacher/profile' || currentPath === '/teacher/settings' ? (
+          <SettingsPage />
+        ) : currentPath === '/teacher/library' ? (
+          <LibraryPage />
+        ) : currentPath === '/teacher/transport' ? (
+          <TransportPage />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Teacher Portal.

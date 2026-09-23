@@ -1,7 +1,7 @@
 const express = require("express");
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -20,10 +20,10 @@ const academicAccess = allowRoles(
   "FRANCHISE_ADMIN"
 );
 
-router.get("/", franchiseProtect, academicAccess, getSections);
-router.get("/:id", franchiseProtect, academicAccess, getSectionById);
-router.post("/", franchiseProtect, academicAccess, createSection);
-router.put("/:id", franchiseProtect, academicAccess, updateSection);
-router.delete("/:id", franchiseProtect, academicAccess, deleteSection);
+router.get("/", teacherOrFranchiseProtect, academicAccess, getSections);
+router.get("/:id", teacherOrFranchiseProtect, academicAccess, getSectionById);
+router.post("/", teacherOrFranchiseProtect, academicAccess, createSection);
+router.put("/:id", teacherOrFranchiseProtect, academicAccess, updateSection);
+router.delete("/:id", teacherOrFranchiseProtect, academicAccess, deleteSection);
 
 module.exports = router;

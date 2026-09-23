@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 const {
@@ -15,7 +15,7 @@ const {
 // CREATE
 router.post(
     "/",
-    franchiseProtect,
+    teacherOrFranchiseProtect,
     allowRoles("FRANCHISE_ADMIN", "PRINCIPAL", "HOD"),
     createAssignment
 );
@@ -23,7 +23,7 @@ router.post(
 // VIEW
 router.get(
     "/",
-    franchiseProtect,
+    teacherOrFranchiseProtect,
     allowRoles(
         "FRANCHISE_ADMIN",
         "PRINCIPAL",
@@ -36,7 +36,7 @@ router.get(
 // UPDATE
 router.put(
     "/:id",
-    franchiseProtect,
+    teacherOrFranchiseProtect,
     allowRoles("FRANCHISE_ADMIN", "PRINCIPAL", "HOD"),
     updateAssignment
 );
@@ -44,7 +44,7 @@ router.put(
 // DEACTIVATE
 router.delete(
     "/:id",
-    franchiseProtect,
+    teacherOrFranchiseProtect,
     allowRoles("FRANCHISE_ADMIN", "PRINCIPAL", "HOD"),
     deleteAssignment
 );
