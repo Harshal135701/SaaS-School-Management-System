@@ -301,6 +301,46 @@ Timetable.belongsTo(Franchise, {
   as: "franchise",
 });
 
+Class.hasMany(Timetable, {
+  foreignKey: "classId",
+  as: "timetables",
+});
+
+Timetable.belongsTo(Class, {
+  foreignKey: "classId",
+  as: "class",
+});
+
+Section.hasMany(Timetable, {
+  foreignKey: "sectionId",
+  as: "timetables",
+});
+
+Timetable.belongsTo(Section, {
+  foreignKey: "sectionId",
+  as: "section",
+});
+
+Subject.hasMany(Timetable, {
+  foreignKey: "subjectId",
+  as: "timetables",
+});
+
+Timetable.belongsTo(Subject, {
+  foreignKey: "subjectId",
+  as: "subject",
+});
+
+SchoolPeriod.hasMany(Timetable, {
+  foreignKey: "schoolPeriodId",
+  as: "timetables",
+});
+
+Timetable.belongsTo(SchoolPeriod, {
+  foreignKey: "schoolPeriodId",
+  as: "schoolPeriod",
+});
+
 Franchise.hasMany(Vehicle, {
   foreignKey: "franchiseId",
   as: "vehicles",

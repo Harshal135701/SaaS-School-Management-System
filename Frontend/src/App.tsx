@@ -20,6 +20,7 @@ import { ExpensesPage } from './pages/admin/ExpensesPage';
 import { AttendancePage } from './pages/admin/AttendancePage';
 import { HomeworkPage } from './pages/admin/HomeworkPage';
 import { TimetablePage } from './pages/admin/TimetablePage';
+import { SchoolPeriodsPage } from './pages/admin/SchoolPeriodsPage';
 import { SettingsPage } from './pages/admin/SettingsPage';
 import { SubjectsPage } from './pages/admin/SubjectsPage';
 import { LibraryPage } from './pages/admin/LibraryPage';
@@ -85,53 +86,53 @@ export function App() {
     setTimeout(() => setToastMessage(null), 3500);
   };
   const loadFranchiseDashboard = async (user?: any) => {
-  try {
-    const res = await api.get('/franchise/dashboard/');
+    try {
+      const res = await api.get('/franchise/dashboard/');
 
-    if (res.data?.success && res.data?.data?.franchise) {
-      const backendFranchise = res.data.data.franchise;
+      if (res.data?.success && res.data?.data?.franchise) {
+        const backendFranchise = res.data.data.franchise;
 
-      const franchise: Franchise = {
-        id: backendFranchise.id,
-        code: backendFranchise.code,
-        name: backendFranchise.name,
-        email: backendFranchise.email,
-        phone: backendFranchise.phone,
-        address: backendFranchise.address || '',
-        city: backendFranchise.city,
-        state: backendFranchise.state,
-        country: backendFranchise.country || 'India',
+        const franchise: Franchise = {
+          id: backendFranchise.id,
+          code: backendFranchise.code,
+          name: backendFranchise.name,
+          email: backendFranchise.email,
+          phone: backendFranchise.phone,
+          address: backendFranchise.address || '',
+          city: backendFranchise.city,
+          state: backendFranchise.state,
+          country: backendFranchise.country || 'India',
 
-        plan: 'Basic',
+          plan: 'Basic',
 
-        adminName: user?.name || 'Admin',
-        adminEmail: user?.email || '',
-        adminPhone: user?.phone || '',
+          adminName: user?.name || 'Admin',
+          adminEmail: user?.email || '',
+          adminPhone: user?.phone || '',
 
-        studentCount: 0,
-        teacherCount: 0,
+          studentCount: 0,
+          teacherCount: 0,
 
-        contractStatus: 'Active',
-        royaltyStatus: 'Pending',
-        status: 'Active',
+          contractStatus: 'Active',
+          royaltyStatus: 'Pending',
+          status: 'Active',
 
-        joinedDate: '',
-      };
+          joinedDate: '',
+        };
 
-      setLoggedInFranchise(franchise);
+        setLoggedInFranchise(franchise);
 
-      return franchise;
+        return franchise;
+      }
+
+      setLoggedInFranchise(null);
+      return null;
+
+    } catch (error) {
+      console.error('Failed to fetch franchise dashboard:', error);
+      setLoggedInFranchise(null);
+      return null;
     }
-
-    setLoggedInFranchise(null);
-    return null;
-
-  } catch (error) {
-    console.error('Failed to fetch franchise dashboard:', error);
-    setLoggedInFranchise(null);
-    return null;
-  }
-};
+  };
 
   useEffect(() => {
     // Check active session in the current browser tab
@@ -159,17 +160,17 @@ export function App() {
         return;
       }
 
-        let storedUser = null;
-        try {
-          const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
-          if (userStr) {
-            storedUser = JSON.parse(userStr);
-          }
-        } catch (e) {}
-
-        if (storedUser) {
-          setCurrentUser(storedUser);
+      let storedUser = null;
+      try {
+        const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+        if (userStr) {
+          storedUser = JSON.parse(userStr);
         }
+      } catch (e) { }
+
+      if (storedUser) {
+        setCurrentUser(storedUser);
+      }
 
       if (decoded.role === 'SYSTEM_ADMIN') {
         setUserRole('Super Admin');
@@ -180,7 +181,7 @@ export function App() {
           if (res.data?.success && Array.isArray(res.data.data)) {
             setFranchises(res.data.data);
           }
-        }).catch(() => {/* keep mock data if fetch fails */});
+        }).catch(() => {/* keep mock data if fetch fails */ });
       } else if (decoded.role === 'FRANCHISE_ADMIN') {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
@@ -221,141 +222,141 @@ export function App() {
     }
   }, []);
 
- const handleLoginSuccess = async (user?: any) => {
-  console.log('USER RECEIVED IN APP:', user);
-  setIsAuthenticated(true);
-  if (user) setCurrentUser(user);
+  const handleLoginSuccess = async (user?: any) => {
+    console.log('USER RECEIVED IN APP:', user);
+    setIsAuthenticated(true);
+    if (user) setCurrentUser(user);
 
-  // System Admin / Super Admin
-  if (user?.role === 'SYSTEM_ADMIN') {
-    setUserRole('Super Admin');
-    setLoggedInFranchise(null);
-    setCurrentPath('/super-admin/dashboard');
-    // Fetch real franchises from backend immediately after login
-    api.get('/system-admin/franchises').then(res => {
-      if (res.data?.success && Array.isArray(res.data.data)) {
-        setFranchises(res.data.data);
-      }
-    }).catch(() => {/* keep mock data if fetch fails */});
-
-    showToast(
-      `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
-    );
-    return;
-  }
-
-  // Franchise / School Admin
-if (user?.role === 'FRANCHISE_ADMIN') {
-    console.log('FRANCHISE ADMIN USER:', user);
-  setUserRole('Franchise Admin');
-
-  try {
-    // Fetch the actual school/franchise belonging to
-    // the currently logged-in Franchise Admin.
-    const res = await api.get('/franchise/dashboard/');
-
-    if (res.data?.success && res.data?.data?.franchise) {
-      const backendFranchise = res.data.data.franchise;
-
-      const franchise: Franchise = {
-        id: backendFranchise.id,
-        code: backendFranchise.code,
-        name: backendFranchise.name,
-        email: backendFranchise.email,
-        phone: backendFranchise.phone,
-        address: backendFranchise.address || '',
-        city: backendFranchise.city,
-        state: backendFranchise.state,
-        country: backendFranchise.country || 'India',
-
-        plan: 'Basic',
-
-        adminName: user.name || 'Admin',
-        adminEmail: user.email || '',
-        adminPhone: user.phone || '',
-
-        studentCount: 0,
-        teacherCount: 0,
-
-        contractStatus: 'Active',
-        royaltyStatus: 'Pending',
-        status: 'Active',
-
-        joinedDate: '',
-      };
-      console.log('FRANCHISE CREATED FOR DASHBOARD:', franchise);
-      setLoggedInFranchise(franchise);
-
-      setCurrentPath('/admin/dashboard');
-
-      showToast(
-        `Welcome, ${user.name || 'Admin'}! Signed in to ${franchise.name}.`
-      );
-    } else {
+    // System Admin / Super Admin
+    if (user?.role === 'SYSTEM_ADMIN') {
+      setUserRole('Super Admin');
       setLoggedInFranchise(null);
-      setCurrentPath('/admin/dashboard');
+      setCurrentPath('/super-admin/dashboard');
+      // Fetch real franchises from backend immediately after login
+      api.get('/system-admin/franchises').then(res => {
+        if (res.data?.success && Array.isArray(res.data.data)) {
+          setFranchises(res.data.data);
+        }
+      }).catch(() => {/* keep mock data if fetch fails */ });
 
       showToast(
-        `Signed in successfully as Franchise Admin (${user.email}).`
+        `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
       );
+      return;
     }
-  } catch (error) {
-    console.error('Failed to fetch franchise dashboard:', error);
 
+    // Franchise / School Admin
+    if (user?.role === 'FRANCHISE_ADMIN') {
+      console.log('FRANCHISE ADMIN USER:', user);
+      setUserRole('Franchise Admin');
+
+      try {
+        // Fetch the actual school/franchise belonging to
+        // the currently logged-in Franchise Admin.
+        const res = await api.get('/franchise/dashboard/');
+
+        if (res.data?.success && res.data?.data?.franchise) {
+          const backendFranchise = res.data.data.franchise;
+
+          const franchise: Franchise = {
+            id: backendFranchise.id,
+            code: backendFranchise.code,
+            name: backendFranchise.name,
+            email: backendFranchise.email,
+            phone: backendFranchise.phone,
+            address: backendFranchise.address || '',
+            city: backendFranchise.city,
+            state: backendFranchise.state,
+            country: backendFranchise.country || 'India',
+
+            plan: 'Basic',
+
+            adminName: user.name || 'Admin',
+            adminEmail: user.email || '',
+            adminPhone: user.phone || '',
+
+            studentCount: 0,
+            teacherCount: 0,
+
+            contractStatus: 'Active',
+            royaltyStatus: 'Pending',
+            status: 'Active',
+
+            joinedDate: '',
+          };
+          console.log('FRANCHISE CREATED FOR DASHBOARD:', franchise);
+          setLoggedInFranchise(franchise);
+
+          setCurrentPath('/admin/dashboard');
+
+          showToast(
+            `Welcome, ${user.name || 'Admin'}! Signed in to ${franchise.name}.`
+          );
+        } else {
+          setLoggedInFranchise(null);
+          setCurrentPath('/admin/dashboard');
+
+          showToast(
+            `Signed in successfully as Franchise Admin (${user.email}).`
+          );
+        }
+      } catch (error) {
+        console.error('Failed to fetch franchise dashboard:', error);
+
+        setLoggedInFranchise(null);
+        setCurrentPath('/admin/dashboard');
+
+        showToast(
+          `Signed in successfully as Franchise Admin (${user.email}).`
+        );
+      }
+
+      return;
+    }
+
+    // Principal
+    if (user?.role === 'PRINCIPAL') {
+      setUserRole('Principal');
+      setLoggedInFranchise(null);
+      setCurrentPath('/principal/dashboard');
+      showToast(`Welcome back, ${user.name || 'Principal'}!`);
+      return;
+    }
+
+    // HOD
+    if (user?.role === 'HOD') {
+      setUserRole('HOD');
+      setLoggedInFranchise(null);
+      setCurrentPath('/hod/dashboard');
+      showToast(`Welcome back, ${user.name || 'HOD'}!`);
+      return;
+    }
+
+    // Teacher
+    if (user?.role === 'TEACHER') {
+      setUserRole('Teacher');
+      setLoggedInFranchise(null);
+      setCurrentPath('/teacher/dashboard');
+      showToast(`Welcome back, ${user.name || 'Teacher'}!`);
+      return;
+    }
+
+    // Parent
+    if (user?.role === 'PARENT') {
+      setUserRole('Parent');
+      setLoggedInFranchise(null); // Parent doesn't manage the franchise
+      setCurrentPath('/parent/dashboard');
+      showToast(`Welcome back, ${user.name || 'Parent'}!`);
+      return;
+    }
+
+    // Unknown / invalid role
+    setIsAuthenticated(false);
     setLoggedInFranchise(null);
-    setCurrentPath('/admin/dashboard');
+    setCurrentPath('/login');
 
-    showToast(
-      `Signed in successfully as Franchise Admin (${user.email}).`
-    );
-  }
-
-  return;
-}
-
-  // Principal
-  if (user?.role === 'PRINCIPAL') {
-    setUserRole('Principal');
-    setLoggedInFranchise(null);
-    setCurrentPath('/principal/dashboard');
-    showToast(`Welcome back, ${user.name || 'Principal'}!`);
-    return;
-  }
-
-  // HOD
-  if (user?.role === 'HOD') {
-    setUserRole('HOD');
-    setLoggedInFranchise(null);
-    setCurrentPath('/hod/dashboard');
-    showToast(`Welcome back, ${user.name || 'HOD'}!`);
-    return;
-  }
-
-  // Teacher
-  if (user?.role === 'TEACHER') {
-    setUserRole('Teacher');
-    setLoggedInFranchise(null);
-    setCurrentPath('/teacher/dashboard');
-    showToast(`Welcome back, ${user.name || 'Teacher'}!`);
-    return;
-  }
-
-  // Parent
-  if (user?.role === 'PARENT') {
-    setUserRole('Parent');
-    setLoggedInFranchise(null); // Parent doesn't manage the franchise
-    setCurrentPath('/parent/dashboard');
-    showToast(`Welcome back, ${user.name || 'Parent'}!`);
-    return;
-  }
-
-  // Unknown / invalid role
-  setIsAuthenticated(false);
-  setLoggedInFranchise(null);
-  setCurrentPath('/login');
-
-  showToast('Invalid user role.');
-};
+    showToast('Invalid user role.');
+  };
 
   const handleLogout = () => {
     sessionStorage.removeItem('token');
@@ -385,7 +386,7 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         pincode: '400001', // Dummy pincode since UI doesn't have it
         planId: franchise.plan // The UI now sets the real UUID here
       });
-      
+
       if (!res.data?.success) {
         throw new Error(res.data?.message || 'Server rejected creation');
       }
@@ -447,64 +448,64 @@ if (user?.role === 'FRANCHISE_ADMIN') {
   };
 
   const handleAdminAdded = async (data: {
-  schoolId: string;
-  adminName: string;
-  adminEmail: string;
-  adminPhone: string;
-  adminPassword: string;
-}) => {
-  try {
-    const response = await api.post(
-      `/system-admin/franchises/${data.schoolId}/admin`,
-      {
-        name: data.adminName,
-        email: data.adminEmail,
-        password: data.adminPassword,
-      }
-    );
-
-    if (!response.data?.success) {
-      throw new Error(response.data?.message || 'Failed to create franchise admin');
-    }
-
-    const createdAdmin = response.data.data;
-
-    setFranchises(prev =>
-      prev.map(f => {
-        if (
-          String(f.id) === String(data.schoolId) ||
-          f.code === data.schoolId
-        ) {
-          return {
-            ...f,
-            adminName: createdAdmin.name,
-            adminEmail: createdAdmin.email,
-            adminPhone: data.adminPhone,
-            admin: {
-              id: createdAdmin.id,
-              name: createdAdmin.name,
-              email: createdAdmin.email,
-              isActive: createdAdmin.isActive,
-            },
-          };
+    schoolId: string;
+    adminName: string;
+    adminEmail: string;
+    adminPhone: string;
+    adminPassword: string;
+  }) => {
+    try {
+      const response = await api.post(
+        `/system-admin/franchises/${data.schoolId}/admin`,
+        {
+          name: data.adminName,
+          email: data.adminEmail,
+          password: data.adminPassword,
         }
+      );
 
-        return f;
-      })
-    );
+      if (!response.data?.success) {
+        throw new Error(response.data?.message || 'Failed to create franchise admin');
+      }
 
-    showToast(
-      `Franchise Admin "${createdAdmin.name}" assigned to school successfully!`
-    );
-  } catch (error: any) {
-    console.error('Failed to create franchise admin:', error);
+      const createdAdmin = response.data.data;
 
-    showToast(
-      error.response?.data?.message ||
-      'Failed to create franchise admin'
-    );
-  }
-};
+      setFranchises(prev =>
+        prev.map(f => {
+          if (
+            String(f.id) === String(data.schoolId) ||
+            f.code === data.schoolId
+          ) {
+            return {
+              ...f,
+              adminName: createdAdmin.name,
+              adminEmail: createdAdmin.email,
+              adminPhone: data.adminPhone,
+              admin: {
+                id: createdAdmin.id,
+                name: createdAdmin.name,
+                email: createdAdmin.email,
+                isActive: createdAdmin.isActive,
+              },
+            };
+          }
+
+          return f;
+        })
+      );
+
+      showToast(
+        `Franchise Admin "${createdAdmin.name}" assigned to school successfully!`
+      );
+    } catch (error: any) {
+      console.error('Failed to create franchise admin:', error);
+
+      showToast(
+        error.response?.data?.message ||
+        'Failed to create franchise admin'
+      );
+    }
+  };
 
   const handleOpenEditSchoolModal = (franchise: Franchise) => {
     setEditFranchise(franchise);
@@ -771,9 +772,9 @@ if (user?.role === 'FRANCHISE_ADMIN') {
       >
         {currentPath === '/parent/dashboard' || currentPath === '/parent' || currentPath === '/parent/student-overview' ? (
           <ParentDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
-          ) : currentPath === '/parent/chat' ? (
-            <ChatPage user={currentUser} />
-          ) : (
+        ) : currentPath === '/parent/chat' ? (
+          <ChatPage user={currentUser} />
+        ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Parent Portal.
           </div>
@@ -807,18 +808,23 @@ if (user?.role === 'FRANCHISE_ADMIN') {
         return <ExaminationPage />;
       case '/admin/fees':
         return <FeesPage />;
-        case '/admin/salary':
-          return <SalaryPage />;
-        case '/admin/watchmen':
-          return <WatchmenPage />;
-        case '/admin/expenses':
-          return <ExpensesPage />;
+      case '/admin/salary':
+        return <SalaryPage />;
+      case '/admin/watchmen':
+        return <WatchmenPage />;
+      case '/admin/expenses':
+        return <ExpensesPage />;
       case '/admin/attendance':
         return <AttendancePage />;
       case '/admin/homework':
         return <HomeworkPage user={currentUser} />;
       case '/admin/timetable':
         return <TimetablePage />;
+      case '/admin/timetable':
+        return <TimetablePage />;
+
+      case '/admin/school-periods':
+        return <SchoolPeriodsPage />;
       case '/admin/subjects':
         return <SubjectsPage />;
       case '/admin/library':

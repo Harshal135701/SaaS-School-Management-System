@@ -1,3 +1,4 @@
+
 const {
     TeacherAssignment,
     Teacher,
@@ -14,10 +15,11 @@ const createAssignment = async (req, res) => {
         const { teacherId, classId, sectionId, subjectId } = req.body;
         const franchiseId = req.user.franchiseId;
 
-        if (!teacherId || !classId || !sectionId) {
+        if (!teacherId || !classId || !sectionId || !subjectId) {
             return res.status(400).json({
                 success: false,
-                message: "teacherId, classId and sectionId are required",
+                message:
+                    "teacherId, classId, sectionId and subjectId are required",
             });
         }
 
@@ -73,29 +75,25 @@ const createAssignment = async (req, res) => {
             });
         }
 
-        let subject = null;
+        const subject = await Subject.findOne({
+            where: {
+                id: subjectId,
+                franchiseId,
+            },
+        });
 
-        if (subjectId) {
-            subject = await Subject.findOne({
-                where: {
-                    id: subjectId,
-                    franchiseId,
-                },
+        if (!subject) {
+            return res.status(404).json({
+                success: false,
+                message: "Subject not found",
             });
+        }
 
-            if (!subject) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Subject not found",
-                });
-            }
-
-            if (!subject.isActive) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Cannot assign an inactive subject",
-                });
-            }
+        if (!subject.isActive) {
+            return res.status(400).json({
+                success: false,
+                message: "Cannot assign an inactive subject",
+            });
         }
 
         const existingAssignment = await TeacherAssignment.findOne({
@@ -104,7 +102,7 @@ const createAssignment = async (req, res) => {
                 teacherId,
                 classId,
                 sectionId,
-                subjectId: subjectId || null,
+                subjectId,
                 status: "ACTIVE",
             },
         });
@@ -123,7 +121,7 @@ const createAssignment = async (req, res) => {
                 teacherId,
                 classId,
                 sectionId,
-                subjectId: subjectId || null,
+                subjectId,
                 status: "INACTIVE",
             },
         });
@@ -135,7 +133,8 @@ const createAssignment = async (req, res) => {
 
             return res.status(200).json({
                 success: true,
-                message: "Previous teacher assignment reactivated successfully",
+                message:
+                    "Previous teacher assignment reactivated successfully",
                 data: inactiveAssignment,
             });
         }
@@ -145,11 +144,11 @@ const createAssignment = async (req, res) => {
             teacherId,
             classId,
             sectionId,
-            subjectId: subjectId || null,
+            subjectId,
             status: "ACTIVE",
         });
 
-        res.status(201).json({
+        return res.status(201).json({
             success: true,
             message: "Teacher assigned successfully",
             data: assignment,
@@ -157,7 +156,7 @@ const createAssignment = async (req, res) => {
     } catch (error) {
         console.error("Create Assignment Error:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Internal server error",
         });
@@ -180,6 +179,7 @@ const getAssignments = async (req, res) => {
         const franchiseId = req.user.franchiseId;
 
         const pageNumber = Math.max(parseInt(page, 10) || 1, 1);
+
         const limitNumber = Math.min(
             Math.max(parseInt(limit, 10) || 20, 1),
             100
@@ -191,7 +191,14 @@ const getAssignments = async (req, res) => {
             franchiseId,
         };
 
-        if (status && ["ACTIVE", "INACTIVE"].includes(status)) {
+        if (status) {
+            if (!["ACTIVE", "INACTIVE"].includes(status)) {
+                return res.status(400).json({
+                    success: false,
+                    message: "Invalid assignment status",
+                });
+            }
+
             where.status = status;
         }
 
@@ -211,36 +218,37 @@ const getAssignments = async (req, res) => {
             where.subjectId = subjectId;
         }
 
-        const { count, rows } = await TeacherAssignment.findAndCountAll({
-            where,
-            include: [
-                {
-                    model: Teacher,
-                    as: "teacher",
-                    attributes: ["id", "name", "email", "status"],
-                },
-                {
-                    model: Class,
-                    as: "class",
-                    attributes: ["id", "name", "code", "isActive"],
-                },
-                {
-                    model: Section,
-                    as: "section",
-                    attributes: ["id", "name", "isActive"],
-                },
-                {
-                    model: Subject,
-                    as: "subject",
-                    attributes: ["id", "name", "code", "isActive"],
-                },
-            ],
-            order: [["createdAt", "DESC"]],
-            limit: limitNumber,
-            offset,
-        });
+        const { count, rows } =
+            await TeacherAssignment.findAndCountAll({
+                where,
+                include: [
+                    {
+                        model: Teacher,
+                        as: "teacher",
+                        attributes: ["id", "name", "email", "status"],
+                    },
+                    {
+                        model: Class,
+                        as: "class",
+                        attributes: ["id", "name", "code", "isActive"],
+                    },
+                    {
+                        model: Section,
+                        as: "section",
+                        attributes: ["id", "name", "isActive"],
+                    },
+                    {
+                        model: Subject,
+                        as: "subject",
+                        attributes: ["id", "name", "code", "isActive"],
+                    },
+                ],
+                order: [["createdAt", "DESC"]],
+                limit: limitNumber,
+                offset,
+            });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             data: rows,
             pagination: {
@@ -253,7 +261,7 @@ const getAssignments = async (req, res) => {
     } catch (error) {
         console.error("Get Assignments Error:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Internal server error",
         });
@@ -290,6 +298,7 @@ const updateAssignment = async (req, res) => {
         const finalTeacherId = teacherId ?? assignment.teacherId;
         const finalClassId = classId ?? assignment.classId;
         const finalSectionId = sectionId ?? assignment.sectionId;
+
         const finalSubjectId =
             subjectId !== undefined
                 ? subjectId || null
@@ -299,6 +308,35 @@ const updateAssignment = async (req, res) => {
             return res.status(400).json({
                 success: false,
                 message: "Invalid assignment status",
+            });
+        }
+
+        const finalStatus = status || assignment.status;
+
+        // DEACTIVATE
+        // Related entities do not need to remain active
+        if (finalStatus === "INACTIVE") {
+            await assignment.update({
+                teacherId: finalTeacherId,
+                classId: finalClassId,
+                sectionId: finalSectionId,
+                subjectId: finalSubjectId,
+                status: "INACTIVE",
+            });
+
+            return res.status(200).json({
+                success: true,
+                message: "Assignment deactivated successfully",
+                data: assignment,
+            });
+        }
+
+        // ACTIVE assignment requires all related entities
+        // to exist and be active
+        if (!finalSubjectId) {
+            return res.status(400).json({
+                success: false,
+                message: "subjectId is required",
             });
         }
 
@@ -354,27 +392,25 @@ const updateAssignment = async (req, res) => {
             });
         }
 
-        if (finalSubjectId) {
-            const subject = await Subject.findOne({
-                where: {
-                    id: finalSubjectId,
-                    franchiseId,
-                },
+        const subject = await Subject.findOne({
+            where: {
+                id: finalSubjectId,
+                franchiseId,
+            },
+        });
+
+        if (!subject) {
+            return res.status(404).json({
+                success: false,
+                message: "Subject not found",
             });
+        }
 
-            if (!subject) {
-                return res.status(404).json({
-                    success: false,
-                    message: "Subject not found",
-                });
-            }
-
-            if (!subject.isActive) {
-                return res.status(400).json({
-                    success: false,
-                    message: "Cannot assign an inactive subject",
-                });
-            }
+        if (!subject.isActive) {
+            return res.status(400).json({
+                success: false,
+                message: "Cannot assign an inactive subject",
+            });
         }
 
         const duplicate = await TeacherAssignment.findOne({
@@ -403,10 +439,10 @@ const updateAssignment = async (req, res) => {
             classId: finalClassId,
             sectionId: finalSectionId,
             subjectId: finalSubjectId,
-            status: status || assignment.status,
+            status: "ACTIVE",
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Assignment updated successfully",
             data: assignment,
@@ -414,7 +450,7 @@ const updateAssignment = async (req, res) => {
     } catch (error) {
         console.error("Update Assignment Error:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Internal server error",
         });
@@ -451,7 +487,7 @@ const deleteAssignment = async (req, res) => {
             status: "INACTIVE",
         });
 
-        res.status(200).json({
+        return res.status(200).json({
             success: true,
             message: "Teacher assignment deactivated successfully",
             data: assignment,
@@ -459,7 +495,7 @@ const deleteAssignment = async (req, res) => {
     } catch (error) {
         console.error("Delete Assignment Error:", error);
 
-        res.status(500).json({
+        return res.status(500).json({
             success: false,
             message: "Internal server error",
         });
@@ -472,3 +508,4 @@ module.exports = {
     updateAssignment,
     deleteAssignment,
 };
+

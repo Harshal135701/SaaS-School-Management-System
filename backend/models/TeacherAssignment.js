@@ -33,7 +33,7 @@ const TeacherAssignment = sequelize.define(
 
     subjectId: {
       type: DataTypes.UUID,
-      allowNull: true,
+      allowNull: false,
     },
 
     status: {
@@ -67,6 +67,22 @@ const TeacherAssignment = sequelize.define(
       },
       {
         fields: ["status"],
+      },
+
+      // Prevent duplicate ACTIVE assignment
+      {
+        unique: true,
+        fields: [
+          "franchiseId",
+          "teacherId",
+          "classId",
+          "sectionId",
+          "subjectId",
+        ],
+        where: {
+          status: "ACTIVE",
+        },
+        name: "unique_active_teacher_assignment",
       },
     ],
 

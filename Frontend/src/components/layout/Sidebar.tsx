@@ -4,36 +4,38 @@ import { Tooltip } from '../ui/Tooltip';
 import { Avatar } from '../ui/Avatar';
 import { currentUser } from '../../data/mockData';
 import type { Franchise } from '../../types/superAdmin';
-import { Shield, LayoutDashboard, 
-  GraduationCap, 
-  Users, 
-  HeartHandshake, 
+import {
+  Shield, LayoutDashboard,
+  GraduationCap,
+  Users,
+  HeartHandshake,
   UserPlus,
-  BookOpen, 
-  Building2, 
-  BookMarked, 
-  CalendarDays, 
-  CheckCircle2, 
-  FileText, 
-  ClipboardList, 
-  CalendarOff, 
+  BookOpen,
+  Building2,
+  BookMarked,
+  CalendarDays,
+  Clock,
+  CheckCircle2,
+  FileText,
+  ClipboardList,
+  CalendarOff,
   CreditCard,
-  Banknote, 
+  Banknote,
   Receipt,
-  Library, 
-  Bus, 
-  Bell, 
-  MessageSquare, 
-  BarChart3, 
-  ShieldCheck, 
-  History, 
-  Settings, 
-  LogOut, 
-  ChevronLeft, 
+  Library,
+  Bus,
+  Bell,
+  MessageSquare,
+  BarChart3,
+  ShieldCheck,
+  History,
+  Settings,
+  LogOut,
+  ChevronLeft,
   ChevronRight,
   User,
   ChevronUp
- } from 'lucide-react';
+} from 'lucide-react';
 
 interface SidebarProps {
   currentPath: string;
@@ -79,14 +81,15 @@ export const Sidebar: React.FC<SidebarProps> = ({
         { id: 'acad_mgmt', label: 'Academic Management', icon: BookOpen, path: '/admin/academics' },
         { id: 'classes', label: 'Classes & Sections', icon: Building2, path: '/admin/classes' },
         { id: 'subjects', label: 'Subjects', icon: BookMarked, path: '/admin/subjects' },
-        { id: 'timetable', label: 'Timetable', icon: CalendarDays, path: '/admin/timetable' }
+        { id: 'timetable', label: 'Timetable', icon: CalendarDays, path: '/admin/timetable' },
+        { id: 'school_periods', label: 'School Periods', icon: Clock, path: '/admin/school-periods' }
       ]
     },
     {
       title: 'STUDENT LIFE',
       items: [
         { id: 'attendance', label: 'Attendance', icon: CheckCircle2, path: '/admin/attendance' },
-       { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/examinations' },
+        { id: 'examination', label: 'Examination', icon: FileText, path: '/admin/examinations' },
         { id: 'homework', label: 'Homework', icon: ClipboardList, path: '/admin/homework' },
         { id: 'leave', label: 'Leave Management', icon: CalendarOff, path: '/admin/leaves' }
       ]
@@ -95,9 +98,9 @@ export const Sidebar: React.FC<SidebarProps> = ({
       title: 'OPERATIONS',
       items: [
         { id: 'fees', label: 'Fees', icon: CreditCard, path: '/admin/fees' },
-          { id: 'salary', label: 'Salary', icon: Banknote, path: '/admin/salary' },
-          { id: 'watchman', label: 'Watchman', icon: Shield, path: '/admin/watchmen' },
-          { id: 'expenses', label: 'Expense', icon: Receipt, path: '/admin/expenses' },
+        { id: 'salary', label: 'Salary', icon: Banknote, path: '/admin/salary' },
+        { id: 'watchman', label: 'Watchman', icon: Shield, path: '/admin/watchmen' },
+        { id: 'expenses', label: 'Expense', icon: Receipt, path: '/admin/expenses' },
         { id: 'library', label: 'Library', icon: Library, path: '/admin/library' },
         { id: 'transport', label: 'Transport', icon: Bus, path: '/admin/transport' },
         { id: 'notices', label: 'Notices', icon: Bell, path: '/admin/notices' },
@@ -187,13 +190,13 @@ export const Sidebar: React.FC<SidebarProps> = ({
                   className={`
                     w-full flex items-center gap-3 px-3 py-2.5 rounded-xl font-semibold text-sm transition-all duration-150 cursor-pointer
                     ${isCollapsed ? 'justify-center px-0' : ''}
-                    ${isActive 
-                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20' 
+                    ${isActive
+                      ? 'bg-gradient-to-r from-blue-600 to-indigo-600 text-white shadow-md shadow-blue-500/20'
                       : 'text-slate-600 hover:bg-slate-100/80 hover:text-slate-900'}
                   `}
                 >
                   <IconComponent className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-500'}`} />
-                  
+
                   {!isCollapsed && (
                     <div className="flex items-center justify-between w-full overflow-hidden">
                       <span className="truncate">{item.label}</span>
@@ -278,7 +281,7 @@ export const Sidebar: React.FC<SidebarProps> = ({
           `}
         >
           <Avatar src={currentUser.avatar} name={franchise ? franchise.adminName : currentUser.name} size={isCollapsed ? 'sm' : 'md'} status="online" />
-          
+
           {!isCollapsed && (
             <div className="text-left flex-1 min-w-0">
               <div className="text-xs font-extrabold text-slate-900 truncate">

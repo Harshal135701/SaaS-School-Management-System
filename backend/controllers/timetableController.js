@@ -7,287 +7,316 @@ const {
   Subject,
   SubjectRequirement,
   SchoolPeriod,
+  Student,
+  ParentStudent,
 } = require("../models");
 
 const { Op } = require("sequelize");
 
+const VALID_DAYS = [
+  "MONDAY",
+  "TUESDAY",
+  "WEDNESDAY",
+  "THURSDAY",
+  "FRIDAY",
+  "SATURDAY",
+];
+
+const validateReferences = async ({
+  franchiseId,
+  teacherId,
+  classId,
+  sectionId,
+  subjectId,
+  schoolPeriodId,
+}) => {
+  const [teacher, classRecord, section, subject, schoolPeriod] =
+    await Promise.all([
+      Teacher.findOne({
+        where: { id: teacherId, franchiseId },
+      }),
+      Class.findOne({
+        where: { id: classId, franchiseId },
+      }),
+      Section.findOne({
+        where: { id: sectionId, franchiseId, classId },
+      }),
+      Subject.findOne({
+        where: { id: subjectId, franchiseId },
+      }),
+      SchoolPeriod.findOne({
+        where: {
+          id: schoolPeriodId,
+          franchiseId,
+        },
+      }),
+    ]);
+
+  if (!teacher) return { error: "Teacher not found", status: 404 };
+  if (teacher.status !== "ACTIVE")
+    return { error: "Cannot assign an inactive teacher", status: 400 };
+
+  if (!classRecord)
+    return { error: "Class not found", status: 404 };
+
+  if (classRecord.isActive === false)
+    return { error: "Cannot use an inactive class", status: 400 };
+
+  if (!section)
+    return { error: "Section not found for this class", status: 404 };
+
+  if (section.isActive === false)
+    return { error: "Cannot use an inactive section", status: 400 };
+
+  if (!subject)
+    return { error: "Subject not found", status: 404 };
+
+  if (subject.isActive === false)
+    return { error: "Cannot use an inactive subject", status: 400 };
+
+  if (!schoolPeriod)
+    return { error: "School period not found", status: 404 };
+
+  if (!schoolPeriod.isActive)
+    return { error: "Cannot use an inactive school period", status: 400 };
+
+  if (schoolPeriod.isBreak)
+    return { error: "Cannot create timetable during a break period", status: 400 };
+
+  return {
+    teacher,
+    classRecord,
+    section,
+    subject,
+    schoolPeriod,
+  };
+};
+
+const checkTeacherAssignment = async ({
+  franchiseId,
+  teacherId,
+  classId,
+  sectionId,
+  subjectId,
+}) => {
+  return TeacherAssignment.findOne({
+    where: {
+      franchiseId,
+      teacherId,
+      classId,
+      sectionId,
+      subjectId,
+      status: "ACTIVE",
+    },
+  });
+};
+
+const checkConflicts = async ({
+  franchiseId,
+  day,
+  schoolPeriodId,
+  teacherId,
+  classId,
+  sectionId,
+  room,
+  excludeId,
+}) => {
+  const baseWhere = {
+    franchiseId,
+    day,
+    schoolPeriodId,
+    ...(excludeId && {
+      id: {
+        [Op.ne]: excludeId,
+      },
+    }),
+  };
+
+  const teacherConflict = await Timetable.findOne({
+    where: {
+      ...baseWhere,
+      teacherId,
+    },
+  });
+
+  if (teacherConflict) {
+    return "Teacher is already assigned during this period";
+  }
+
+  const classConflict = await Timetable.findOne({
+    where: {
+      ...baseWhere,
+      classId,
+      sectionId,
+    },
+  });
+
+  if (classConflict) {
+    return "This class and section already have a timetable entry during this period";
+  }
+
+  if (room && room.trim()) {
+    const roomConflict = await Timetable.findOne({
+      where: {
+        ...baseWhere,
+        room: room.trim(),
+      },
+    });
+
+    if (roomConflict) {
+      return "Room is already occupied during this period";
+    }
+  }
+
+  return null;
+};
+
+const checkWeeklyRequirement = async ({
+  franchiseId,
+  classId,
+  subjectId,
+  excludeId,
+}) => {
+  const requirement = await SubjectRequirement.findOne({
+    where: {
+      franchiseId,
+      classId,
+      subjectId,
+      isActive: true,
+    },
+  });
+
+  if (!requirement) return null;
+
+  const where = {
+    franchiseId,
+    classId,
+    subjectId,
+    ...(excludeId && {
+      id: {
+        [Op.ne]: excludeId,
+      },
+    }),
+  };
+
+  const count = await Timetable.count({ where });
+
+  if (count >= requirement.periodsPerWeek) {
+    return `Weekly requirement reached. Maximum ${requirement.periodsPerWeek} periods per week allowed.`;
+  }
+
+  return null;
+};
+
 const createTimetable = async (req, res) => {
   try {
+    const franchiseId = req.user.franchiseId;
+
     const {
       day,
-      startTime,
-      endTime,
-      subject,
+      schoolPeriodId,
+      classId,
+      sectionId,
+      subjectId,
       teacherId,
-      className,
-      section,
       room,
     } = req.body;
 
-    // 1. Required fields
     if (
       !day ||
-      !startTime ||
-      !endTime ||
-      !subject ||
-      !teacherId ||
-      !className
+      !schoolPeriodId ||
+      !classId ||
+      !sectionId ||
+      !subjectId ||
+      !teacherId
     ) {
       return res.status(400).json({
         success: false,
-        message: "Required fields are missing",
+        message:
+          "day, schoolPeriodId, classId, sectionId, subjectId and teacherId are required",
       });
     }
 
-    // 2. Validate day
     const normalizedDay = day.toUpperCase();
 
-    const validDays = [
-      "MONDAY",
-      "TUESDAY",
-      "WEDNESDAY",
-      "THURSDAY",
-      "FRIDAY",
-      "SATURDAY",
-    ];
-
-    if (!validDays.includes(normalizedDay)) {
+    if (!VALID_DAYS.includes(normalizedDay)) {
       return res.status(400).json({
         success: false,
         message: "Invalid day. Allowed days are Monday to Saturday",
       });
     }
 
-    // 3. Validate time
-    if (startTime >= endTime) {
-      return res.status(400).json({
-        success: false,
-        message: "End time must be greater than start time",
-      });
-    }
-
-    // Check configured school period
-    const schoolPeriod = await SchoolPeriod.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        startTime,
-        endTime,
-        isActive: true,
-        isBreak: false,
-      },
-    });
-
-    if (!schoolPeriod) {
-      return res.status(400).json({
-        success: false,
-        message: "Timetable time must match a configured school period",
-      });
-    }
-
-    // 4. Check teacher
-    const teacher = await Teacher.findOne({
-      where: {
-        id: teacherId,
-        franchiseId: req.user.franchiseId,
-      },
-    });
-
-    if (!teacher) {
-      return res.status(404).json({
-        success: false,
-        message: "Teacher not found",
-      });
-    }
-
-    if (teacher.status !== "ACTIVE") {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot assign an inactive teacher",
-      });
-    }
-
-    // 5. Check class
-    const classRecord = await Class.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        name: className,
-      },
-    });
-
-    if (!classRecord) {
-      return res.status(404).json({
-        success: false,
-        message: "Class not found",
-      });
-    }
-
-    // 6. Check section
-    let sectionRecord = null;
-
-    if (section) {
-      sectionRecord = await Section.findOne({
-        where: {
-          franchiseId: req.user.franchiseId,
-          classId: classRecord.id,
-          name: section,
-        },
-      });
-
-      if (!sectionRecord) {
-        return res.status(404).json({
-          success: false,
-          message: "Section not found for this class",
-        });
-      }
-    }
-
-    // 7. Check subject
-    const subjectRecord = await Subject.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        name: subject,
-        isActive: true,
-      },
-    });
-
-    if (!subjectRecord) {
-      return res.status(404).json({
-        success: false,
-        message: "Subject not found or inactive",
-      });
-    }
-
-    // 8. Check teacher assignment
-    const assignmentWhere = {
-      franchiseId: req.user.franchiseId,
+    const refs = await validateReferences({
+      franchiseId,
       teacherId,
-      classId: classRecord.id,
-      subjectId: subjectRecord.id,
-    };
-
-    if (sectionRecord) {
-      assignmentWhere.sectionId = sectionRecord.id;
-    }
-
-    const teacherAssignment = await TeacherAssignment.findOne({
-      where: assignmentWhere,
+      classId,
+      sectionId,
+      subjectId,
+      schoolPeriodId,
     });
 
-    if (!teacherAssignment) {
+    if (refs.error) {
+      return res.status(refs.status).json({
+        success: false,
+        message: refs.error,
+      });
+    }
+
+    const assignment = await checkTeacherAssignment({
+      franchiseId,
+      teacherId,
+      classId,
+      sectionId,
+      subjectId,
+    });
+
+    if (!assignment) {
       return res.status(400).json({
         success: false,
-        message: "Teacher is not assigned to this class, section and subject",
+        message:
+          "Teacher is not assigned to this class, section and subject",
       });
     }
 
-    // 9. Check teacher conflict
-    const teacherConflict = await Timetable.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        day: normalizedDay,
-        teacherId,
-        startTime: {
-          [Op.lt]: endTime,
-        },
-        endTime: {
-          [Op.gt]: startTime,
-        },
-      },
-    });
-
-    if (teacherConflict) {
-      return res.status(409).json({
-        success: false,
-        message: "Teacher is already assigned during this time",
-      });
-    }
-
-    // 10. Check class + section conflict
-    const classConflict = await Timetable.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        day: normalizedDay,
-        className,
-        section: section || null,
-        startTime: {
-          [Op.lt]: endTime,
-        },
-        endTime: {
-          [Op.gt]: startTime,
-        },
-      },
-    });
-
-    if (classConflict) {
-      return res.status(409).json({
-        success: false,
-        message: "This class already has a timetable entry during this time",
-      });
-    }
-
-    // 11. Check room conflict
-    if (room) {
-      const roomConflict = await Timetable.findOne({
-        where: {
-          franchiseId: req.user.franchiseId,
-          day: normalizedDay,
-          room,
-          startTime: {
-            [Op.lt]: endTime,
-          },
-          endTime: {
-            [Op.gt]: startTime,
-          },
-        },
-      });
-
-      if (roomConflict) {
-        return res.status(409).json({
-          success: false,
-          message: "Room is already occupied during this time",
-        });
-      }
-    }
-
-    // 9. Check weekly subject requirement
-    const subjectRequirement = await SubjectRequirement.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        classId: classRecord.id,
-        subjectId: subjectRecord.id,
-        isActive: true,
-      },
-    });
-
-    if (subjectRequirement) {
-      const weeklySubjectCount = await Timetable.count({
-        where: {
-          franchiseId: req.user.franchiseId,
-          className,
-          section: section || null,
-          subject,
-        },
-      });
-
-      if (weeklySubjectCount >= subjectRequirement.periodsPerWeek) {
-        return res.status(409).json({
-          success: false,
-          message: `Weekly requirement reached for ${subject}. Maximum ${subjectRequirement.periodsPerWeek} periods per week allowed.`,
-        });
-      }
-    }
-
-    // 12. Create timetable
-    const timetable = await Timetable.create({
-      franchiseId: req.user.franchiseId,
+    const conflict = await checkConflicts({
+      franchiseId,
       day: normalizedDay,
-      startTime,
-      endTime,
-      subject,
+      schoolPeriodId,
       teacherId,
-      className,
-      section,
+      classId,
+      sectionId,
       room,
+    });
+
+    if (conflict) {
+      return res.status(409).json({
+        success: false,
+        message: conflict,
+      });
+    }
+
+    const weeklyError = await checkWeeklyRequirement({
+      franchiseId,
+      classId,
+      subjectId,
+    });
+
+    if (weeklyError) {
+      return res.status(409).json({
+        success: false,
+        message: weeklyError,
+      });
+    }
+
+    const timetable = await Timetable.create({
+      franchiseId,
+      day: normalizedDay,
+      schoolPeriodId,
+      classId,
+      sectionId,
+      subjectId,
+      teacherId,
+      room: room?.trim() || null,
     });
 
     return res.status(201).json({
@@ -305,23 +334,51 @@ const createTimetable = async (req, res) => {
   }
 };
 
+const getTImetableIncludes = [
+  {
+    model: Teacher,
+    as: "teacher",
+    attributes: ["id", "name"],
+  },
+  {
+    model: Class,
+    as: "class",
+    attributes: ["id", "name"],
+  },
+  {
+    model: Section,
+    as: "section",
+    attributes: ["id", "name"],
+  },
+  {
+    model: Subject,
+    as: "subject",
+    attributes: ["id", "name", "code"],
+  },
+  {
+    model: SchoolPeriod,
+    as: "schoolPeriod",
+
+    attributes: [
+      "id",
+      "periodNumber",
+      "name",
+      "startTime",
+      "endTime",
+      "isBreak",
+      "isActive",
+    ],
+
+
+  },
+];
 
 const getTimetables = async (req, res) => {
   try {
-    const {
-      Timetable,
-      Teacher,
-      Student,
-      ParentStudent,
-      Class,
-      Section,
-    } = require("../models");
+    const franchiseId = req.user.franchiseId;
 
-    const where = {
-      franchiseId: req.user.franchiseId,
-    };
+    const where = { franchiseId };
 
-    // Parent access
     if (req.user.role === "PARENT") {
       const relationship = await ParentStudent.findOne({
         where: {
@@ -340,20 +397,8 @@ const getTimetables = async (req, res) => {
       const student = await Student.findOne({
         where: {
           id: req.params.studentId,
-          franchiseId: req.user.franchiseId,
+          franchiseId,
         },
-        include: [
-          {
-            model: Class,
-            as: "class",
-            attributes: ["id", "name"],
-          },
-          {
-            model: Section,
-            as: "section",
-            attributes: ["id", "name"],
-          },
-        ],
       });
 
       if (!student) {
@@ -363,29 +408,34 @@ const getTimetables = async (req, res) => {
         });
       }
 
-      if (!student.class || !student.section) {
-        return res.status(404).json({
+      where.classId = student.classId;
+      where.sectionId = student.sectionId;
+    }
+
+    if (req.query.day) {
+      const day = req.query.day.toUpperCase();
+
+      if (!VALID_DAYS.includes(day)) {
+        return res.status(400).json({
           success: false,
-          message: "Student class or section is not assigned",
+          message: "Invalid day",
         });
       }
 
-      where.className = student.class.name;
-      where.section = student.section.name;
+      where.day = day;
     }
+
+    if (req.query.classId) where.classId = req.query.classId;
+    if (req.query.sectionId) where.sectionId = req.query.sectionId;
+    if (req.query.teacherId) where.teacherId = req.query.teacherId;
+    if (req.query.subjectId) where.subjectId = req.query.subjectId;
 
     const data = await Timetable.findAll({
       where,
-      include: [
-        {
-          model: Teacher,
-          as: "teacher",
-          attributes: ["id", "name", "subject"],
-        },
-      ],
+      include: getTImetableIncludes,
       order: [
         ["day", "ASC"],
-        ["startTime", "ASC"],
+        [{ model: SchoolPeriod, as: "schoolPeriod" }, "periodNumber", "ASC"],
       ],
     });
 
@@ -395,7 +445,7 @@ const getTimetables = async (req, res) => {
       data,
     });
   } catch (error) {
-    console.error(error);
+    console.error("Get timetables error:", error);
 
     return res.status(500).json({
       success: false,
@@ -411,13 +461,7 @@ const getTimetableById = async (req, res) => {
         id: req.params.id,
         franchiseId: req.user.franchiseId,
       },
-      include: [
-        {
-          model: Teacher,
-          as: "teacher",
-          attributes: ["id", "name", "subject"],
-        },
-      ],
+      include: getTImetableIncludes,
     });
 
     if (!data) {
@@ -427,13 +471,14 @@ const getTimetableById = async (req, res) => {
       });
     }
 
-    res.json({
+    return res.json({
       success: true,
       data,
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Get timetable error:", error);
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });
@@ -443,11 +488,12 @@ const getTimetableById = async (req, res) => {
 const updateTimetable = async (req, res) => {
   try {
     const { id } = req.params;
+    const franchiseId = req.user.franchiseId;
 
     const timetable = await Timetable.findOne({
       where: {
         id,
-        franchiseId: req.user.franchiseId,
+        franchiseId,
       },
     });
 
@@ -460,299 +506,116 @@ const updateTimetable = async (req, res) => {
 
     const {
       day,
-      startTime,
-      endTime,
-      subject,
+      schoolPeriodId,
+      classId,
+      sectionId,
+      subjectId,
       teacherId,
-      className,
-      section,
       room,
     } = req.body;
 
-    const finalDay =
-      day !== undefined ? day.toUpperCase() : timetable.day;
+    const finalDay = day
+      ? day.toUpperCase()
+      : timetable.day;
 
-    const finalStartTime =
-      startTime !== undefined ? startTime : timetable.startTime;
+    const finalSchoolPeriodId =
+      schoolPeriodId ?? timetable.schoolPeriodId;
 
-    const finalEndTime =
-      endTime !== undefined ? endTime : timetable.endTime;
+    const finalClassId =
+      classId ?? timetable.classId;
 
-    const finalSubject =
-      subject !== undefined ? subject : timetable.subject;
+    const finalSectionId =
+      sectionId ?? timetable.sectionId;
+
+    const finalSubjectId =
+      subjectId ?? timetable.subjectId;
 
     const finalTeacherId =
-      teacherId !== undefined ? teacherId : timetable.teacherId;
-
-    const finalClassName =
-      className !== undefined ? className : timetable.className;
-
-    const finalSection =
-      section !== undefined ? section : timetable.section;
+      teacherId ?? timetable.teacherId;
 
     const finalRoom =
-      room !== undefined ? room : timetable.room;
+      room !== undefined
+        ? room?.trim() || null
+        : timetable.room;
 
-    // 1. Validate day
-    const validDays = [
-      "MONDAY",
-      "TUESDAY",
-      "WEDNESDAY",
-      "THURSDAY",
-      "FRIDAY",
-      "SATURDAY",
-    ];
-
-    if (!validDays.includes(finalDay)) {
+    if (!VALID_DAYS.includes(finalDay)) {
       return res.status(400).json({
         success: false,
-        message: "Invalid day. Allowed days are Monday to Saturday",
+        message: "Invalid day",
       });
     }
 
-    // 2. Validate time
-    if (finalStartTime >= finalEndTime) {
-      return res.status(400).json({
-        success: false,
-        message: "End time must be greater than start time",
-      });
-    }
-
-    // 3. Validate configured school period
-    const schoolPeriod = await SchoolPeriod.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        startTime: finalStartTime,
-        endTime: finalEndTime,
-        isActive: true,
-        isBreak: false,
-      },
-    });
-
-    if (!schoolPeriod) {
-      return res.status(400).json({
-        success: false,
-        message: "Timetable time must match a configured school period",
-      });
-    }
-
-    // 4. Check teacher
-    const teacher = await Teacher.findOne({
-      where: {
-        id: finalTeacherId,
-        franchiseId: req.user.franchiseId,
-      },
-    });
-
-    if (!teacher) {
-      return res.status(404).json({
-        success: false,
-        message: "Teacher not found",
-      });
-    }
-
-    if (teacher.status !== "ACTIVE") {
-      return res.status(400).json({
-        success: false,
-        message: "Cannot assign an inactive teacher",
-      });
-    }
-
-    // 5. Check class
-    const classRecord = await Class.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        name: finalClassName,
-      },
-    });
-
-    if (!classRecord) {
-      return res.status(404).json({
-        success: false,
-        message: "Class not found",
-      });
-    }
-
-    // 6. Check section
-    let sectionRecord = null;
-
-    if (finalSection) {
-      sectionRecord = await Section.findOne({
-        where: {
-          franchiseId: req.user.franchiseId,
-          classId: classRecord.id,
-          name: finalSection,
-        },
-      });
-
-      if (!sectionRecord) {
-        return res.status(404).json({
-          success: false,
-          message: "Section not found for this class",
-        });
-      }
-    }
-
-    // 7. Check subject
-    const subjectRecord = await Subject.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        name: finalSubject,
-        isActive: true,
-      },
-    });
-
-    if (!subjectRecord) {
-      return res.status(404).json({
-        success: false,
-        message: "Subject not found or inactive",
-      });
-    }
-
-    // 8. Check teacher assignment
-    const assignmentWhere = {
-      franchiseId: req.user.franchiseId,
+    const refs = await validateReferences({
+      franchiseId,
       teacherId: finalTeacherId,
-      classId: classRecord.id,
-      subjectId: subjectRecord.id,
-    };
-
-    if (sectionRecord) {
-      assignmentWhere.sectionId = sectionRecord.id;
-    }
-
-    const teacherAssignment = await TeacherAssignment.findOne({
-      where: assignmentWhere,
+      classId: finalClassId,
+      sectionId: finalSectionId,
+      subjectId: finalSubjectId,
+      schoolPeriodId: finalSchoolPeriodId,
     });
 
-    if (!teacherAssignment) {
+    if (refs.error) {
+      return res.status(refs.status).json({
+        success: false,
+        message: refs.error,
+      });
+    }
+
+    const assignment = await checkTeacherAssignment({
+      franchiseId,
+      teacherId: finalTeacherId,
+      classId: finalClassId,
+      sectionId: finalSectionId,
+      subjectId: finalSubjectId,
+    });
+
+    if (!assignment) {
       return res.status(400).json({
         success: false,
-        message: "Teacher is not assigned to this class, section and subject",
+        message:
+          "Teacher is not assigned to this class, section and subject",
       });
     }
 
-    // 9. Check weekly subject requirement
-    const subjectRequirement = await SubjectRequirement.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        classId: classRecord.id,
-        subjectId: subjectRecord.id,
-        isActive: true,
-      },
+    const conflict = await checkConflicts({
+      franchiseId,
+      day: finalDay,
+      schoolPeriodId: finalSchoolPeriodId,
+      teacherId: finalTeacherId,
+      classId: finalClassId,
+      sectionId: finalSectionId,
+      room: finalRoom,
+      excludeId: id,
     });
 
-    if (subjectRequirement) {
-      const weeklySubjectCount = await Timetable.count({
-        where: {
-          franchiseId: req.user.franchiseId,
-          className: finalClassName,
-          section: finalSection || null,
-          subject: finalSubject,
-          id: {
-            [Op.ne]: id,
-          },
-        },
-      });
-
-      if (
-        weeklySubjectCount >=
-        subjectRequirement.periodsPerWeek
-      ) {
-        return res.status(409).json({
-          success: false,
-          message: `Weekly requirement reached for ${finalSubject}. Maximum ${subjectRequirement.periodsPerWeek} periods per week allowed.`,
-        });
-      }
-    }
-
-    // 10. Teacher conflict
-    const teacherConflict = await Timetable.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        day: finalDay,
-        teacherId: finalTeacherId,
-        id: {
-          [Op.ne]: id,
-        },
-        startTime: {
-          [Op.lt]: finalEndTime,
-        },
-        endTime: {
-          [Op.gt]: finalStartTime,
-        },
-      },
-    });
-
-    if (teacherConflict) {
+    if (conflict) {
       return res.status(409).json({
         success: false,
-        message: "Teacher is already assigned during this time",
+        message: conflict,
       });
     }
 
-    // 11. Class + section conflict
-    const classConflict = await Timetable.findOne({
-      where: {
-        franchiseId: req.user.franchiseId,
-        day: finalDay,
-        className: finalClassName,
-        section: finalSection || null,
-        id: {
-          [Op.ne]: id,
-        },
-        startTime: {
-          [Op.lt]: finalEndTime,
-        },
-        endTime: {
-          [Op.gt]: finalStartTime,
-        },
-      },
+    const weeklyError = await checkWeeklyRequirement({
+      franchiseId,
+      classId: finalClassId,
+      subjectId: finalSubjectId,
+      excludeId: id,
     });
 
-    if (classConflict) {
+    if (weeklyError) {
       return res.status(409).json({
         success: false,
-        message: "This class already has a timetable entry during this time",
+        message: weeklyError,
       });
     }
 
-    // 12. Room conflict
-    if (finalRoom) {
-      const roomConflict = await Timetable.findOne({
-        where: {
-          franchiseId: req.user.franchiseId,
-          day: finalDay,
-          room: finalRoom,
-          id: {
-            [Op.ne]: id,
-          },
-          startTime: {
-            [Op.lt]: finalEndTime,
-          },
-          endTime: {
-            [Op.gt]: finalStartTime,
-          },
-        },
-      });
-
-      if (roomConflict) {
-        return res.status(409).json({
-          success: false,
-          message: "Room is already occupied during this time",
-        });
-      }
-    }
-
-    // 13. Update timetable
     await timetable.update({
       day: finalDay,
-      startTime: finalStartTime,
-      endTime: finalEndTime,
-      subject: finalSubject,
+      schoolPeriodId: finalSchoolPeriodId,
+      classId: finalClassId,
+      sectionId: finalSectionId,
+      subjectId: finalSubjectId,
       teacherId: finalTeacherId,
-      className: finalClassName,
-      section: finalSection,
       room: finalRoom,
     });
 
@@ -789,13 +652,14 @@ const deleteTimetable = async (req, res) => {
 
     await timetable.destroy();
 
-    res.json({
+    return res.json({
       success: true,
       message: "Timetable deleted successfully",
     });
   } catch (error) {
-    console.error(error);
-    res.status(500).json({
+    console.error("Delete timetable error:", error);
+
+    return res.status(500).json({
       success: false,
       message: "Internal server error",
     });

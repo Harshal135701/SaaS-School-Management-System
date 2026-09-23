@@ -245,16 +245,6 @@ export const TeachersPage: React.FC = () => {
   const openEditModal = async (teacher: Teacher) => {
     setEditingTeacher(teacher);
 
-    const existingAssignment = assignments.find(
-      (assignment) => assignment.teacherId === teacher.id
-    );
-
-    if (existingAssignment?.classId) {
-      await fetchSectionsForClass(existingAssignment.classId);
-    } else {
-      setSections([]);
-    }
-
     setForm({
       name: teacher.name || '',
       email: teacher.email || '',
@@ -270,11 +260,12 @@ export const TeachersPage: React.FC = () => {
       address: teacher.address || '',
       password: '',
       confirmPassword: '',
-      classId: existingAssignment?.classId || '',
-      sectionId: existingAssignment?.sectionId || '',
-      subjectId: existingAssignment?.subjectId || '',
+      classId: '',
+      sectionId: '',
+      subjectId: '',
     });
 
+    setSections([]);
     setError(null);
     setShowPassword(false);
     setIsModalOpen(true);
@@ -324,6 +315,75 @@ export const TeachersPage: React.FC = () => {
     }
   };
 
+  const handleAddAssignment = async () => {
+    if (!editingTeacher) {
+      setError('Save the teacher first, then add assignments.');
+      return;
+    }
+
+    if (!form.classId || !form.sectionId || !form.subjectId) {
+      setError('Please select class, section and subject.');
+      return;
+    }
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      await api.post('/franchise/teacher-assignments', {
+        teacherId: editingTeacher.id,
+        classId: form.classId,
+        sectionId: form.sectionId,
+        subjectId: form.subjectId,
+      });
+
+      setForm((prev) => ({
+        ...prev,
+        classId: '',
+        sectionId: '',
+        subjectId: '',
+      }));
+
+      setSections([]);
+
+      await fetchTeachers();
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message ||
+        'Failed to add teacher assignment.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  const handleRemoveAssignment = async (assignment: Assignment) => {
+    const confirmed = window.confirm(
+      `Remove ${assignment.subject?.name || 'this assignment'} from ${assignment.teacher?.name || 'this teacher'}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setSaving(true);
+      setError(null);
+
+      await api.delete(
+        `/franchise/teacher-assignments/${assignment.id}`
+      );
+
+      await fetchTeachers();
+    } catch (err: any) {
+      setError(
+        err.response?.data?.message ||
+        'Failed to remove assignment.'
+      );
+    } finally {
+      setSaving(false);
+    }
+  };
+
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
 
@@ -352,13 +412,6 @@ export const TeachersPage: React.FC = () => {
         setError('Password and Confirm Password do not match.');
         return;
       }
-    }
-
-    if (form.classId && !form.sectionId) {
-      setError(
-        'Please select a section for the assigned class, or leave class empty.'
-      );
-      return;
     }
 
     if (
@@ -408,39 +461,6 @@ export const TeachersPage: React.FC = () => {
         );
 
         savedTeacherId = createRes.data?.data?.id;
-      }
-
-      if (savedTeacherId && form.staffType === 'TEACHING') {
-        const existingAssignment = assignments.find(
-          (assignment) =>
-            assignment.teacherId === savedTeacherId &&
-            assignment.status === 'ACTIVE'
-        );
-
-        if (form.classId && form.sectionId) {
-          const assignmentPayload = {
-            teacherId: savedTeacherId,
-            classId: form.classId,
-            sectionId: form.sectionId,
-            subjectId: form.subjectId || null,
-          };
-
-          if (existingAssignment) {
-            await api.put(
-              `/franchise/teacher-assignments/${existingAssignment.id}`,
-              assignmentPayload
-            );
-          } else {
-            await api.post(
-              '/franchise/teacher-assignments',
-              assignmentPayload
-            );
-          }
-        } else if (existingAssignment) {
-          await api.delete(
-            `/franchise/teacher-assignments/${existingAssignment.id}`
-          );
-        }
       }
 
       closeModal();
@@ -955,98 +975,154 @@ export const TeachersPage: React.FC = () => {
                 </div>
               </div>
 
-              {/* TEACHING ASSIGNMENT */}
+              {/* TEACHING ASSIGNMENTS */}
               {form.staffType === 'TEACHING' && (
                 <div className="border-t border-slate-100 pt-5">
-                  <h3 className="text-sm font-extrabold text-slate-800 mb-1">
-                    Teaching Assignment
-                  </h3>
-
-                  <p className="text-[11px] text-slate-400 mb-3">
-                    Assign the teacher to a class, section and subject.
-                  </p>
-
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                  <div className="flex items-center justify-between mb-1">
                     <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Class
-                      </label>
+                      <h3 className="text-sm font-extrabold text-slate-800">
+                        Teaching Assignments
+                      </h3>
 
-                      <select
-                        name="classId"
-                        value={form.classId}
-                        onChange={handleChange}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
-                      >
-                        <option value="">No Assignment</option>
-
-                        {classes
-                          .filter((cls) => cls.isActive !== false)
-                          .map((cls) => (
-                            <option key={cls.id} value={cls.id}>
-                              {cls.name}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Section
-                      </label>
-
-                      <select
-                        name="sectionId"
-                        value={form.sectionId}
-                        onChange={handleChange}
-                        disabled={!form.classId}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white disabled:bg-slate-50 disabled:text-slate-400"
-                      >
-                        <option value="">
-                          {!form.classId
-                            ? 'Select Class First'
-                            : 'Select Section'}
-                        </option>
-
-                        {sections
-                          .filter((section) => section.isActive !== false)
-                          .map((section) => (
-                            <option
-                              key={section.id}
-                              value={section.id}
-                            >
-                              {section.name}
-                            </option>
-                          ))}
-                      </select>
-                    </div>
-
-                    <div>
-                      <label className="block text-xs font-bold text-slate-600 mb-1">
-                        Subject
-                      </label>
-
-                      <select
-                        name="subjectId"
-                        value={form.subjectId}
-                        onChange={handleChange}
-                        className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-blue-500 bg-white"
-                      >
-                        <option value="">No Subject</option>
-
-                        {subjects
-                          .filter((subject) => subject.isActive !== false)
-                          .map((subject) => (
-                            <option
-                              key={subject.id}
-                              value={subject.id}
-                            >
-                              {subject.name}
-                            </option>
-                          ))}
-                      </select>
+                      <p className="text-[11px] text-slate-400">
+                        A teacher can have multiple classes, sections and subjects.
+                      </p>
                     </div>
                   </div>
+
+                  {editingTeacher && (
+                    <div className="space-y-2 mb-4">
+                      {getTeacherAssignments(editingTeacher.id).length === 0 ? (
+                        <div className="p-3 rounded-xl bg-slate-50 border border-dashed border-slate-200 text-xs text-slate-500">
+                          No teaching assignments yet.
+                        </div>
+                      ) : (
+                        getTeacherAssignments(editingTeacher.id).map((assignment) => (
+                          <div
+                            key={assignment.id}
+                            className="flex items-center justify-between p-3 rounded-xl bg-indigo-50 border border-indigo-100"
+                          >
+                            <div>
+                              <p className="text-xs font-extrabold text-slate-800">
+                                {assignment.class?.name} - {assignment.section?.name}
+                              </p>
+
+                              <p className="text-[11px] text-indigo-600 font-semibold">
+                                {assignment.subject?.name || 'Subject'}
+                              </p>
+                            </div>
+
+                            <button
+                              type="button"
+                              onClick={() => handleRemoveAssignment(assignment)}
+                              disabled={saving}
+                              className="p-1.5 rounded-lg text-rose-500 hover:bg-rose-100"
+                              title="Remove assignment"
+                            >
+                              <Trash2 className="w-4 h-4" />
+                            </button>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  )}
+
+                  {editingTeacher ? (
+                    <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                          Class
+                        </label>
+
+                        <select
+                          name="classId"
+                          value={form.classId}
+                          onChange={handleChange}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                        >
+                          <option value="">Select Class</option>
+
+                          {classes
+                            .filter((cls) => cls.isActive !== false)
+                            .map((cls) => (
+                              <option key={cls.id} value={cls.id}>
+                                {cls.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                          Section
+                        </label>
+
+                        <select
+                          name="sectionId"
+                          value={form.sectionId}
+                          onChange={handleChange}
+                          disabled={!form.classId}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white disabled:bg-slate-50"
+                        >
+                          <option value="">
+                            {form.classId ? 'Select Section' : 'Select Class First'}
+                          </option>
+
+                          {sections
+                            .filter((section) => section.isActive !== false)
+                            .map((section) => (
+                              <option key={section.id} value={section.id}>
+                                {section.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div>
+                        <label className="block text-xs font-bold text-slate-600 mb-1">
+                          Subject
+                        </label>
+
+                        <select
+                          name="subjectId"
+                          value={form.subjectId}
+                          onChange={handleChange}
+                          className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm bg-white"
+                        >
+                          <option value="">Select Subject</option>
+
+                          {subjects
+                            .filter((subject) => subject.isActive !== false)
+                            .map((subject) => (
+                              <option key={subject.id} value={subject.id}>
+                                {subject.name}
+                              </option>
+                            ))}
+                        </select>
+                      </div>
+
+                      <div className="md:col-span-3 flex justify-end">
+                        <button
+                          type="button"
+                          onClick={handleAddAssignment}
+                          disabled={
+                            saving ||
+                            !form.classId ||
+                            !form.sectionId ||
+                            !form.subjectId
+                          }
+                          className="inline-flex items-center gap-2 px-4 py-2.5 rounded-xl bg-indigo-600 text-white text-xs font-bold hover:bg-indigo-700 disabled:opacity-50"
+                        >
+                          <Plus className="w-4 h-4" />
+                          Add Assignment
+                        </button>
+                      </div>
+                    </div>
+                  ) : (
+                    <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-xs text-blue-700 font-semibold">
+                      Create the teacher first. You can then add multiple teaching assignments.
+                    </div>
+                  )}
                 </div>
               )}
 

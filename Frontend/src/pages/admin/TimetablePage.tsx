@@ -14,7 +14,6 @@ import api from '../../services/api';
 interface Teacher {
   id: string;
   name: string;
-  subject?: string;
 }
 
 interface SchoolPeriod {
@@ -31,7 +30,6 @@ interface ClassItem {
   id: string;
   name: string;
   code?: string;
-  numericValue?: number;
 }
 
 interface SectionItem {
@@ -47,79 +45,82 @@ interface SubjectItem {
   isActive?: boolean;
 }
 
+interface TeacherAssignment {
+  id: string;
+  teacherId: string;
+  classId: string;
+  sectionId: string;
+  subjectId: string;
+  status?: string;
+}
+
 interface Timetable {
   id: string;
   day: string;
-  startTime: string;
-  endTime: string;
-  subject: string;
+  schoolPeriodId: string;
+  classId: string;
+  sectionId: string;
+  subjectId: string;
   teacherId: string;
-  className: string;
-  section?: string;
   room?: string;
   teacher?: Teacher;
+  class?: ClassItem;
+  section?: SectionItem;
+  subject?: SubjectItem;
+  schoolPeriod?: SchoolPeriod;
 }
 
 interface FormData {
   day: string;
-  startTime: string;
-  endTime: string;
-  subject: string;
+  schoolPeriodId: string;
+  classId: string;
+  sectionId: string;
+  subjectId: string;
   teacherId: string;
-  className: string;
-  section: string;
   room: string;
 }
 
 const initialForm: FormData = {
-  day: 'Monday',
-  startTime: '',
-  endTime: '',
-  subject: '',
+  day: 'MONDAY',
+  schoolPeriodId: '',
+  classId: '',
+  sectionId: '',
+  subjectId: '',
   teacherId: '',
-  className: '',
-  section: '',
   room: '',
 };
 
 const days = [
-  'Monday',
-  'Tuesday',
-  'Wednesday',
-  'Thursday',
-  'Friday',
-  'Saturday',
+  'MONDAY',
+  'TUESDAY',
+  'WEDNESDAY',
+  'THURSDAY',
+  'FRIDAY',
+  'SATURDAY',
 ];
 
-/*
- * IMPORTANT
- *
- * Backend route:
- * /api/franchise/timetables
- *
- * Therefore frontend API path:
- * /franchise/timetables
- */
 const TIMETABLE_API = '/franchise/timetable';
 const TEACHER_API = '/franchise/teachers';
 const SCHOOL_PERIODS_API = '/school-periods';
 const CLASSES_API = '/franchise/classes';
 const SECTIONS_API = '/franchise/sections';
 const SUBJECTS_API = '/franchise/subjects';
+const ASSIGNMENTS_API = '/franchise/teacher-assignments';
 
 export const TimetablePage: React.FC = () => {
   const [timetables, setTimetables] = useState<Timetable[]>([]);
   const [teachers, setTeachers] = useState<Teacher[]>([]);
   const [schoolPeriods, setSchoolPeriods] = useState<SchoolPeriod[]>([]);
+  const [allSchoolPeriods, setAllSchoolPeriods] = useState<SchoolPeriod[]>([]);
   const [classes, setClasses] = useState<ClassItem[]>([]);
   const [sections, setSections] = useState<SectionItem[]>([]);
   const [subjects, setSubjects] = useState<SubjectItem[]>([]);
-  const [teacherAssignments, setTeacherAssignments] = useState<any[]>([]);
-  const [selectedPeriodId, setSelectedPeriodId] = useState<string>('');
+  const [teacherAssignments, setTeacherAssignments] = useState<
+    TeacherAssignment[]
+  >([]);
 
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
-
   const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -128,14 +129,8 @@ export const TimetablePage: React.FC = () => {
   const [form, setForm] = useState<FormData>(initialForm);
 
   // ============================================================
-  // NORMALIZE DAY
+  // HELPERS
   // ============================================================
-
-  const normalizeDay = (day: string) => {
-    if (!day) return '';
-
-    return day.trim().toUpperCase();
-  };
 
   const displayDay = (day: string) => {
     if (!day) return '';
@@ -146,9 +141,28 @@ export const TimetablePage: React.FC = () => {
     );
   };
 
-  // ============================================================
-  // FETCH DATA
-  // ============================================================
+  const formatTime = (time?: string) => {
+    if (!time) return '';
+
+    const [hours, minutes] = time.split(':');
+    const hour = Number(hours);
+
+    if (Number.isNaN(hour)) return time;
+
+    const suffix = hour >= 12 ? 'PM' : 'AM';
+    const formattedHour = hour % 12 || 12;
+
+    return `${formattedHour}:${minutes} ${suffix}`;
+  };
+
+  const formatPeriodLabel = (period: SchoolPeriod) => {
+    const start = period.startTime?.substring(0, 5) || '';
+    const end = period.endTime?.substring(0, 5) || '';
+
+    return `${period.name || `Period ${period.periodNumber}`} — ${formatTime(
+      start
+    )} - ${formatTime(end)}`;
+  };
 
   // ============================================================
   // FETCH DATA
@@ -159,103 +173,82 @@ export const TimetablePage: React.FC = () => {
       setLoading(true);
       setError(null);
 
-      console.log(
-        'Fetching timetable from:',
-        TIMETABLE_API
-      );
+      const [
+        timetableRes,
+        teachersRes,
+        periodsRes,
+        classesRes,
+        sectionsRes,
+        subjectsRes,
+        assignmentsRes,
+      ] = await Promise.all([
+        api.get(TIMETABLE_API),
+        api.get(TEACHER_API),
+        api.get(SCHOOL_PERIODS_API),
+        api.get(CLASSES_API),
+        api.get(SECTIONS_API),
+        api.get(SUBJECTS_API),
+        api.get(ASSIGNMENTS_API),
+      ]);
 
-      const [timetableRes, teachersRes, periodsRes, classesRes, sectionsRes, subjectsRes, assignmentsRes] =
-        await Promise.all([
-          api.get(TIMETABLE_API),
-          api.get(TEACHER_API),
-          api.get(SCHOOL_PERIODS_API).catch((err) => {
-            console.error('Failed to fetch school periods:', err);
-            return { data: { data: [] } };
-          }),
-          api.get(CLASSES_API).catch((err) => {
-            console.error('Failed to fetch classes:', err);
-            return { data: { data: [] } };
-          }),
-          api.get(SECTIONS_API).catch((err) => {
-            console.error('Failed to fetch sections:', err);
-            return { data: { data: [] } };
-          }),
-          api.get(SUBJECTS_API).catch((err) => {
-            console.error('Failed to fetch subjects:', err);
-            return { data: { data: [] } };
-          }),
-          api.get('/franchise/teacher-assignments').catch((err) => {
-            console.error('Failed to fetch teacher assignments:', err);
-            return { data: { data: [] } };
-          }),
-        ]);
-
-      console.log(
-        'Timetable API response:',
-        timetableRes.data
-      );
-
-      console.log(
-        'Teachers API response:',
-        teachersRes.data
-      );
-
-      console.log(
-        'School Periods API response:',
-        periodsRes.data
-      );
-
-      const timetableData =
-        timetableRes.data?.data || [];
+      const timetableData = timetableRes.data?.data || [];
 
       const teacherData =
         teachersRes.data?.data ||
         teachersRes.data?.teachers ||
         [];
 
-      const rawPeriods: SchoolPeriod[] =
-        periodsRes.data?.data || [];
+      const periodData = periodsRes.data?.data || [];
 
-      const activeNonBreakPeriods = rawPeriods
-        .filter((p) => p.isActive !== false && !p.isBreak)
-        .sort((a, b) => a.periodNumber - b.periodNumber);
+      const classData = classesRes.data?.data || [];
 
-      const loadedClasses: ClassItem[] =
-        classesRes.data?.data || [];
+      const sectionData = sectionsRes.data?.data || [];
 
-      const loadedSections: SectionItem[] =
-        sectionsRes.data?.data || [];
+      const subjectData = subjectsRes.data?.data || [];
 
-      const loadedSubjects: SubjectItem[] =
-        subjectsRes.data?.data || [];
-
-      const activeSubjects = loadedSubjects.filter(
-        (s) => s.isActive !== false
-      );
-
-      const loadedAssignments = assignmentsRes?.data?.data || [];
+      const assignmentData =
+        assignmentsRes.data?.data || [];
 
       setTimetables(timetableData);
       setTeachers(teacherData);
-      setSchoolPeriods(activeNonBreakPeriods);
-      setClasses(loadedClasses);
-      setSections(loadedSections);
-      setSubjects(activeSubjects);
-      setTeacherAssignments(loadedAssignments);
-    } catch (err: any) {
-      console.error(
-        'Timetable fetch error:',
-        err
+
+      setSchoolPeriods(
+        periodData
+          .filter(
+            (period: SchoolPeriod) =>
+              period.isActive !== false &&
+              !period.isBreak
+          )
+          .sort(
+            (a: SchoolPeriod, b: SchoolPeriod) =>
+              a.periodNumber - b.periodNumber
+          )
       );
 
-      console.error(
-        'Timetable fetch response:',
-        err?.response?.data
+      setClasses(classData);
+
+      setSections(sectionData);
+
+      setSubjects(
+        subjectData.filter(
+          (subject: SubjectItem) =>
+            subject.isActive !== false
+        )
       );
+
+      setTeacherAssignments(
+        assignmentData.filter(
+          (assignment: TeacherAssignment) =>
+            assignment.status === 'ACTIVE' ||
+            !assignment.status
+        )
+      );
+    } catch (err: any) {
+      console.error('Timetable fetch error:', err);
 
       setError(
         err?.response?.data?.message ||
-          'Failed to load timetable. Please try again.'
+        'Failed to load timetable. Please try again.'
       );
     } finally {
       setLoading(false);
@@ -267,7 +260,7 @@ export const TimetablePage: React.FC = () => {
   }, []);
 
   // ============================================================
-  // FORM CHANGE & PERIOD HELPERS
+  // FORM HELPERS
   // ============================================================
 
   const handleChange = (
@@ -277,109 +270,181 @@ export const TimetablePage: React.FC = () => {
   ) => {
     const { name, value } = e.target;
 
-    if (name === 'teacherId' && value) {
-      const selectedTeacher = teachers.find((t) => t.id === value);
-      if (selectedTeacher && selectedTeacher.subject) {
-        const matchingSubject = subjects.find(
-          (s) =>
-            s.name.trim().toLowerCase() ===
-            selectedTeacher.subject?.trim().toLowerCase()
-        );
-
-        setForm((prev) => ({
-          ...prev,
-          teacherId: value,
-          subject: matchingSubject
-            ? matchingSubject.name
-            : (prev.subject || selectedTeacher.subject || ''),
-        }));
-        return;
-      }
-    }
-
     setForm((prev) => ({
       ...prev,
       [name]: value,
     }));
   };
 
-  const formatPeriodLabel = (period: SchoolPeriod) => {
-    const start = period.startTime ? period.startTime.substring(0, 5) : '';
-    const end = period.endTime ? period.endTime.substring(0, 5) : '';
-    return `${period.name || `Period ${period.periodNumber}`} — ${start} to ${end}`;
-  };
-
-  const handlePeriodChange = (
-    e: React.ChangeEvent<HTMLSelectElement>
-  ) => {
-    const periodId = e.target.value;
-    setSelectedPeriodId(periodId);
-
-    const foundPeriod = schoolPeriods.find((p) => p.id === periodId);
-    if (foundPeriod) {
-      setForm((prev) => ({
-        ...prev,
-        startTime: foundPeriod.startTime ? foundPeriod.startTime.substring(0, 5) : '',
-        endTime: foundPeriod.endTime ? foundPeriod.endTime.substring(0, 5) : '',
-      }));
-    } else {
-      setForm((prev) => ({
-        ...prev,
-        startTime: '',
-        endTime: '',
-      }));
-    }
+  const resetForm = () => {
+    setForm(initialForm);
+    setEditingId(null);
   };
 
   // ============================================================
-  // OPEN CREATE MODAL
+  // FILTER ASSIGNMENTS
+  // ============================================================
+
+  const availableAssignments =
+    teacherAssignments.filter((assignment) => {
+      if (
+        form.teacherId &&
+        assignment.teacherId !== form.teacherId
+      ) {
+        return false;
+      }
+
+      if (
+        form.classId &&
+        assignment.classId !== form.classId
+      ) {
+        return false;
+      }
+
+      if (
+        form.sectionId &&
+        assignment.sectionId !== form.sectionId
+      ) {
+        return false;
+      }
+
+      if (
+        form.subjectId &&
+        assignment.subjectId !== form.subjectId
+      ) {
+        return false;
+      }
+
+      return true;
+    });
+
+  const availableTeachers = teachers.filter((teacher) =>
+    teacherAssignments.some(
+      (assignment) =>
+        assignment.teacherId === teacher.id &&
+        (!form.classId ||
+          assignment.classId === form.classId) &&
+        (!form.sectionId ||
+          assignment.sectionId === form.sectionId) &&
+        (!form.subjectId ||
+          assignment.subjectId === form.subjectId)
+    )
+  );
+
+  const availableSubjects = subjects.filter((subject) =>
+    teacherAssignments.some(
+      (assignment) =>
+        assignment.subjectId === subject.id &&
+        (!form.teacherId ||
+          assignment.teacherId === form.teacherId) &&
+        (!form.classId ||
+          assignment.classId === form.classId) &&
+        (!form.sectionId ||
+          assignment.sectionId === form.sectionId)
+    )
+  );
+
+  const availableClasses = classes.filter((classItem) =>
+    teacherAssignments.some(
+      (assignment) =>
+        assignment.classId === classItem.id &&
+        (!form.teacherId ||
+          assignment.teacherId === form.teacherId) &&
+        (!form.subjectId ||
+          assignment.subjectId === form.subjectId)
+    )
+  );
+
+  const availableSections = sections.filter((section) =>
+    section.classId === form.classId &&
+    teacherAssignments.some(
+      (assignment) =>
+        assignment.sectionId === section.id &&
+        assignment.classId === form.classId &&
+        (!form.teacherId ||
+          assignment.teacherId === form.teacherId) &&
+        (!form.subjectId ||
+          assignment.subjectId === form.subjectId)
+    )
+  );
+
+  // ============================================================
+  // FIELD CASCADE
+  // ============================================================
+
+  const handleTeacherChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const teacherId = e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      teacherId,
+      classId: '',
+      sectionId: '',
+      subjectId: '',
+    }));
+  };
+
+  const handleClassChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const classId = e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      classId,
+      sectionId: '',
+      subjectId: '',
+    }));
+  };
+
+  const handleSectionChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const sectionId = e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      sectionId,
+      subjectId: '',
+    }));
+  };
+
+  const handleSubjectChange = (
+    e: React.ChangeEvent<HTMLSelectElement>
+  ) => {
+    const subjectId = e.target.value;
+
+    setForm((prev) => ({
+      ...prev,
+      subjectId,
+    }));
+  };
+
+  // ============================================================
+  // CREATE
   // ============================================================
 
   const openCreateModal = () => {
-    setEditingId(null);
-    setSelectedPeriodId('');
-
-    setForm({
-      ...initialForm,
-    });
-
+    resetForm();
     setIsModalOpen(true);
   };
 
   // ============================================================
-  // OPEN EDIT MODAL
+  // EDIT
   // ============================================================
 
-  const openEditModal = (
-    item: Timetable
-  ) => {
+  const openEditModal = (item: Timetable) => {
     setEditingId(item.id);
 
-    const itemStart = item.startTime
-      ? item.startTime.substring(0, 5)
-      : '';
-    const itemEnd = item.endTime
-      ? item.endTime.substring(0, 5)
-      : '';
-
-    const matchingPeriod = schoolPeriods.find(
-      (p) =>
-        p.startTime &&
-        p.endTime &&
-        p.startTime.substring(0, 5) === itemStart &&
-        p.endTime.substring(0, 5) === itemEnd
-    );
-
-    setSelectedPeriodId(matchingPeriod ? matchingPeriod.id : '');
-
     setForm({
-      day: displayDay(item.day),
-      startTime: itemStart,
-      endTime: itemEnd,
-      subject: item.subject || '',
-      teacherId: item.teacherId || '',
-      className: item.className || '',
-      section: item.section || '',
+      day: item.day,
+      schoolPeriodId: item.schoolPeriodId,
+      classId: item.classId,
+      sectionId: item.sectionId,
+      subjectId: item.subjectId,
+      teacherId: item.teacherId,
       room: item.room || '',
     });
 
@@ -397,97 +462,67 @@ export const TimetablePage: React.FC = () => {
 
     if (
       !form.day ||
-      !form.startTime ||
-      !form.endTime ||
-      !form.subject ||
-      !form.teacherId ||
-      !form.className
+      !form.schoolPeriodId ||
+      !form.classId ||
+      !form.sectionId ||
+      !form.subjectId ||
+      !form.teacherId
     ) {
-      alert(
-        'Please fill all required fields.'
-      );
+      alert('Please fill all required fields.');
+      return;
+    }
 
+    const assignmentExists = teacherAssignments.some(
+      (assignment) =>
+        assignment.status !== 'INACTIVE' &&
+        assignment.teacherId === form.teacherId &&
+        assignment.classId === form.classId &&
+        assignment.sectionId === form.sectionId &&
+        assignment.subjectId === form.subjectId
+    );
+
+    if (!assignmentExists) {
+      alert(
+        'This teacher is not assigned to the selected class, section and subject.'
+      );
       return;
     }
 
     try {
       setSaving(true);
 
-      /*
-       * IMPORTANT:
-       * Database ENUM expects:
-       *
-       * MONDAY
-       * TUESDAY
-       * WEDNESDAY
-       * THURSDAY
-       * FRIDAY
-       * SATURDAY
-       */
-
       const payload = {
-        day: normalizeDay(form.day),
-        startTime: form.startTime,
-        endTime: form.endTime,
-        subject: form.subject.trim(),
+        day: form.day,
+        schoolPeriodId: form.schoolPeriodId,
+        classId: form.classId,
+        sectionId: form.sectionId,
+        subjectId: form.subjectId,
         teacherId: form.teacherId,
-        className: form.className.trim(),
-        section: form.section.trim() || null,
         room: form.room.trim() || null,
       };
 
-      console.log(
-        'Sending timetable payload:',
-        payload
-      );
-
       if (editingId) {
-        const response = await api.put(
+        await api.put(
           `${TIMETABLE_API}/${editingId}`,
           payload
         );
-
-        console.log(
-          'Timetable update response:',
-          response.data
-        );
       } else {
-        const response = await api.post(
+        await api.post(
           TIMETABLE_API,
           payload
-        );
-
-        console.log(
-          'Timetable create response:',
-          response.data
         );
       }
 
       setIsModalOpen(false);
-      setEditingId(null);
-      setForm({
-        ...initialForm,
-      });
+      resetForm();
 
-      /*
-       * Fetch latest data from database
-       * so UI always reflects backend.
-       */
       await fetchData();
     } catch (err: any) {
-      console.error(
-        'Save timetable error:',
-        err
-      );
-
-      console.error(
-        'Save timetable response:',
-        err?.response?.data
-      );
+      console.error('Save timetable error:', err);
 
       alert(
         err?.response?.data?.message ||
-          'Failed to save timetable. Please check the details and try again.'
+        'Failed to save timetable. Please check the details and try again.'
       );
     } finally {
       setSaving(false);
@@ -498,86 +533,105 @@ export const TimetablePage: React.FC = () => {
   // DELETE
   // ============================================================
 
-  const handleDelete = async (
-    id: string
-  ) => {
-    const confirmed =
-      window.confirm(
-        'Are you sure you want to delete this timetable entry?'
-      );
+  const handleDelete = async (id: string) => {
+    const confirmed = window.confirm(
+      'Are you sure you want to delete this timetable entry?'
+    );
 
     if (!confirmed) return;
 
     try {
-      await api.delete(
-        `${TIMETABLE_API}/${id}`
-      );
+      await api.delete(`${TIMETABLE_API}/${id}`);
 
       setTimetables((prev) =>
-        prev.filter(
-          (item) => item.id !== id
-        )
+        prev.filter((item) => item.id !== id)
       );
     } catch (err: any) {
-      console.error(
-        'Delete timetable error:',
-        err
-      );
-
-      console.error(
-        'Delete response:',
-        err?.response?.data
-      );
+      console.error('Delete timetable error:', err);
 
       alert(
         err?.response?.data?.message ||
-          'Failed to delete timetable entry.'
+        'Failed to delete timetable entry.'
       );
     }
   };
 
   // ============================================================
-  // FORMAT TIME
+  // DISPLAY HELPERS
   // ============================================================
 
-  const formatTime = (
-    time: string
-  ) => {
-    if (!time) return '';
-
-    const [hours, minutes] =
-      time.split(':');
-
-    const hour = Number(hours);
-
-    const suffix =
-      hour >= 12 ? 'PM' : 'AM';
-
-    const formattedHour =
-      hour % 12 || 12;
-
-    return `${formattedHour}:${minutes} ${suffix}`;
-  };
-
-  // ============================================================
-  // GROUP BY DAY
-  // ============================================================
-
-  const getDayEntries = (
-    day: string
-  ) => {
+  const getDayEntries = (day: string) => {
     return timetables
       .filter(
-        (item) =>
-          normalizeDay(item.day) ===
-          normalizeDay(day)
+        (item) => item.day === day
       )
-      .sort((a, b) =>
-        a.startTime.localeCompare(
-          b.startTime
-        )
-      );
+      .sort((a, b) => {
+        const periodA =
+          a.schoolPeriod?.periodNumber || 999;
+
+        const periodB =
+          b.schoolPeriod?.periodNumber || 999;
+
+        return periodA - periodB;
+      });
   };
+
+  const getClassName = (item: Timetable) => {
+    return (
+      item.class?.name ||
+      classes.find(
+        (classItem) =>
+          classItem.id === item.classId
+      )?.name ||
+      'Class'
+    );
+  };
+
+  const getSectionName = (item: Timetable) => {
+    return (
+      item.section?.name ||
+      sections.find(
+        (section) =>
+          section.id === item.sectionId
+      )?.name ||
+      'Section'
+    );
+  };
+
+  const getSubjectName = (item: Timetable) => {
+    return (
+      item.subject?.name ||
+      subjects.find(
+        (subject) =>
+          subject.id === item.subjectId
+      )?.name ||
+      'Subject'
+    );
+  };
+
+  const getTeacherName = (item: Timetable) => {
+    return (
+      item.teacher?.name ||
+      teachers.find(
+        (teacher) =>
+          teacher.id === item.teacherId
+      )?.name ||
+      'Teacher'
+    );
+  };
+
+
+  const getPeriod = (item: Timetable) => {
+    return (
+      item.schoolPeriod ||
+      allSchoolPeriods.find(
+        (period) =>
+          period.id === item.schoolPeriodId
+      )
+    );
+  };
+
+
 
   // ============================================================
   // UI
@@ -589,10 +643,8 @@ export const TimetablePage: React.FC = () => {
       {/* HEADER */}
 
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
-
         <div>
           <div className="flex items-center gap-2">
-
             <div className="p-2 rounded-xl bg-blue-50 text-blue-600">
               <CalendarDays className="w-5 h-5" />
             </div>
@@ -600,7 +652,6 @@ export const TimetablePage: React.FC = () => {
             <h1 className="text-2xl font-extrabold text-slate-900">
               Timetable
             </h1>
-
           </div>
 
           <p className="text-sm text-slate-500 mt-1">
@@ -615,7 +666,6 @@ export const TimetablePage: React.FC = () => {
           <Plus className="w-4 h-4" />
           Add Timetable
         </button>
-
       </div>
 
       {/* ERROR */}
@@ -629,27 +679,17 @@ export const TimetablePage: React.FC = () => {
       {/* LOADING */}
 
       {loading ? (
-
         <div className="flex items-center justify-center h-64 rounded-3xl border-2 border-dashed border-slate-200">
-
           <div className="text-center">
-
             <div className="w-8 h-8 border-4 border-blue-600 border-t-transparent rounded-full animate-spin mx-auto" />
 
             <p className="mt-3 text-sm font-semibold text-slate-500">
               Loading timetable...
             </p>
-
           </div>
-
         </div>
-
       ) : timetables.length === 0 ? (
-
-        /* EMPTY */
-
         <div className="bg-white rounded-3xl border border-slate-200 p-12 text-center">
-
           <div className="w-16 h-16 mx-auto rounded-2xl bg-blue-50 text-blue-600 flex items-center justify-center">
             <CalendarDays className="w-8 h-8" />
           </div>
@@ -669,41 +709,29 @@ export const TimetablePage: React.FC = () => {
             <Plus className="w-4 h-4" />
             Create Timetable
           </button>
-
         </div>
-
       ) : (
-
-        /* TIMETABLE */
-
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
 
           {days.map((day) => {
-
-            const entries =
-              getDayEntries(day);
+            const entries = getDayEntries(day);
 
             return (
-
               <div
                 key={day}
                 className="bg-white rounded-3xl border border-slate-200 overflow-hidden shadow-sm"
               >
-
                 {/* DAY HEADER */}
 
                 <div className="px-5 py-4 border-b border-slate-100 bg-slate-50/70 flex items-center justify-between">
-
                   <div className="flex items-center gap-3">
-
                     <div className="w-10 h-10 rounded-xl bg-blue-100 text-blue-600 flex items-center justify-center">
                       <CalendarDays className="w-5 h-5" />
                     </div>
 
                     <div>
-
                       <h2 className="font-extrabold text-slate-900">
-                        {day}
+                        {displayDay(day)}
                       </h2>
 
                       <p className="text-xs text-slate-500">
@@ -712,39 +740,31 @@ export const TimetablePage: React.FC = () => {
                           ? 'period'
                           : 'periods'}
                       </p>
-
                     </div>
-
                   </div>
-
                 </div>
 
                 {/* ENTRIES */}
 
                 <div className="p-4 space-y-3">
-
                   {entries.length === 0 ? (
-
                     <div className="py-8 text-center text-sm text-slate-400">
                       No classes scheduled
                     </div>
-
                   ) : (
+                    entries.map((item) => {
+                      const period = getPeriod(item);
 
-                    entries.map(
-                      (item) => (
-
+                      return (
                         <div
                           key={item.id}
                           className="p-4 rounded-2xl border border-slate-200 hover:border-blue-200 hover:bg-blue-50/30 transition-all"
                         >
-
                           <div className="flex items-start justify-between gap-3">
 
                             <div className="min-w-0">
-
                               <h3 className="font-extrabold text-slate-900">
-                                {item.subject}
+                                {getSubjectName(item)}
                               </h3>
 
                               <div className="flex flex-wrap items-center gap-3 mt-2 text-xs text-slate-500">
@@ -752,24 +772,29 @@ export const TimetablePage: React.FC = () => {
                                 <span className="inline-flex items-center gap-1">
                                   <Clock className="w-3.5 h-3.5 text-blue-500" />
 
-                                  {formatTime(
-                                    item.startTime
+
+                                  {period ? (
+                                    <span className="inline-flex items-center gap-1">
+                                      {formatTime(period.startTime)} -{' '}
+                                      {formatTime(period.endTime)}
+
+                                      {period.isActive === false && (
+                                        <span className="ml-1 px-1.5 py-0.5 rounded-md bg-rose-50 text-rose-600 font-bold">
+                                          Inactive
+                                        </span>
+                                      )}
+                                    </span>
+                                  ) : (
+                                    'Period'
                                   )}
 
-                                  {' - '}
 
-                                  {formatTime(
-                                    item.endTime
-                                  )}
                                 </span>
 
                                 <span className="inline-flex items-center gap-1">
-
                                   <User className="w-3.5 h-3.5 text-purple-500" />
 
-                                  {item.teacher?.name ||
-                                    'Teacher'}
-
+                                  {getTeacherName(item)}
                                 </span>
 
                               </div>
@@ -777,42 +802,29 @@ export const TimetablePage: React.FC = () => {
                               <div className="flex flex-wrap gap-2 mt-3">
 
                                 <span className="px-2 py-1 rounded-lg bg-blue-50 text-blue-700 text-[11px] font-bold">
-                                  Class {item.className}
+                                  Class {getClassName(item)}
                                 </span>
 
-                                {item.section && (
-
-                                  <span className="px-2 py-1 rounded-lg bg-purple-50 text-purple-700 text-[11px] font-bold">
-                                    Section {item.section}
-                                  </span>
-
-                                )}
+                                <span className="px-2 py-1 rounded-lg bg-purple-50 text-purple-700 text-[11px] font-bold">
+                                  Section {getSectionName(item)}
+                                </span>
 
                                 {item.room && (
-
                                   <span className="inline-flex items-center gap-1 px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 text-[11px] font-bold">
-
                                     <MapPin className="w-3 h-3" />
-
                                     {item.room}
-
                                   </span>
-
                                 )}
 
                               </div>
-
                             </div>
 
                             {/* ACTIONS */}
 
                             <div className="flex items-center gap-1 shrink-0">
-
                               <button
                                 onClick={() =>
-                                  openEditModal(
-                                    item
-                                  )
+                                  openEditModal(item)
                                 }
                                 className="p-2 rounded-lg text-slate-500 hover:bg-blue-50 hover:text-blue-600"
                                 title="Edit"
@@ -822,62 +834,44 @@ export const TimetablePage: React.FC = () => {
 
                               <button
                                 onClick={() =>
-                                  handleDelete(
-                                    item.id
-                                  )
+                                  handleDelete(item.id)
                                 }
                                 className="p-2 rounded-lg text-slate-500 hover:bg-rose-50 hover:text-rose-600"
                                 title="Delete"
                               >
                                 <Trash2 className="w-4 h-4" />
                               </button>
-
                             </div>
 
                           </div>
-
                         </div>
-
-                      )
-                    )
-
+                      );
+                    })
                   )}
-
                 </div>
-
               </div>
-
             );
-
           })}
 
         </div>
-
       )}
 
-      {/* ========================================================
-          CREATE / EDIT MODAL
-      ======================================================== */}
+      {/* CREATE / EDIT MODAL */}
 
       {isModalOpen && (
-
         <div className="fixed inset-0 z-50 flex items-center justify-center p-4">
 
           <div
             className="absolute inset-0 bg-slate-900/50 backdrop-blur-sm"
-            onClick={() =>
-              setIsModalOpen(false)
-            }
+            onClick={() => setIsModalOpen(false)}
           />
 
           <div className="relative w-full max-w-2xl bg-white rounded-3xl shadow-2xl max-h-[90vh] overflow-y-auto">
 
-            {/* MODAL HEADER */}
+            {/* HEADER */}
 
             <div className="sticky top-0 bg-white z-10 px-6 py-5 border-b border-slate-100 flex items-center justify-between">
-
               <div>
-
                 <h2 className="text-lg font-extrabold text-slate-900">
                   {editingId
                     ? 'Edit Timetable'
@@ -885,20 +879,16 @@ export const TimetablePage: React.FC = () => {
                 </h2>
 
                 <p className="text-xs text-slate-500 mt-1">
-                  Add class schedule details.
+                  Select a valid teacher assignment for this schedule.
                 </p>
-
               </div>
 
               <button
-                onClick={() =>
-                  setIsModalOpen(false)
-                }
+                onClick={() => setIsModalOpen(false)}
                 className="p-2 rounded-xl hover:bg-slate-100 text-slate-500"
               >
                 <X className="w-5 h-5" />
               </button>
-
             </div>
 
             {/* FORM */}
@@ -907,13 +897,11 @@ export const TimetablePage: React.FC = () => {
               onSubmit={handleSubmit}
               className="p-6 space-y-5"
             >
-
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
 
                 {/* DAY */}
 
                 <div>
-
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Day *
                   </label>
@@ -924,105 +912,45 @@ export const TimetablePage: React.FC = () => {
                     onChange={handleChange}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   >
-
                     {days.map((day) => (
-
-                      <option
-                        key={day}
-                        value={day}
-                      >
-                        {day}
+                      <option key={day} value={day}>
+                        {displayDay(day)}
                       </option>
-
                     ))}
-
                   </select>
-
-                </div>
-
-                {/* SUBJECT */}
-
-                <div>
-
-                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Subject *
-                  </label>
-
-                  {subjects.length > 0 ? (
-                    <select
-                      name="subject"
-                      value={form.subject}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="">Select subject</option>
-                      {subjects
-                        .filter(sub => {
-                          if (!form.teacherId) return true;
-                          return teacherAssignments.some(a => a.teacherId === form.teacherId && a.subjectId === sub.id);
-                        })
-                        .map((sub) => (
-                        <option key={sub.id} value={sub.name}>
-                          {sub.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs font-medium">
-                      ⚠️ No active subjects configured. Please create subjects first in Franchise Settings / Subjects.
-                    </div>
-                  )}
-
                 </div>
 
                 {/* SCHOOL PERIOD */}
 
-                <div className="sm:col-span-2">
-
+                <div>
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     School Period *
                   </label>
 
-                  {schoolPeriods.length > 0 ? (
-                    <>
-                      <select
-                        name="periodId"
-                        value={selectedPeriodId}
-                        onChange={handlePeriodChange}
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 font-medium"
+                  <select
+                    name="schoolPeriodId"
+                    value={form.schoolPeriodId}
+                    onChange={handleChange}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">
+                      Select school period
+                    </option>
+
+                    {schoolPeriods.map((period) => (
+                      <option
+                        key={period.id}
+                        value={period.id}
                       >
-                        <option value="">
-                          Select school period
-                        </option>
-
-                        {schoolPeriods.map((period) => (
-                          <option
-                            key={period.id}
-                            value={period.id}
-                          >
-                            {formatPeriodLabel(period)}
-                          </option>
-                        ))}
-                      </select>
-
-                      {editingId && !selectedPeriodId && form.startTime && form.endTime && (
-                        <p className="mt-1.5 text-xs text-amber-700 bg-amber-50 p-2.5 rounded-xl border border-amber-200 font-medium">
-                          ⚠️ Warning: Existing timetable time ({form.startTime} - {form.endTime}) does not match any configured school period. Please select a valid period.
-                        </p>
-                      )}
-                    </>
-                  ) : (
-                    <div className="p-3 bg-amber-50 rounded-xl border border-amber-200 text-amber-800 text-xs font-medium">
-                      No active school periods configured. Please create school periods first in Franchise Settings / School Periods.
-                    </div>
-                  )}
-
+                        {formatPeriodLabel(period)}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* TEACHER */}
 
                 <div>
-
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Teacher *
                   </label>
@@ -1030,130 +958,131 @@ export const TimetablePage: React.FC = () => {
                   <select
                     name="teacherId"
                     value={form.teacherId}
-                    onChange={handleChange}
+                    onChange={handleTeacherChange}
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   >
-
                     <option value="">
                       Select teacher
                     </option>
 
-                    {teachers.map(
-                      (teacher) => (
-
-                        <option
-                          key={teacher.id}
-                          value={teacher.id}
-                        >
-                          {teacher.name}
-
-                          {teacher.subject
-                            ? ` - ${teacher.subject}`
-                            : ''}
-                        </option>
-
-                      )
-                    )}
-
+                    {availableTeachers.map((teacher) => (
+                      <option
+                        key={teacher.id}
+                        value={teacher.id}
+                      >
+                        {teacher.name}
+                      </option>
+                    ))}
                   </select>
 
+                  {form.teacherId &&
+                    availableTeachers.length === 0 && (
+                      <p className="mt-1.5 text-xs text-amber-700">
+                        No active teacher assignment found.
+                      </p>
+                    )}
                 </div>
 
                 {/* CLASS */}
 
                 <div>
-
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Class *
                   </label>
 
-                  {classes.length > 0 ? (
-                    <select
-                      name="className"
-                      value={form.className}
-                      onChange={handleChange}
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    >
-                      <option value="">Select class</option>
-                      {classes
-                        .filter(cls => {
-                          if (!form.teacherId) return true;
-                          return teacherAssignments.some(a => a.teacherId === form.teacherId && a.classId === cls.id);
-                        })
-                        .map((cls) => (
-                        <option key={cls.id} value={cls.name}>
-                          {cls.name}
-                        </option>
-                      ))}
-                    </select>
-                  ) : (
-                    <input
-                      name="className"
-                      value={form.className}
-                      onChange={handleChange}
-                      placeholder="e.g. 10"
-                      className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                    />
-                  )}
+                  <select
+                    name="classId"
+                    value={form.classId}
+                    onChange={handleClassChange}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">
+                      Select class
+                    </option>
 
+                    {availableClasses.map((classItem) => (
+                      <option
+                        key={classItem.id}
+                        value={classItem.id}
+                      >
+                        {classItem.name}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* SECTION */}
 
                 <div>
-
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
-                    Section
+                    Section *
                   </label>
 
-                  {(() => {
-                    const selectedClassObj = classes.find(
-                      (c) => c.name === form.className
-                    );
-                    const availableSections = selectedClassObj
-                      ? sections.filter((s) => s.classId === selectedClassObj.id)
-                      : sections;
+                  <select
+                    name="sectionId"
+                    value={form.sectionId}
+                    onChange={handleSectionChange}
+                    disabled={!form.classId}
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400 focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
+                  >
+                    <option value="">
+                      {form.classId
+                        ? 'Select section'
+                        : 'Select class first'}
+                    </option>
 
-                    if (availableSections.length > 0) {
-                      return (
-                        <select
-                          name="section"
-                          value={form.section}
-                          onChange={handleChange}
-                          className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                        >
-                          <option value="">Select section (optional)</option>
-                          {availableSections
-                            .filter(sec => {
-                              if (!form.teacherId) return true;
-                              return teacherAssignments.some(a => a.teacherId === form.teacherId && a.classId === sec.classId && a.sectionId === sec.id);
-                            })
-                            .map((sec) => (
-                            <option key={sec.id} value={sec.name}>
-                              {sec.name}
-                            </option>
-                          ))}
-                        </select>
-                      );
+                    {availableSections.map((section) => (
+                      <option
+                        key={section.id}
+                        value={section.id}
+                      >
+                        {section.name}
+                      </option>
+                    ))}
+                  </select>
+                </div>
+
+                {/* SUBJECT */}
+
+                <div>
+                  <label className="block text-xs font-bold text-slate-700 mb-1.5">
+                    Subject *
+                  </label>
+
+                  <select
+                    name="subjectId"
+                    value={form.subjectId}
+                    onChange={handleSubjectChange}
+                    disabled={
+                      !form.teacherId ||
+                      !form.classId ||
+                      !form.sectionId
                     }
+                    className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100 disabled:bg-slate-50 disabled:text-slate-400"
+                  >
+                    <option value="">
+                      {!form.sectionId
+                        ? 'Select section first'
+                        : 'Select subject'}
+                    </option>
 
-                    return (
-                      <input
-                        name="section"
-                        value={form.section}
-                        onChange={handleChange}
-                        placeholder="e.g. A"
-                        className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
-                      />
-                    );
-                  })()}
-
+                    {availableSubjects.map((subject) => (
+                      <option
+                        key={subject.id}
+                        value={subject.id}
+                      >
+                        {subject.name}
+                        {subject.code
+                          ? ` (${subject.code})`
+                          : ''}
+                      </option>
+                    ))}
+                  </select>
                 </div>
 
                 {/* ROOM */}
 
-                <div>
-
+                <div className="sm:col-span-2">
                   <label className="block text-xs font-bold text-slate-700 mb-1.5">
                     Room
                   </label>
@@ -1165,10 +1094,21 @@ export const TimetablePage: React.FC = () => {
                     placeholder="e.g. Room 101"
                     className="w-full px-3 py-2.5 rounded-xl border border-slate-200 text-sm outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
                   />
-
                 </div>
 
               </div>
+
+              {/* ASSIGNMENT INFO */}
+
+              {form.teacherId &&
+                form.classId &&
+                form.sectionId &&
+                form.subjectId && (
+                  <div className="p-3 rounded-xl bg-blue-50 border border-blue-100 text-blue-700 text-xs font-semibold">
+                    ✓ Teacher assignment validated. The backend will also
+                    verify conflicts and weekly subject requirements.
+                  </div>
+                )}
 
               {/* BUTTONS */}
 
@@ -1176,9 +1116,7 @@ export const TimetablePage: React.FC = () => {
 
                 <button
                   type="button"
-                  onClick={() =>
-                    setIsModalOpen(false)
-                  }
+                  onClick={() => setIsModalOpen(false)}
                   className="px-4 py-2.5 rounded-xl border border-slate-200 text-sm font-bold text-slate-600 hover:bg-slate-50"
                 >
                   Cancel
@@ -1192,20 +1130,15 @@ export const TimetablePage: React.FC = () => {
                   {saving
                     ? 'Saving...'
                     : editingId
-                    ? 'Update Timetable'
-                    : 'Create Timetable'}
+                      ? 'Update Timetable'
+                      : 'Create Timetable'}
                 </button>
 
               </div>
-
             </form>
-
           </div>
-
         </div>
-
       )}
-
     </div>
   );
 };
