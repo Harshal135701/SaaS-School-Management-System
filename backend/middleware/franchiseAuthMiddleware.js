@@ -15,10 +15,19 @@ const franchiseProtect = (req, res, next) => {
 
     const decoded = jwt.verify(token, process.env.JWT_SECRET);
 
-    if (decoded.role !== "FRANCHISE_ADMIN") {
+    const allowedRoles = [
+      "FRANCHISE_ADMIN",
+      "PRINCIPAL",
+      "HOD",
+      "TEACHER",
+      "ACCOUNTANT",
+      "DATA_ENTRY",
+    ];
+
+    if (!allowedRoles.includes(decoded.role)) {
       return res.status(403).json({
         success: false,
-        message: "Franchise Admin access required",
+        message: "Access denied",
       });
     }
 

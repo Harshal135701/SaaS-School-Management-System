@@ -6,6 +6,9 @@ import {
   Phone,
   RefreshCw,
   X,
+  Edit,
+  Trash2,
+  UserPlus,
 } from 'lucide-react';
 
 import { Card } from '../../components/ui/Card';
@@ -42,8 +45,22 @@ export const ParentsPage: React.FC = () => {
 
   const [error, setError] = useState<string | null>(null);
 
+  // Parent create/edit
   const [isModalOpen, setIsModalOpen] = useState(false);
+  const [editingParent, setEditingParent] = useState<Parent | null>(null);
   const [form, setForm] = useState(emptyForm);
+
+  // Assign student
+  const [isAssignModalOpen, setIsAssignModalOpen] = useState(false);
+  const [assigningParent, setAssigningParent] =
+    useState<Parent | null>(null);
+  const [students, setStudents] = useState<Student[]>([]);
+  const [selectedStudentId, setSelectedStudentId] = useState('');
+  const [relationship, setRelationship] = useState<
+    'FATHER' | 'MOTHER' | 'GUARDIAN'
+  >('FATHER');
+  const [isPrimary, setIsPrimary] = useState(true);
+  const [assigning, setAssigning] = useState(false);
 
   const fetchParents = useCallback(async () => {
     try {
@@ -69,8 +86,27 @@ export const ParentsPage: React.FC = () => {
     fetchParents();
   }, [fetchParents]);
 
+  // =========================
+  // Parent CRUD
+  // =========================
+
   const openAddModal = () => {
+    setEditingParent(null);
     setForm(emptyForm);
+    setError(null);
+    setIsModalOpen(true);
+  };
+
+  const openEditModal = (parent: Parent) => {
+    setEditingParent(parent);
+
+    setForm({
+      name: parent.name || '',
+      email: parent.email || '',
+      phone: parent.phone || '',
+      password: '',
+    });
+
     setError(null);
     setIsModalOpen(true);
   };
@@ -79,7 +115,9 @@ export const ParentsPage: React.FC = () => {
     if (saving) return;
 
     setIsModalOpen(false);
+    setEditingParent(null);
     setForm(emptyForm);
+    setError(null);
   };
 
   const handleChange = (
@@ -108,7 +146,7 @@ export const ParentsPage: React.FC = () => {
       return;
     }
 
-    if (!form.password.trim()) {
+    if (!editingParent && !form.password.trim()) {
       setError('Password is required.');
       return;
     }
@@ -117,24 +155,159 @@ export const ParentsPage: React.FC = () => {
       setSaving(true);
       setError(null);
 
-      await api.post('/franchise/parents', {
-        name: form.name.trim(),
-        email: form.email.trim(),
-        phone: form.phone.trim() || undefined,
-        password: form.password,
-      });
+      if (editingParent) {
+        await api.put(
+          `/franchise/parents/${editingParent.id}`,
+          {
+            name: form.name.trim(),
+            email: form.email.trim(),
+            phone: form.phone.trim() || undefined,
+            ...(form.password.trim()
+              ? { password: form.password }
+              : {}),
+          }
+        );
+      } else {
+        await api.post('/franchise/parents', {
+          name: form.name.trim(),
+          email: form.email.trim(),
+          phone: form.phone.trim() || undefined,
+          password: form.password,
+        });
+      }
 
       closeModal();
       await fetchParents();
     } catch (err: any) {
-      console.error('Error creating parent:', err);
+      console.error(
+        editingParent
+          ? 'Error updating parent:'
+          : 'Error creating parent:',
+        err
+      );
 
       setError(
         err.response?.data?.message ||
-          'Failed to create parent.'
+          (editingParent
+            ? 'Failed to update parent.'
+            : 'Failed to create parent.')
       );
     } finally {
       setSaving(false);
+    }
+  };
+
+  const handleDelete = async (parent: Parent) => {
+    const confirmed = window.confirm(
+      `Are you sure you want to delete ${parent.name}?`
+    );
+
+    if (!confirmed) return;
+
+    try {
+      setError(null);
+
+      await api.delete(
+        `/franchise/parents/${parent.id}`
+      );
+
+      await fetchParents();
+    } catch (err: any) {
+      console.error('Error deleting parent:', err);
+
+      setError(
+        err.response?.data?.message ||
+          'Failed to delete parent.'
+      );
+    }
+  };
+
+  // =========================
+  // Assign Student
+  // =========================
+
+  const fetchStudents = async () => {
+    try {
+      const res = await api.get(
+        '/franchise/students?limit=100'
+      );
+
+      if (res.data?.success) {
+        setStudents(res.data.data || []);
+      } else {
+        setStudents([]);
+      }
+    } catch (err) {
+      console.error('Error fetching students:', err);
+      setStudents([]);
+    }
+  };
+
+  const openAssignModal = async (parent: Parent) => {
+    setAssigningParent(parent);
+    setSelectedStudentId('');
+    setRelationship('FATHER');
+    setIsPrimary(true);
+    setError(null);
+    setIsAssignModalOpen(true);
+
+    await fetchStudents();
+  };
+
+  const closeAssignModal = () => {
+    if (assigning) return;
+
+    setIsAssignModalOpen(false);
+    setAssigningParent(null);
+    setSelectedStudentId('');
+    setRelationship('FATHER');
+    setIsPrimary(true);
+    setError(null);
+  };
+
+  const handleAssignStudent = async (
+    e: React.FormEvent
+  ) => {
+    e.preventDefault();
+
+    if (!assigningParent) {
+      setError('Parent not selected.');
+      return;
+    }
+
+    if (!selectedStudentId) {
+      setError('Please select a student.');
+      return;
+    }
+
+    try {
+      setAssigning(true);
+      setError(null);
+
+      await api.post(
+        '/franchise/parents/assign-student',
+        {
+          parentId: assigningParent.id,
+          studentId: selectedStudentId,
+          relationship,
+          isPrimary,
+        }
+      );
+
+      closeAssignModal();
+      await fetchParents();
+    } catch (err: any) {
+      console.error(
+        'Error assigning student:',
+        err
+      );
+
+      setError(
+        err.response?.data?.message ||
+          'Failed to assign student.'
+      );
+    } finally {
+      setAssigning(false);
     }
   };
 
@@ -155,7 +328,6 @@ export const ParentsPage: React.FC = () => {
         </div>
 
         <div className="flex items-center gap-2">
-
           <button
             onClick={fetchParents}
             disabled={loading}
@@ -176,18 +348,19 @@ export const ParentsPage: React.FC = () => {
             <Plus className="w-4 h-4" />
             Add Parent
           </button>
-
         </div>
       </div>
 
       {/* Error */}
-      {error && !isModalOpen && (
-        <div className="p-4 bg-rose-50 text-rose-700 rounded-xl border border-rose-100 font-bold text-center text-sm">
-          {error}
-        </div>
-      )}
+      {error &&
+        !isModalOpen &&
+        !isAssignModalOpen && (
+          <div className="p-4 bg-rose-50 text-rose-700 rounded-xl border border-rose-100 font-bold text-center text-sm">
+            {error}
+          </div>
+        )}
 
-      {/* Loading */}
+      {/* Loading / Empty / Parent Cards */}
       {loading ? (
         <div className="flex items-center justify-center h-48 border-2 border-dashed border-slate-200 rounded-xl">
           <div className="text-center space-y-3">
@@ -211,7 +384,6 @@ export const ParentsPage: React.FC = () => {
           </p>
         </div>
       ) : (
-        /* Parent Cards */
         <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
 
           {parents.map((parent) => (
@@ -222,9 +394,10 @@ export const ParentsPage: React.FC = () => {
               className="space-y-4"
             >
 
-              <div className="flex items-start justify-between">
-                <div>
-                  <h3 className="text-sm font-extrabold text-slate-900">
+              {/* Parent Header */}
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0">
+                  <h3 className="text-sm font-extrabold text-slate-900 truncate">
                     {parent.name}
                   </h3>
 
@@ -233,18 +406,51 @@ export const ParentsPage: React.FC = () => {
                   </p>
                 </div>
 
-                <Badge
-                  variant={
-                    parent.status === 'ACTIVE'
-                      ? 'green'
-                      : 'slate'
-                  }
-                  size="sm"
-                >
-                  {parent.status}
-                </Badge>
+                <div className="flex items-center gap-1 shrink-0">
+                  <Badge
+                    variant={
+                      parent.status === 'ACTIVE'
+                        ? 'green'
+                        : 'slate'
+                    }
+                    size="sm"
+                  >
+                    {parent.status}
+                  </Badge>
+
+                  <button
+                    onClick={() =>
+                      openAssignModal(parent)
+                    }
+                    className="p-1 text-slate-400 hover:text-emerald-600 rounded"
+                    title="Assign Student"
+                  >
+                    <UserPlus className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      openEditModal(parent)
+                    }
+                    className="p-1 text-slate-400 hover:text-amber-600 rounded"
+                    title="Edit Parent"
+                  >
+                    <Edit className="w-4 h-4" />
+                  </button>
+
+                  <button
+                    onClick={() =>
+                      handleDelete(parent)
+                    }
+                    className="p-1 text-slate-400 hover:text-rose-600 rounded"
+                    title="Delete Parent"
+                  >
+                    <Trash2 className="w-4 h-4" />
+                  </button>
+                </div>
               </div>
 
+              {/* Contact Information */}
               <div className="space-y-2 text-xs text-slate-500">
 
                 <div className="flex items-center gap-2">
@@ -265,7 +471,7 @@ export const ParentsPage: React.FC = () => {
 
               </div>
 
-              {/* Students */}
+              {/* Linked Students */}
               <div className="pt-3 border-t border-slate-100">
 
                 <p className="text-[11px] font-extrabold text-slate-500 uppercase tracking-wider mb-2">
@@ -275,14 +481,16 @@ export const ParentsPage: React.FC = () => {
                 {parent.students &&
                 parent.students.length > 0 ? (
                   <div className="space-y-1">
-                    {parent.students.map((student) => (
-                      <div
-                        key={student.id}
-                        className="text-xs font-semibold text-slate-700 bg-slate-50 rounded-lg px-3 py-2"
-                      >
-                        {student.name}
-                      </div>
-                    ))}
+                    {parent.students.map(
+                      (student) => (
+                        <div
+                          key={student.id}
+                          className="text-xs font-semibold text-slate-700 bg-slate-50 rounded-lg px-3 py-2"
+                        >
+                          {student.name}
+                        </div>
+                      )
+                    )}
                   </div>
                 ) : (
                   <p className="text-xs text-slate-400">
@@ -298,7 +506,9 @@ export const ParentsPage: React.FC = () => {
         </div>
       )}
 
-      {/* Add Parent Modal */}
+      {/* =========================
+          Add/Edit Parent Modal
+          ========================= */}
       {isModalOpen && (
         <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
 
@@ -309,11 +519,15 @@ export const ParentsPage: React.FC = () => {
 
               <div>
                 <h2 className="text-lg font-extrabold text-slate-900">
-                  Add Parent
+                  {editingParent
+                    ? 'Edit Parent'
+                    : 'Add Parent'}
                 </h2>
 
                 <p className="text-xs text-slate-500 mt-1">
-                  Create a parent account
+                  {editingParent
+                    ? 'Update parent account information.'
+                    : 'Create a parent account.'}
                 </p>
               </div>
 
@@ -348,6 +562,7 @@ export const ParentsPage: React.FC = () => {
                   value={form.name}
                   onChange={handleChange}
                   placeholder="Enter parent name"
+                  required
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
@@ -363,6 +578,7 @@ export const ParentsPage: React.FC = () => {
                   value={form.email}
                   onChange={handleChange}
                   placeholder="parent@example.com"
+                  required
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
@@ -383,7 +599,9 @@ export const ParentsPage: React.FC = () => {
 
               <div>
                 <label className="block text-xs font-bold text-slate-600 mb-1">
-                  Password *
+                  {editingParent
+                    ? 'New Password (optional)'
+                    : 'Password *'}
                 </label>
 
                 <input
@@ -391,7 +609,12 @@ export const ParentsPage: React.FC = () => {
                   type="password"
                   value={form.password}
                   onChange={handleChange}
-                  placeholder="Create parent password"
+                  placeholder={
+                    editingParent
+                      ? 'Leave blank to keep current password'
+                      : 'Create parent password'
+                  }
+                  required={!editingParent}
                   className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-500"
                 />
               </div>
@@ -412,7 +635,182 @@ export const ParentsPage: React.FC = () => {
                   disabled={saving}
                   className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50"
                 >
-                  {saving ? 'Creating...' : 'Create Parent'}
+                  {saving
+                    ? 'Saving...'
+                    : editingParent
+                      ? 'Update Parent'
+                      : 'Create Parent'}
+                </button>
+
+              </div>
+
+            </form>
+
+          </div>
+
+        </div>
+      )}
+
+      {/* =========================
+          Assign Student Modal
+          ========================= */}
+      {isAssignModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-slate-900/50 backdrop-blur-sm p-4">
+
+          <div className="bg-white rounded-2xl shadow-2xl w-full max-w-lg">
+
+            {/* Header */}
+            <div className="flex items-center justify-between p-5 border-b border-slate-100">
+
+              <div>
+                <h2 className="text-lg font-extrabold text-slate-900">
+                  Assign Student
+                </h2>
+
+                <p className="text-xs text-slate-500 mt-1">
+                  Link a student to{' '}
+                  <span className="font-bold text-slate-700">
+                    {assigningParent?.name}
+                  </span>
+                </p>
+              </div>
+
+              <button
+                onClick={closeAssignModal}
+                className="p-2 rounded-xl hover:bg-slate-100"
+              >
+                <X className="w-5 h-5 text-slate-500" />
+              </button>
+
+            </div>
+
+            {/* Form */}
+            <form
+              onSubmit={handleAssignStudent}
+              className="p-5 space-y-4"
+            >
+
+              {error && (
+                <div className="p-3 bg-rose-50 text-rose-700 rounded-xl text-xs font-bold">
+                  {error}
+                </div>
+              )}
+
+              {/* Student */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Student *
+                </label>
+
+                <select
+                  value={selectedStudentId}
+                  onChange={(e) =>
+                    setSelectedStudentId(
+                      e.target.value
+                    )
+                  }
+                  required
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-500 bg-white"
+                >
+                  <option value="">
+                    Select a student
+                  </option>
+
+                  {students.map((student) => (
+                    <option
+                      key={student.id}
+                      value={student.id}
+                    >
+                      {student.name}
+                    </option>
+                  ))}
+                </select>
+
+                {students.length === 0 && (
+                  <p className="text-[11px] text-slate-400 mt-1">
+                    No students available.
+                  </p>
+                )}
+              </div>
+
+              {/* Relationship */}
+              <div>
+                <label className="block text-xs font-bold text-slate-600 mb-1">
+                  Relationship *
+                </label>
+
+                <select
+                  value={relationship}
+                  onChange={(e) =>
+                    setRelationship(
+                      e.target.value as
+                        | 'FATHER'
+                        | 'MOTHER'
+                        | 'GUARDIAN'
+                    )
+                  }
+                  className="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm outline-none focus:border-emerald-500 bg-white"
+                >
+                  <option value="FATHER">
+                    Father
+                  </option>
+
+                  <option value="MOTHER">
+                    Mother
+                  </option>
+
+                  <option value="GUARDIAN">
+                    Guardian
+                  </option>
+                </select>
+              </div>
+
+              {/* Primary */}
+              <label className="flex items-center gap-3 p-3 bg-slate-50 rounded-xl cursor-pointer">
+                <input
+                  type="checkbox"
+                  checked={isPrimary}
+                  onChange={(e) =>
+                    setIsPrimary(
+                      e.target.checked
+                    )
+                  }
+                  className="w-4 h-4 accent-emerald-600"
+                />
+
+                <div>
+                  <p className="text-xs font-bold text-slate-700">
+                    Primary Parent
+                  </p>
+
+                  <p className="text-[11px] text-slate-400">
+                    Mark this parent as the primary contact.
+                  </p>
+                </div>
+              </label>
+
+              {/* Buttons */}
+              <div className="flex justify-end gap-2 pt-3 border-t border-slate-100">
+
+                <button
+                  type="button"
+                  onClick={closeAssignModal}
+                  className="px-4 py-2.5 rounded-xl bg-slate-100 text-slate-700 text-xs font-bold hover:bg-slate-200"
+                >
+                  Cancel
+                </button>
+
+                <button
+                  type="submit"
+                  disabled={
+                    assigning ||
+                    !selectedStudentId
+                  }
+                  className="px-4 py-2.5 rounded-xl bg-emerald-600 text-white text-xs font-bold hover:bg-emerald-700 disabled:opacity-50"
+                >
+                  {assigning
+                    ? 'Assigning...'
+                    : 'Assign Student'}
                 </button>
 
               </div>

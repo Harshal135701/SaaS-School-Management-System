@@ -8,6 +8,7 @@ import api from './services/api';
 // School/Franchise Admin Existing Imports
 import { DashboardLayout } from './components/layout/DashboardLayout';
 import { AdminDashboardPage } from './pages/admin/AdminDashboardPage';
+import { DataEntryDashboard } from './pages/admin/dataEntry/DataEntryDashboard';
 import { StudentsPage } from './pages/admin/StudentsPage';
 import { TeachersPage } from './pages/admin/TeachersPage';
 import { ParentsPage } from './pages/admin/ParentsPage';
@@ -208,6 +209,10 @@ export function App() {
         setUserRole('Accountant');
         setCurrentPath('/accountant/dashboard');
         setIsAuthenticated(true);
+      } else if (decoded.role === 'DATA_ENTRY') {
+        setUserRole('Data Entry');
+        setCurrentPath('/data-entry/dashboard');
+        setIsAuthenticated(true);
       } else if (decoded.role === 'PARENT') {
         setUserRole('Parent');
         setCurrentPath('/parent/dashboard');
@@ -364,6 +369,15 @@ export function App() {
       setLoggedInFranchise(null);
       setCurrentPath('/accountant/dashboard');
       showToast(`Welcome back, ${user.name || 'Accountant'}!`);
+      return;
+    }
+
+    // Data Entry
+    if (user?.role === 'DATA_ENTRY') {
+      setUserRole('Data Entry');
+      setLoggedInFranchise(null);
+      setCurrentPath('/data-entry/dashboard');
+      showToast(`Welcome back, ${user.name || 'Data Entry'}!`);
       return;
     }
 
@@ -1034,6 +1048,40 @@ export function App() {
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Accountant Portal.
+          </div>
+        )}
+      </DashboardLayout>
+    );
+  }
+
+  // 7. DATA ENTRY
+  if (
+    userRole === 'Data Entry' ||
+    currentPath.startsWith('/data-entry')
+  ) {
+    return (
+      <DashboardLayout
+        currentPath={currentPath}
+        onNavigate={(path) => setCurrentPath(path)}
+        onLogout={handleLogout}
+        onStaffRegistered={handleStaffRegistered}
+        franchise={loggedInFranchise}
+      >
+        {currentPath === '/data-entry/dashboard' ? (
+          <DataEntryDashboard
+            onNavigate={(path) => setCurrentPath(path)}
+          />
+        ) : currentPath === '/data-entry/students' ? (
+          <StudentsPage />
+        ) : currentPath === '/data-entry/parents' ? (
+          <ParentsPage />
+        ) : currentPath === '/data-entry/classes' ? (
+          <ClassesPage />
+        ) : currentPath === '/data-entry/subjects' ? (
+          <SubjectsPage />
+        ) : (
+          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+            Page not found in Data Entry Portal.
           </div>
         )}
       </DashboardLayout>
