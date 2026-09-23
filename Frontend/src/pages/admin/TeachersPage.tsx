@@ -447,20 +447,16 @@ export const TeachersPage: React.FC = () => {
         payload.password = form.password;
       }
 
-      let savedTeacherId = editingTeacher?.id;
-
       if (editingTeacher) {
         await api.put(
           `/franchise/teachers/${editingTeacher.id}`,
           payload
         );
       } else {
-        const createRes = await api.post(
+        await api.post(
           '/franchise/teachers',
           payload
         );
-
-        savedTeacherId = createRes.data?.data?.id;
       }
 
       closeModal();

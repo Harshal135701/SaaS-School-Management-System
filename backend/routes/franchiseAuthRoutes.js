@@ -2,16 +2,14 @@ const express = require("express");
 
 const router = express.Router();
 
-const { login } = require("../controllers/franchiseAuthController");
+const { login, updateProfile, changePassword, getMe } = require("../controllers/franchiseAuthController");
 const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
 
 router.post("/login", login);
 
-router.get("/me", franchiseProtect, (req, res) => {
-  res.status(200).json({
-    success: true,
-    admin: req.user,
-  });
-});
+router.get("/me", franchiseProtect, getMe);
+
+router.put("/profile", franchiseProtect, updateProfile);
+router.put("/change-password", franchiseProtect, changePassword);
 
 module.exports = router;

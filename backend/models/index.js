@@ -1,6 +1,7 @@
 const { sequelize } = require("../config/database");
 
 const Franchise = require("./Franchise");
+const FranchiseSettings = require("./FranchiseSettings");
 const FranchiseAdmin = require("./FranchiseAdmin");
 const SystemAdmin = require("./SystemAdmin");
 const Watchman = require("./Watchman")(sequelize);
@@ -890,6 +891,7 @@ SchoolPeriod.belongsTo(Franchise, {
 module.exports = {
   sequelize,
   Franchise,
+  FranchiseSettings,
   FranchiseAdmin,
   SystemAdmin,
   Plan,

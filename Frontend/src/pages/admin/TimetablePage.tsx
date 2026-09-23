@@ -225,6 +225,8 @@ export const TimetablePage: React.FC = () => {
           )
       );
 
+      setAllSchoolPeriods(periodData);
+
       setClasses(classData);
 
       setSections(sectionData);
@@ -285,6 +287,8 @@ export const TimetablePage: React.FC = () => {
   // FILTER ASSIGNMENTS
   // ============================================================
 
+
+
   const availableAssignments =
     teacherAssignments.filter((assignment) => {
       if (
@@ -317,6 +321,8 @@ export const TimetablePage: React.FC = () => {
 
       return true;
     });
+
+  void availableAssignments;
 
   const availableTeachers = teachers.filter((teacher) =>
     teacherAssignments.some(
