@@ -25,6 +25,8 @@ io.on("connection", (socket) => {
     `Chat connected: ${socket.user.role} - ${socket.user.id}`
   );
 
+  socket.join(`user:${socket.user.id}`);
+
   registerChatSocket(io, socket);
 
   socket.on("disconnect", () => {

@@ -274,8 +274,91 @@ const getMessages = async (req, res) => {
   }
 };
 
+
+const getUnreadCount = async (req, res) => {
+  try {
+    const { Conversation, Message } = require("../models");
+    const { Op } = require("sequelize");
+
+    // Find all conversations where user is a participant
+    const conversations = await Conversation.findAll({
+      where: {
+        [Op.or]: [
+          { parentId: req.user.id },
+          { teacherId: req.user.id },
+        ]
+      },
+      attributes: ["id"]
+    });
+
+    const conversationIds = conversations.map(c => c.id);
+
+    if (conversationIds.length === 0) {
+      return res.status(200).json({ success: true, count: 0 });
+    }
+
+    const count = await Message.count({
+      where: {
+        conversationId: { [Op.in]: conversationIds },
+        senderId: { [Op.ne]: req.user.id },
+        isRead: false
+      }
+    });
+
+    return res.status(200).json({ success: true, count });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
+const markMessagesRead = async (req, res) => {
+  try {
+    const { conversationId } = req.body;
+    const { Conversation, Message } = require("../models");
+    const { Op } = require("sequelize");
+
+    if (!conversationId) {
+      return res.status(400).json({ success: false, message: "conversationId is required" });
+    }
+
+    const conversation = await Conversation.findOne({
+      where: {
+        id: conversationId,
+        [Op.or]: [
+          { parentId: req.user.id },
+          { teacherId: req.user.id },
+        ]
+      }
+    });
+
+    if (!conversation) {
+      return res.status(404).json({ success: false, message: "Conversation not found" });
+    }
+
+    const [updatedRows] = await Message.update(
+      { isRead: true },
+      {
+        where: {
+          conversationId,
+          senderId: { [Op.ne]: req.user.id },
+          isRead: false
+        }
+      }
+    );
+
+    return res.status(200).json({ success: true, markedRead: updatedRows });
+  } catch (error) {
+    console.error(error);
+    return res.status(500).json({ success: false, message: "Internal server error" });
+  }
+};
+
 module.exports = {
+
   createConversation,
   getConversations,
   getMessages,
+  getUnreadCount,
+  markMessagesRead,
 };
