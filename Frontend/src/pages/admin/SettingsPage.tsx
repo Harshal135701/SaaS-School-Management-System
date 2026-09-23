@@ -47,6 +47,7 @@ export const SettingsPage: React.FC = () => {
   const [name, setName] = useState('');
   const [email, setEmail] = useState('');
   const [phone, setPhone] = useState('');
+  const [franchiseInfo, setFranchiseInfo] = useState<any>(null);
 
   // Profile loading & saving state
   const [profileLoading, setProfileLoading] = useState(true);
@@ -81,6 +82,7 @@ export const SettingsPage: React.FC = () => {
         setName(admin.name || '');
         setEmail(admin.email || '');
         if (admin.phone) setPhone(admin.phone);
+        if (admin.franchise) setFranchiseInfo(admin.franchise);
 
         // Sync local storage user if exists so header/sidebar update
         try {
@@ -180,6 +182,7 @@ export const SettingsPage: React.FC = () => {
           setName(admin.name || name);
           setEmail(admin.email || email);
           if (admin.phone) setPhone(admin.phone);
+          if (admin.franchise) setFranchiseInfo(admin.franchise);
         } else {
           await fetchProfile();
         }
@@ -327,62 +330,130 @@ export const SettingsPage: React.FC = () => {
 
           {/* TAB 1: PROFILE */}
           {activeTab === 'profile' && (
-            <Card className="p-6 border-slate-200/80 max-w-3xl">
+            <div className="space-y-6 max-w-3xl">
               {profileLoading ? (
-                <div className="py-8 text-center text-xs font-semibold text-slate-500">Loading profile...</div>
+                <Card className="p-6 border-slate-200/80">
+                  <div className="py-8 text-center text-xs font-semibold text-slate-500">Loading profile...</div>
+                </Card>
               ) : (
-                <form onSubmit={handleSaveProfile} className="space-y-6">
-                  {profileError && (
-                    <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2 border border-rose-100">
-                      <AlertCircle className="w-4 h-4" />
-                      {profileError}
-                    </div>
+                <>
+                  {/* Franchise Information (Read-only) */}
+                  {franchiseInfo && (
+                    <Card className="p-6 border-slate-200/80">
+                      <h3 className="text-base font-extrabold text-slate-900 mb-4 pb-4 border-b border-slate-100">
+                        Franchise Registration Information
+                      </h3>
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Franchise Name"
+                          value={franchiseInfo.name || ''}
+                          disabled
+                          onChange={() => {}}
+                        />
+                        <Input
+                          label="Franchise Code"
+                          value={franchiseInfo.code || ''}
+                          disabled
+                          onChange={() => {}}
+                        />
+                        <Input
+                          label="Registration Email"
+                          value={franchiseInfo.email || ''}
+                          disabled
+                          onChange={() => {}}
+                        />
+                        <Input
+                          label="Contact Phone"
+                          value={franchiseInfo.phone || ''}
+                          disabled
+                          onChange={() => {}}
+                        />
+                        <div className="md:col-span-2">
+                          <Input
+                            label="Address"
+                            value={franchiseInfo.address || ''}
+                            disabled
+                            onChange={() => {}}
+                          />
+                        </div>
+                        <Input
+                          label="City"
+                          value={franchiseInfo.city || ''}
+                          disabled
+                          onChange={() => {}}
+                        />
+                        <Input
+                          label="State"
+                          value={franchiseInfo.state || ''}
+                          disabled
+                          onChange={() => {}}
+                        />
+                      </div>
+                      <p className="text-[11px] text-slate-500 mt-4 italic">
+                        Franchise-level information is read-only. Please contact platform support to update registration details.
+                      </p>
+                    </Card>
                   )}
 
-                  <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
-                    <Avatar
-                      name={name || 'Admin'}
-                      size="xl"
-                      className="ring-4 ring-slate-50 shadow-sm"
-                    />
-                    <div>
-                      <h3 className="text-base font-extrabold text-slate-900">{name || 'Franchise Admin'}</h3>
-                      <p className="text-xs text-slate-500 font-medium">Franchise Administrator</p>
-                    </div>
-                  </div>
+                  {/* Franchise Admin Profile (Editable) */}
+                  <Card className="p-6 border-slate-200/80">
+                    <form onSubmit={handleSaveProfile} className="space-y-6">
+                      <h3 className="text-base font-extrabold text-slate-900 mb-2 pb-4 border-b border-slate-100">
+                        Franchise Admin Profile
+                      </h3>
+                      {profileError && (
+                        <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2 border border-rose-100">
+                          <AlertCircle className="w-4 h-4" />
+                          {profileError}
+                        </div>
+                      )}
 
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <Input
-                      label="Full Name *"
-                      value={name}
-                      onChange={(e) => setName(e.target.value)}
-                      required
-                    />
+                      <div className="flex items-center gap-6 pb-6 border-b border-slate-100">
+                        <Avatar
+                          name={name || 'Admin'}
+                          size="xl"
+                          className="ring-4 ring-slate-50 shadow-sm"
+                        />
+                        <div>
+                          <h3 className="text-base font-extrabold text-slate-900">{name || 'Franchise Admin'}</h3>
+                          <p className="text-xs text-slate-500 font-medium">Franchise Administrator</p>
+                        </div>
+                      </div>
 
-                    <Input
-                      label="Email Address *"
-                      type="email"
-                      value={email}
-                      onChange={(e) => setEmail(e.target.value)}
-                      required
-                    />
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <Input
+                          label="Full Name *"
+                          value={name}
+                          onChange={(e) => setName(e.target.value)}
+                          required
+                        />
 
-                    <Input
-                      label="Contact Phone"
-                      type="tel"
-                      value={phone}
-                      onChange={(e) => setPhone(e.target.value)}
-                    />
-                  </div>
+                        <Input
+                          label="Email Address *"
+                          type="email"
+                          value={email}
+                          onChange={(e) => setEmail(e.target.value)}
+                          required
+                        />
 
-                  <div className="flex justify-end pt-2">
-                    <Button variant="primary" type="submit" isLoading={profileSaving} disabled={profileSaving}>
-                      {profileSaving ? 'Saving Changes...' : 'Save Profile Changes'}
-                    </Button>
-                  </div>
-                </form>
+                        <Input
+                          label="Contact Phone"
+                          type="tel"
+                          value={phone}
+                          onChange={(e) => setPhone(e.target.value)}
+                        />
+                      </div>
+
+                      <div className="flex justify-end pt-2">
+                        <Button variant="primary" type="submit" isLoading={profileSaving} disabled={profileSaving}>
+                          {profileSaving ? 'Saving Changes...' : 'Save Profile Changes'}
+                        </Button>
+                      </div>
+                    </form>
+                  </Card>
+                </>
               )}
-            </Card>
+            </div>
           )}
 
           {/* TAB 2: SECURITY */}
