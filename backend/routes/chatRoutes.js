@@ -9,6 +9,8 @@ const {
   createConversation,
   getConversations,
   getMessages,
+  getUnreadCount,
+  markMessagesRead,
 } = require("../controllers/chatController");
 
 // Franchise Admin
@@ -19,6 +21,18 @@ router.post(
 );
 
 // Parent / Teacher
+router.get(
+  "/unread-count",
+  chatProtect,
+  getUnreadCount
+);
+
+router.put(
+  "/messages/read",
+  chatProtect,
+  markMessagesRead
+);
+
 router.get(
   "/my",
   chatProtect,

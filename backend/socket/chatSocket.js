@@ -99,6 +99,41 @@ const registerChatSocket = (io, socket) => {
         "new_message",
         newMessage
       );
+
+      // --- START NOTIFICATION LOGIC ---
+      const recipientId = socket.user.role === "PARENT" ? conversation.teacherId : conversation.parentId;
+      if (recipientId) {
+        let senderName = "User";
+        if (socket.user.role === "PARENT") {
+          const { Parent } = require("../models");
+          const p = await Parent.findByPk(socket.user.id);
+          if (p) senderName = p.name || p.fatherName || p.motherName || "Parent";
+        } else {
+          const { Teacher } = require("../models");
+          const t = await Teacher.findByPk(socket.user.id);
+          if (t) senderName = t.name || "Teacher";
+        }
+
+        const { Notification } = require("../models");
+        const notif = await Notification.create({
+          userId: recipientId,
+          title: "New message",
+          message: `You have a new message from ${senderName}`,
+          type: "CHAT_MESSAGE",
+          isRead: false
+        });
+
+        io.to(`user:${recipientId}`).emit("notification_new_message", {
+          messageId: newMessage.id,
+          conversationId: conversation.id,
+          senderId: socket.user.id,
+          senderName: senderName,
+          preview: message.trim().substring(0, 50),
+          createdAt: newMessage.createdAt,
+          notificationId: notif.id
+        });
+      }
+      // --- END NOTIFICATION LOGIC ---
     } catch (error) {
       console.error(error);
 

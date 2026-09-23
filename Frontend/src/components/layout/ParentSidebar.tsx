@@ -1,3 +1,4 @@
+import { useNotifications } from '../../contexts/NotificationContext';
 import React, { useState } from 'react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { Avatar } from '../ui/Avatar';
@@ -34,6 +35,7 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
 }) => {
   const [isCollapsed, setIsCollapsed] = useState(false);
   const [showProfileMenu, setShowProfileMenu] = useState(false);
+  const { unreadMessageCount } = useNotifications();
 
   const menuSections = [
     {
@@ -127,7 +129,17 @@ export const ParentSidebar: React.FC<ParentSidebarProps> = ({
                         `}
                       >
                         <item.icon className={`w-5 h-5 shrink-0 ${isActive ? 'text-white' : 'text-slate-400 group-hover:text-blue-600'}`} />
-                        {!isCollapsed && <span className="truncate">{item.label}</span>}
+                          {isCollapsed && item.id.includes('_messages') && unreadMessageCount > 0 && (
+                            <span className="absolute top-2.5 right-2.5 w-2 h-2 rounded-full bg-rose-500 ring-2 ring-white shadow-sm shadow-rose-500/20" />
+                          )}
+                        {!isCollapsed && (
+                          <span className="truncate flex-1 flex items-center gap-2">
+                            {item.label}
+                            {item.id.includes('_messages') && unreadMessageCount > 0 && (
+                              <span className="w-2 h-2 rounded-full bg-rose-500 shadow-sm shadow-rose-500/20" />
+                            )}
+                          </span>
+                        )}
                       </button>
                     </Tooltip>
                   </li>

@@ -1,5 +1,6 @@
+import { BellNotification } from '../ui/BellNotification';
 import React from 'react';
-import { Bell, Menu, Search } from 'lucide-react';
+import { Menu, Search } from 'lucide-react';
 import { Avatar } from '../ui/Avatar';
 
 interface TeacherTopHeaderProps {
@@ -32,10 +33,7 @@ export const TeacherTopHeader: React.FC<TeacherTopHeaderProps> = ({
       </div>
 
       <div className="flex items-center gap-3 md:gap-4">
-        <button className="relative p-2 rounded-full text-slate-500 hover:bg-slate-100 transition-colors cursor-pointer">
-          <Bell className="w-5 h-5" />
-          <span className="absolute top-1.5 right-1.5 w-2 h-2 bg-rose-500 rounded-full border border-white"></span>
-        </button>
+        <BellNotification />
 
         <div className="h-8 w-px bg-slate-200 hidden md:block"></div>
 

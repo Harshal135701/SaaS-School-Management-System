@@ -1,3 +1,4 @@
+import { NotificationProvider } from '../../contexts/NotificationContext';
 import React, { useState } from 'react';
 import { TeacherSidebar } from './TeacherSidebar';
 import { TeacherTopHeader } from './TeacherTopHeader';
@@ -28,6 +29,7 @@ export const TeacherLayout: React.FC<TeacherLayoutProps> = ({
   };
 
   return (
+    <NotificationProvider>
     <div className="flex h-screen bg-[#F8FAFC] overflow-hidden selection:bg-blue-100 selection:text-blue-900">
       <TeacherSidebar 
         currentPath={currentPath}
@@ -82,5 +84,6 @@ export const TeacherLayout: React.FC<TeacherLayoutProps> = ({
         </div>
       </Modal>
     </div>
+    </NotificationProvider>
   );
 };

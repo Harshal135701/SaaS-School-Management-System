@@ -64,13 +64,9 @@ const createFee = async (req, res) => {
 
 const getFees = async (req, res) => {
   try {
-    const { Fee, Student, ParentStudent } = require("../models");
+    const { Fee, Student, ParentStudent, StudentFee, FeeCategory, Installment, Payment } = require("../models");
 
-    const where = {
-      franchiseId: req.user.franchiseId,
-    };
-
-    // Parent can only see fees of their linked student
+    // Parent can only see fees of their linked student, and they get data from the new StudentFee system
     if (req.user.role === "PARENT") {
       const relationship = await ParentStudent.findOne({
         where: {
@@ -86,8 +82,62 @@ const getFees = async (req, res) => {
         });
       }
 
-      where.studentId = req.params.studentId;
+      const studentFees = await StudentFee.findAll({
+        where: { studentId: req.params.studentId, franchiseId: req.user.franchiseId },
+        include: [
+          {
+            model: FeeCategory,
+            as: 'category',
+            attributes: ['id', 'name']
+          },
+          {
+            model: Installment,
+            as: 'installments',
+            include: [
+              {
+                model: Payment,
+                as: 'payments',
+                attributes: ['amount']
+              }
+            ]
+          }
+        ]
+      });
+
+      const feeItems = [];
+
+      studentFees.forEach(sf => {
+        if (sf.installments) {
+          sf.installments.forEach(inst => {
+            let paidAmount = 0;
+            if (inst.payments) {
+              inst.payments.forEach(p => paidAmount += parseFloat(p.amount));
+            }
+            feeItems.push({
+              id: inst.id,
+              title: `Installment ${inst.installmentNumber} - ${sf.category ? sf.category.name : 'Fee'}`,
+              amount: parseFloat(inst.amount),
+              paidAmount: paidAmount,
+              dueDate: inst.dueDate,
+              status: inst.status
+            });
+          });
+        }
+      });
+      
+      // Sort installments by dueDate ascending
+      feeItems.sort((a, b) => new Date(a.dueDate) - new Date(b.dueDate));
+
+      return res.status(200).json({
+        success: true,
+        count: feeItems.length,
+        data: feeItems,
+      });
     }
+
+    const where = {
+      franchiseId: req.user.franchiseId,
+    };
 
     const fees = await Fee.findAll({
       where,

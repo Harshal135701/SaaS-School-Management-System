@@ -39,6 +39,7 @@ const ParentStudent = require("./ParentStudent");
 const Conversation = require("./Conversation");
 const ConversationParticipant = require("./ConversationParticipant");
 const Message = require("./Message");
+const Notification = require("./Notification");
 const Class = require("./Class")(sequelize);
 const Section = require("./Section")(sequelize);
 const { DataTypes } = require("sequelize");
@@ -934,4 +935,5 @@ module.exports = {
   SchoolExpense,
   Attendance,
   ParentStudent,
+  Notification,
 };

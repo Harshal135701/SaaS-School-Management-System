@@ -632,7 +632,7 @@ export const TeachersPage: React.FC = () => {
                     <Badge
                       variant={
                         teacher.status === 'INACTIVE'
-                          ? 'default'
+                          ? 'slate'
                           : 'indigo'
                       }
                       size="sm"
