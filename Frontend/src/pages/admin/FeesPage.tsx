@@ -1194,8 +1194,7 @@ export const FeesPage: React.FC = () => {
     const studentId =
       paymentTargetInstallment.studentFee?.studentId ||
       paymentTargetInstallment.studentFee?.student?.id ||
-      selectedFeeDetails?.student?.id ||
-      paymentTargetInstallment.studentId;
+      selectedFeeDetails?.student?.id;
 
     if (!studentId) {
       triggerError("Unable to locate associated student for this installment.");
