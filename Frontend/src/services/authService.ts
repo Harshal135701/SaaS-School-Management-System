@@ -39,7 +39,7 @@ export const login = async (email: string, password: string) => {
             const { token, teacher } = teacherRes.data;
             
             if (token) {
-              const mappedRole = teacher.teacherRole === 'HOD' ? 'HOD' : 'TEACHER';
+              const mappedRole = teacher.role === 'HOD' ? 'HOD' : 'TEACHER';
               sessionStorage.setItem("token", token);
               localStorage.setItem("token", token);
               const userToStore = { ...teacher, role: mappedRole };

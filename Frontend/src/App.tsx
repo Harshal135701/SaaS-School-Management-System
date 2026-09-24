@@ -58,7 +58,7 @@ import { ParentLayout } from './components/layout/ParentLayout';
 import { ParentDashboardPage } from './pages/parent/ParentDashboardPage';
 import { ChatPage } from './pages/chat/ChatPage';
 
-// Super Admin email — the only hardcoded check needed
+// Super Admin email â€” the only hardcoded check needed
 
 
 export function App() {
@@ -517,7 +517,7 @@ export function App() {
     setEditFranchise(null);
   };
 
-  // ── AUTH PAGES ──
+  // â”€â”€ AUTH PAGES â”€â”€
   if (!isAuthenticated || currentPath === '/login' || currentPath === '/register' || currentPath === '/forgot-password') {
     if (currentPath === '/register') {
       return (
@@ -548,7 +548,7 @@ export function App() {
     );
   }
 
-  // ── 1. SUPER ADMIN VIEWS ──
+  // â”€â”€ 1. SUPER ADMIN VIEWS â”€â”€
   if (userRole === 'Super Admin' || currentPath.startsWith('/super-admin')) {
     const renderSuperAdminContent = () => {
       if (currentPath === '/super-admin/franchises') {
@@ -660,7 +660,7 @@ export function App() {
     );
   }
 
-  // ── 2. PRINCIPAL VIEWS ──
+  // â”€â”€ 2. PRINCIPAL VIEWS â”€â”€
   if (userRole === 'Principal' || currentPath.startsWith('/principal')) {
     return (
       <PrincipalLayout
@@ -689,36 +689,75 @@ export function App() {
     );
   }
 
-  // ── 3. HOD VIEWS ──
-  if (userRole === 'HOD' || currentPath.startsWith('/hod')) {
-    return (
-      <HODLayout
-        currentPath={currentPath}
-        onNavigate={(path) => setCurrentPath(path)}
-        onLogout={handleLogout}
-        user={currentUser}
-      >
-        {currentPath === '/hod/dashboard' || currentPath === '/hod' ? (
-          <HODDashboardPage user={currentUser} onNavigate={(path) => setCurrentPath(path)} />
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
-            Page not found in HOD Portal.
-          </div>
-        )}
+  // 🕒 3. HOD VIEWS 🕒
+    if (userRole === 'HOD' || currentPath.startsWith('/hod')) {
+      const renderHODContent = () => {
+        switch (currentPath) {
+          case '/hod/dashboard':
+          case '/hod':
+            return <HODDashboardPage user={currentUser} onNavigate={(path: string) => setCurrentPath(path)} />;
+          case '/hod/students':
+            return <StudentsPage />;
+          case '/hod/parents':
+            return <ParentsPage />;
+          case '/hod/teachers':
+            return <TeachersPage />;
+          case '/hod/classes':
+            return <ClassesPage />;
+          case '/hod/sections':
+            return <ClassesPage />;
+          case '/hod/subjects':
+            return <SubjectsPage />;
+          case '/hod/attendance':
+            return <AttendancePage />;
+          case '/hod/examinations':
+            return <ExaminationPage />;
+          case '/hod/assignments':
+            return <HomeworkPage />;
+          case '/hod/timetable':
+            return <TimetablePage />;
+          case '/hod/library':
+            return <LibraryPage />;
+          case '/hod/transport':
+            return <TransportPage />;
+          case '/hod/school-periods':
+            return <SchoolPeriodsPage />;
+          case '/hod/chat':
+            return <ChatPage user={currentUser} />;
+          case '/hod/profile':
+          case '/hod/settings':
+            return <SettingsPage />;
+          default:
+            return (
+              <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+                Page not found in HOD Portal.
+              </div>
+            );
+        }
+      };
 
-        {toastMessage && (
-          <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
-            <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
-              <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              <span>{toastMessage}</span>
+      return (
+        <HODLayout
+          currentPath={currentPath}
+          onNavigate={(path) => setCurrentPath(path)}
+          onLogout={handleLogout}
+          user={currentUser}
+        >
+          {renderHODContent()}
+
+          {toastMessage && (
+            <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
+              <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
+                <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
+                <span>{toastMessage}</span>
+              </div>
             </div>
-          </div>
-        )}
-      </HODLayout>
-    );
-  }
+          )}
+        </HODLayout>
+      );
+    }
 
-  // ── 4. TEACHER VIEWS ──
+    // â”€â”€ 4. TEACHER VIEWS â”€â”€
   if (userRole === 'Teacher' || currentPath.startsWith('/teacher')) {
     return (
       <TeacherLayout
@@ -775,7 +814,7 @@ export function App() {
     );
   }
 
-  // ── 5. PARENT VIEWS ──
+  // â”€â”€ 5. PARENT VIEWS â”€â”€
   if (userRole === 'Parent' || currentPath.startsWith('/parent')) {
     return (
       <ParentLayout
@@ -806,7 +845,7 @@ export function App() {
     );
   }
 
-  // ── 3. FRANCHISE / SCHOOL ADMIN VIEWS ──
+  // â”€â”€ 3. FRANCHISE / SCHOOL ADMIN VIEWS â”€â”€
   // loggedInFranchise holds the specific school for this admin
   const renderDashboardContent = () => {
     switch (currentPath) {

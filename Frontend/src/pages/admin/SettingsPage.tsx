@@ -44,7 +44,7 @@ export const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'appearance' | 'accessibility' | 'system'>('profile');
   const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
   const userRole = userStr ? JSON.parse(userStr)?.role : null;
-  const isTeacher = userRole === 'TEACHER';
+  const isTeacher = userRole === 'TEACHER' || userRole === 'HOD';
   const isSuperAdmin = userRole === 'SYSTEM_ADMIN';
 
   const getEndpoint = (type: 'me' | 'profile' | 'password' | 'settings') => {
@@ -102,7 +102,7 @@ export const SettingsPage: React.FC = () => {
       setProfileLoading(true);
       setProfileError(null);
       const res = await api.get(getEndpoint('me'));
-      const userData = isTeacher ? res.data?.teacher : res.data?.admin;
+      const userData = isTeacher ? (res.data?.teacher || res.data?.admin) : res.data?.admin;
       if (res.data?.success && userData) {
         const admin = userData;
         setName(admin.name || '');
@@ -318,7 +318,7 @@ export const SettingsPage: React.FC = () => {
             <Settings className="w-7 h-7 text-blue-600" />
             Settings
           </h1>
-          <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">{isTeacher ? "Teacher Portal Configuration" : isSuperAdmin ? "System Administration Configuration" : "Franchise Administration Configuration"}</p>
+          <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">{userRole === "HOD" ? "HOD Portal Configuration" : isTeacher ? "Teacher Portal Configuration" : isSuperAdmin ? "System Administration Configuration" : "Franchise Administration Configuration"}</p>
         </div>
       </div>
 
@@ -422,7 +422,7 @@ export const SettingsPage: React.FC = () => {
                   {/* Franchise Admin Profile (Editable) */}
                   <Card className="p-6 border-slate-200/80">
                     <form onSubmit={handleSaveProfile} className="space-y-6">
-                      <h3 className="text-base font-extrabold text-slate-900 mb-2 pb-4 border-b border-slate-100">{isTeacher ? "Teacher Profile" : isSuperAdmin ? "Super Admin Profile" : "Franchise Admin Profile"}</h3>
+                      <h3 className="text-base font-extrabold text-slate-900 mb-2 pb-4 border-b border-slate-100">{userRole === "HOD" ? "HOD Profile" : isTeacher ? "Teacher Profile" : isSuperAdmin ? "Super Admin Profile" : "Franchise Admin Profile"}</h3>
                       {profileError && (
                         <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2 border border-rose-100">
                           <AlertCircle className="w-4 h-4" />
@@ -437,8 +437,8 @@ export const SettingsPage: React.FC = () => {
                           className="ring-4 ring-slate-50 shadow-sm"
                         />
                         <div>
-                          <h3 className="text-base font-extrabold text-slate-900">{name || (isTeacher ? 'Teacher' : isSuperAdmin ? 'Super Admin' : 'Franchise Admin')}</h3>
-                          <p className="text-xs text-slate-500 font-medium">{isTeacher ? "Teacher" : isSuperAdmin ? "Super Administrator" : "Franchise Administrator"}</p>
+                          <h3 className="text-base font-extrabold text-slate-900">{name || (userRole === 'HOD' ? 'HOD' : isTeacher ? 'Teacher' : isSuperAdmin ? 'Super Admin' : 'Franchise Admin')}</h3>
+                          <p className="text-xs text-slate-500 font-medium">{userRole === "HOD" ? "Head of Department" : isTeacher ? "Teacher" : isSuperAdmin ? "Super Administrator" : "Franchise Administrator"}</p>
                         </div>
                       </div>
 

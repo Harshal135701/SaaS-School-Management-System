@@ -383,7 +383,7 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
       <div className="pt-6 border-t border-slate-200 mt-8 space-y-4">
         <h2 className="text-lg font-extrabold text-slate-900 px-1">My Personal Staff Details</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StaffAttendanceCard isApiAvailable={false} />
+          <StaffAttendanceCard isApiAvailable={true} data={null} />
           <StaffPaymentCard isApiAvailable={true} data={salaryData} />
         </div>
       </div>

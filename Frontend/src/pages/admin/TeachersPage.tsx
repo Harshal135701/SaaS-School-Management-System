@@ -131,7 +131,7 @@ export const TeachersPage: React.FC = () => {
 
   const [loading, setLoading] = useState(true);
   const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
-  const isTeacher = userStr ? JSON.parse(userStr)?.role === 'TEACHER' : false;
+  const isTeacher = userStr ? ['TEACHER', 'HOD'].includes(JSON.parse(userStr)?.role) : false;
   const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);

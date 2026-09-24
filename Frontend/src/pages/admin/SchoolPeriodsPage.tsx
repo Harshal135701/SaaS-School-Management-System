@@ -40,7 +40,7 @@ const API = '/school-periods';
 export const SchoolPeriodsPage: React.FC = () => {
   const [periods, setPeriods] = useState<SchoolPeriod[]>([]);
   const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
-  const isTeacher = userStr ? JSON.parse(userStr)?.role === 'TEACHER' : false;
+  const isTeacher = userStr ? ['TEACHER', 'HOD'].includes(JSON.parse(userStr)?.role) : false;
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);

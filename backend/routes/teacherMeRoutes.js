@@ -12,7 +12,7 @@ const {
 } = require("../controllers/teacherMeController");
 
 router.use(teacherOrFranchiseProtect);
-router.use(allowRoles("TEACHER"));
+router.use(allowRoles("TEACHER", "HOD", "PRINCIPAL", "ACCOUNTANT", "DATA_ENTRY", "SUPPORT"));
 
 router.get("/timetable", getMyTimetable);
 router.get("/students", getMyStudents);
