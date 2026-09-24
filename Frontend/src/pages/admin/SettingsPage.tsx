@@ -42,6 +42,31 @@ const defaultSettings: FranchiseSettings = {
 
 export const SettingsPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'profile' | 'security' | 'appearance' | 'accessibility' | 'system'>('profile');
+  const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+  const userRole = userStr ? JSON.parse(userStr)?.role : null;
+  const isTeacher = userRole === 'TEACHER' || userRole === 'HOD';
+  const isSuperAdmin = userRole === 'SYSTEM_ADMIN';
+
+  const getEndpoint = (type: 'me' | 'profile' | 'password' | 'settings') => {
+    if (isTeacher) {
+      if (type === 'me') return '/teacher/auth/me';
+      if (type === 'profile') return '/teacher/auth/profile';
+      if (type === 'password') return '/teacher/auth/change-password';
+      if (type === 'settings') return '/teacher/settings';
+    } else if (isSuperAdmin) {
+      if (type === 'me') return '/auth/me';
+      if (type === 'profile') return '/auth/profile';
+      if (type === 'password') return '/auth/change-password';
+      if (type === 'settings') return '/superadmin/settings'; // or whatever the superadmin uses
+    } else {
+      if (type === 'me') return '/franchise/auth/me';
+      if (type === 'profile') return '/franchise/auth/profile';
+      if (type === 'password') return '/franchise/auth/change-password';
+      if (type === 'settings') return '/franchise/settings';
+    }
+    return '';
+  };
+
 
   // Profile Form state
   const [name, setName] = useState('');
@@ -76,9 +101,10 @@ export const SettingsPage: React.FC = () => {
     try {
       setProfileLoading(true);
       setProfileError(null);
-      const res = await api.get('/franchise/auth/me');
-      if (res.data?.success && res.data.admin) {
-        const admin = res.data.admin;
+      const res = await api.get(getEndpoint('me'));
+      const userData = isTeacher ? (res.data?.teacher || res.data?.admin) : res.data?.admin;
+      if (res.data?.success && userData) {
+        const admin = userData;
         setName(admin.name || '');
         setEmail(admin.email || '');
         if (admin.phone) setPhone(admin.phone);
@@ -108,7 +134,7 @@ export const SettingsPage: React.FC = () => {
   const fetchSettings = async () => {
     try {
       setSettingsLoading(true);
-      const res = await api.get('/franchise/settings');
+      const res = await api.get(getEndpoint('settings'));
       if (res.data?.success && res.data.data) {
         setSettings(res.data.data);
         applyTheme(res.data.data.themeMode);
@@ -174,7 +200,7 @@ export const SettingsPage: React.FC = () => {
       const payload: any = { name: name.trim(), email: email.trim() };
       if (phone.trim()) payload.phone = phone.trim();
 
-      const res = await api.put('/franchise/auth/profile', payload);
+      const res = await api.put(getEndpoint('profile'), payload);
 
       if (res.data?.success) {
         const admin = res.data.data;
@@ -292,7 +318,7 @@ export const SettingsPage: React.FC = () => {
             <Settings className="w-7 h-7 text-blue-600" />
             Settings
           </h1>
-          <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">Franchise Administration Configuration</p>
+          <p className="text-xs font-semibold text-slate-500 mt-1 uppercase tracking-wider">{userRole === "HOD" ? "HOD Portal Configuration" : isTeacher ? "Teacher Portal Configuration" : isSuperAdmin ? "System Administration Configuration" : "Franchise Administration Configuration"}</p>
         </div>
       </div>
 
@@ -340,9 +366,7 @@ export const SettingsPage: React.FC = () => {
                   {/* Franchise Information (Read-only) */}
                   {franchiseInfo && (
                     <Card className="p-6 border-slate-200/80">
-                      <h3 className="text-base font-extrabold text-slate-900 mb-4 pb-4 border-b border-slate-100">
-                        Franchise Registration Information
-                      </h3>
+                      <h3 className="text-base font-extrabold text-slate-900 mb-4 pb-4 border-b border-slate-100">{isTeacher ? "School / Franchise Information" : "Franchise Registration Information"}</h3>
                       <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                         <Input
                           label="Franchise Name"
@@ -398,9 +422,7 @@ export const SettingsPage: React.FC = () => {
                   {/* Franchise Admin Profile (Editable) */}
                   <Card className="p-6 border-slate-200/80">
                     <form onSubmit={handleSaveProfile} className="space-y-6">
-                      <h3 className="text-base font-extrabold text-slate-900 mb-2 pb-4 border-b border-slate-100">
-                        Franchise Admin Profile
-                      </h3>
+                      <h3 className="text-base font-extrabold text-slate-900 mb-2 pb-4 border-b border-slate-100">{userRole === "HOD" ? "HOD Profile" : isTeacher ? "Teacher Profile" : isSuperAdmin ? "Super Admin Profile" : "Franchise Admin Profile"}</h3>
                       {profileError && (
                         <div className="p-3 rounded-xl bg-rose-50 text-rose-700 text-xs font-bold flex items-center gap-2 border border-rose-100">
                           <AlertCircle className="w-4 h-4" />
@@ -415,8 +437,8 @@ export const SettingsPage: React.FC = () => {
                           className="ring-4 ring-slate-50 shadow-sm"
                         />
                         <div>
-                          <h3 className="text-base font-extrabold text-slate-900">{name || 'Franchise Admin'}</h3>
-                          <p className="text-xs text-slate-500 font-medium">Franchise Administrator</p>
+                          <h3 className="text-base font-extrabold text-slate-900">{name || (userRole === 'HOD' ? 'HOD' : isTeacher ? 'Teacher' : isSuperAdmin ? 'Super Admin' : 'Franchise Admin')}</h3>
+                          <p className="text-xs text-slate-500 font-medium">{userRole === "HOD" ? "Head of Department" : isTeacher ? "Teacher" : isSuperAdmin ? "Super Administrator" : "Franchise Administrator"}</p>
                         </div>
                       </div>
 

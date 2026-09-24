@@ -130,6 +130,8 @@ export const TeachersPage: React.FC = () => {
   const [assignments, setAssignments] = useState<Assignment[]>([]);
 
   const [loading, setLoading] = useState(true);
+  const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+  const isTeacher = userStr ? ['TEACHER', 'HOD'].includes(JSON.parse(userStr)?.role) : false;
   const [error, setError] = useState<string | null>(null);
 
   const [isModalOpen, setIsModalOpen] = useState(false);
@@ -690,7 +692,7 @@ export const TeachersPage: React.FC = () => {
                       : 'Active'}
                   </span>
 
-                  <div className="flex items-center gap-1">
+                  <div className={`${isTeacher ? "hidden" : "flex"} items-center gap-1`}>
                     <button
                       onClick={() => openEditModal(teacher)}
                       className="p-1.5 text-slate-400 hover:text-blue-600 hover:bg-blue-50 rounded-lg"

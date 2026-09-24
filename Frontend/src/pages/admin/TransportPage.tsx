@@ -48,6 +48,9 @@ export const TransportPage: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'routes' | 'vehicles'>('routes');
   const [routes, setRoutes] = useState<RouteItem[]>([]);
   const [vehicles, setVehicles] = useState<VehicleItem[]>([]);
+  const userStr = sessionStorage.getItem('user') || localStorage.getItem('user');
+  const isTeacher = userStr ? ['TEACHER', 'HOD'].includes(JSON.parse(userStr)?.role) : false;
+  console.log(isTeacher);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [search, setSearch] = useState('');

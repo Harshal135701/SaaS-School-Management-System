@@ -2,7 +2,7 @@ const express = require("express");
 
 const router = express.Router();
 
-const franchiseProtect = require("../middleware/franchiseAuthMiddleware");
+const teacherOrFranchiseProtect = require("../middleware/teacherOrFranchiseProtect");
 const { allowRoles } = require("../middleware/roleMiddleware");
 
 
@@ -28,7 +28,7 @@ router.patch(
 
 router.post(
   "/",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   allowRoles("FRANCHISE_ADMIN", "PRINCIPAL"),
   createSchoolPeriod
 );
@@ -36,7 +36,7 @@ router.post(
 
 router.patch(
   "/:id/activate",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   allowRoles("FRANCHISE_ADMIN", "PRINCIPAL"),
   activateSchoolPeriod
 );
@@ -44,7 +44,7 @@ router.patch(
 
 router.get(
   "/",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   allowRoles(
     "FRANCHISE_ADMIN",
     "PRINCIPAL",
@@ -56,14 +56,14 @@ router.get(
 
 router.put(
   "/:id",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   allowRoles("FRANCHISE_ADMIN", "PRINCIPAL"),
   updateSchoolPeriod
 );
 
 router.patch(
   "/:id/deactivate",
-  franchiseProtect,
+  teacherOrFranchiseProtect,
   allowRoles("FRANCHISE_ADMIN", "PRINCIPAL"),
   deactivateSchoolPeriod
 );

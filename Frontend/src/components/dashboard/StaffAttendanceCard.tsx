@@ -39,7 +39,19 @@ export const StaffAttendanceCard: React.FC<StaffAttendanceCardProps> = ({
   }
 
   // Fallback if API is claimed available but no data is provided
-  if (!data) return null;
+  if (!data) {
+    return (
+      <Card className="p-6 h-full flex flex-col justify-center items-center text-center space-y-3 bg-slate-50 border-dashed">
+        <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center text-slate-400 mb-2">
+          <Clock className="w-6 h-6" />
+        </div>
+        <h3 className="text-sm font-bold text-slate-700">My Staff Attendance</h3>
+        <p className="text-xs text-slate-500 max-w-[250px]">
+          Not marked
+        </p>
+      </Card>
+    );
+  }
 
   const { status, checkInTime, checkOutTime, workingHours = 0 } = data;
   const hasCompleted7Hours = workingHours >= 7;

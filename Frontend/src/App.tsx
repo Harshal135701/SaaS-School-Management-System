@@ -59,7 +59,6 @@ import { PrincipalDashboardPage } from './pages/principal/PrincipalDashboardPage
 import { ParentLayout } from './components/layout/ParentLayout';
 import { ParentDashboardPage } from './pages/parent/ParentDashboardPage';
 import { ChatPage } from './pages/chat/ChatPage';
-
 import { AccountantDashboardPage } from './pages/accountant/AccountantDashboardPage';
 
 export function App() {
@@ -171,7 +170,7 @@ export function App() {
         if (userStr) {
           storedUser = JSON.parse(userStr);
         }
-      } catch (e) {}
+      } catch (e) { }
 
       if (storedUser) {
         setCurrentUser(storedUser);
@@ -189,7 +188,7 @@ export function App() {
               setFranchises(res.data.data);
             }
           })
-          .catch(() => {});
+          .catch(() => { });
       } else if (decoded.role === 'FRANCHISE_ADMIN') {
         setUserRole('Franchise Admin');
         setCurrentPath('/admin/dashboard');
@@ -267,7 +266,7 @@ export function App() {
             setFranchises(res.data.data);
           }
         })
-        .catch(() => {});
+        .catch(() => { });
 
       showToast(
         `Welcome back, ${user.name || 'Super Admin'}! Signed in as SaaS Super Admin.`
@@ -481,8 +480,8 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-          error.message ||
-          'Failed to create franchise'
+        error.message ||
+        'Failed to create franchise'
       );
 
       throw error;
@@ -529,8 +528,8 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-          error.message ||
-          'Failed to update franchise'
+        error.message ||
+        'Failed to update franchise'
       );
 
       throw error;
@@ -559,8 +558,8 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-          error.message ||
-          'Failed to delete franchise (Endpoint likely missing)'
+        error.message ||
+        'Failed to delete franchise (Endpoint likely missing)'
       );
 
       throw error;
@@ -587,7 +586,7 @@ export function App() {
       if (!response.data?.success) {
         throw new Error(
           response.data?.message ||
-            'Failed to create franchise admin'
+          'Failed to create franchise admin'
         );
       }
 
@@ -625,7 +624,7 @@ export function App() {
 
       showToast(
         error.response?.data?.message ||
-          'Failed to create franchise admin'
+        'Failed to create franchise admin'
       );
     }
   };
@@ -909,7 +908,7 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/principal/dashboard' ||
-        currentPath === '/principal' ? (
+          currentPath === '/principal' ? (
           <PrincipalDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -937,6 +936,72 @@ export function App() {
     userRole === 'HOD' ||
     currentPath.startsWith('/hod')
   ) {
+    const renderHODContent = () => {
+      switch (currentPath) {
+        case '/hod/dashboard':
+        case '/hod':
+          return (
+            <HODDashboardPage
+              user={currentUser}
+              onNavigate={(path: string) => setCurrentPath(path)}
+            />
+          );
+
+        case '/hod/students':
+          return <StudentsPage />;
+
+        case '/hod/parents':
+          return <ParentsPage />;
+
+        case '/hod/teachers':
+          return <TeachersPage />;
+
+        case '/hod/classes':
+          return <ClassesPage />;
+
+        case '/hod/sections':
+          return <ClassesPage />;
+
+        case '/hod/subjects':
+          return <SubjectsPage />;
+
+        case '/hod/attendance':
+          return <AttendancePage />;
+
+        case '/hod/examinations':
+          return <ExaminationPage />;
+
+        case '/hod/assignments':
+          return <HomeworkPage />;
+
+        case '/hod/timetable':
+          return <TimetablePage />;
+
+        case '/hod/library':
+          return <LibraryPage />;
+
+        case '/hod/transport':
+          return <TransportPage />;
+
+        case '/hod/school-periods':
+          return <SchoolPeriodsPage />;
+
+        case '/hod/chat':
+          return <ChatPage user={currentUser} />;
+
+        case '/hod/profile':
+        case '/hod/settings':
+          return <SettingsPage />;
+
+        default:
+          return (
+            <div className="flex items-center justify-center h-full text-slate-500 font-medium">
+              Page not found in HOD Portal.
+            </div>
+          );
+      }
+    };
+
     return (
       <HODLayout
         currentPath={currentPath}
@@ -944,23 +1009,13 @@ export function App() {
         onLogout={handleLogout}
         user={currentUser}
       >
-        {currentPath === '/hod/dashboard' ||
-        currentPath === '/hod' ? (
-          <HODDashboardPage
-            user={currentUser}
-            onNavigate={(path) => setCurrentPath(path)}
-          />
-        ) : (
-          <div className="flex items-center justify-center h-full text-slate-500 font-medium">
-            Page not found in HOD Portal.
-          </div>
-        )}
+        {renderHODContent()}
 
         {toastMessage && (
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              {toastMessage}
+              <span>{toastMessage}</span>
             </div>
           </div>
         )}
@@ -981,7 +1036,7 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/teacher/dashboard' ||
-        currentPath === '/teacher' ? (
+          currentPath === '/teacher' ? (
           <TeacherDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -1003,6 +1058,21 @@ export function App() {
           />
         ) : currentPath === '/teacher/students' ? (
           <StudentsPage />
+        ) : currentPath === '/teacher/parents' ? (
+          <ParentsPage />
+        ) : currentPath === '/teacher/teachers' ? (
+          <TeachersPage />
+        ) : currentPath === '/teacher/subjects' ? (
+          <SubjectsPage />
+        ) : currentPath === '/teacher/school-periods' ? (
+          <SchoolPeriodsPage />
+        ) : currentPath === '/teacher/profile' ||
+          currentPath === '/teacher/settings' ? (
+          <SettingsPage />
+        ) : currentPath === '/teacher/library' ? (
+          <LibraryPage />
+        ) : currentPath === '/teacher/transport' ? (
+          <TransportPage />
         ) : (
           <div className="flex items-center justify-center h-full text-slate-500 font-medium">
             Page not found in Teacher Portal.
@@ -1013,7 +1083,7 @@ export function App() {
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              {toastMessage}
+              <span>{toastMessage}</span>
             </div>
           </div>
         )}
@@ -1034,8 +1104,8 @@ export function App() {
         user={currentUser}
       >
         {currentPath === '/parent/dashboard' ||
-        currentPath === '/parent' ||
-        currentPath === '/parent/student-overview' ? (
+          currentPath === '/parent' ||
+          currentPath === '/parent/student-overview' ? (
           <ParentDashboardPage
             user={currentUser}
             onNavigate={(path) => setCurrentPath(path)}
@@ -1052,7 +1122,7 @@ export function App() {
           <div className="fixed bottom-6 right-6 z-50 animate-in fade-in slide-in-from-bottom-5">
             <div className="bg-slate-900 text-white px-5 py-3 rounded-2xl shadow-2xl border border-slate-800 text-xs font-semibold flex items-center gap-3">
               <span className="w-2 h-2 rounded-full bg-emerald-400 animate-ping" />
-              {toastMessage}
+              <span>{toastMessage}</span>
             </div>
           </div>
         )}

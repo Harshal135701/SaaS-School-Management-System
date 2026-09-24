@@ -1,6 +1,6 @@
-import React, { useState } from 'react';
-import { 
-  Calendar, 
+import React, { useState, useEffect } from 'react';
+import {
+  Calendar,
   CheckCircle2,
   Info
 } from 'lucide-react';
@@ -10,89 +10,188 @@ import { StaffAttendanceCard } from '../../components/dashboard/StaffAttendanceC
 import { StaffPaymentCard } from '../../components/dashboard/StaffPaymentCard';
 import { Modal } from '../../components/ui/Modal';
 import type { StatItem } from '../../types';
+import api from '../../services/api';
+
 
 interface HODDashboardPageProps {
   onNavigate?: (path: string) => void;
   user?: any;
 }
 
+
 export const HODDashboardPage: React.FC<HODDashboardPageProps> = ({ user }) => {
   const [activeModalAction, setActiveModalAction] = useState<string | null>(null);
+  const [stats, setStats] = useState({
+    teachers: 0,
+    students: 0,
+    classes: 0,
+    attendance: '0' as string,
+    examinations: 0,
+    timetable: 0
+  });
 
-  const todayDateString = new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+  const [salaryData, setSalaryData] = useState<any>(null);
+
+  useEffect(() => {
+    const fetchDashboardData = async () => {
+      try {
+        const [
+          teachersRes,
+          studentsRes,
+          classesRes,
+          attendanceRes,
+          examsRes,
+          timetableRes,
+          mySalaryRes
+        ] = await Promise.all([
+          api.get('/franchise/teachers', { params: { limit: 1 } }).catch(() => ({ data: { pagination: { total: 0 } } })),
+          api.get('/franchise/students', { params: { limit: 1 } }).catch(() => ({ data: { pagination: { total: 0 } } })),
+          api.get('/franchise/classes').catch(() => ({ data: { data: [] } })),
+          api.get('/franchise/attendance').catch(() => ({ error: true, data: { data: [] } })),
+          api.get('/franchise/examinations').catch(() => ({ data: { data: [] } })),
+          api.get('/franchise/timetable').catch(() => ({ data: { data: [] } })),
+          api.get('/teacher/me/salary').catch(() => ({ data: { data: null } }))
+        ]);
+
+        const totalTeachers = teachersRes.data?.pagination?.total || 0;
+        const totalStudents = studentsRes.data?.pagination?.total || 0;
+        const totalClasses = Array.isArray(classesRes.data?.data) ? classesRes.data.data.length : 0;
+        const totalExams = Array.isArray(examsRes.data?.data) ? examsRes.data.data.length : 0;
+        const totalTimetable = Array.isArray(timetableRes.data?.data) ? timetableRes.data.data.length : 0;
+
+        let attendancePercent = 'Not marked';
+        if ((attendanceRes as any).error) {
+          attendancePercent = 'API Error';
+        } else if (Array.isArray(attendanceRes.data?.data) && attendanceRes.data.data.length > 0) {
+          const records = attendanceRes.data.data;
+          const present = records.filter((r: any) => r.status === 'PRESENT').length;
+          attendancePercent = `${((present / records.length) * 100).toFixed(2).replace(/\.00$/, '')}%`;
+        }
+
+        setStats({
+          teachers: totalTeachers,
+          students: totalStudents,
+          classes: totalClasses,
+          attendance: attendancePercent,
+          examinations: totalExams,
+          timetable: totalTimetable
+        });
+
+                if (mySalaryRes.data?.success && mySalaryRes.data.data) {
+          const salaryInfo = mySalaryRes.data.data;
+          let formattedSalaryData = null;
+
+          if (salaryInfo.salaryProfile || salaryInfo.latestPayment) {
+            formattedSalaryData = {} as any;
+
+            if (salaryInfo.salaryProfile) {
+              const basic = parseFloat(salaryInfo.salaryProfile.basicSalary) || 0;
+              const allowances = parseFloat(salaryInfo.salaryProfile.allowances) || 0;
+              const deductions = parseFloat(salaryInfo.salaryProfile.deductions) || 0;
+              const netSalary = basic + allowances - deductions;
+
+              formattedSalaryData.salaryProfile = {
+                basicSalary: basic,
+                allowances: allowances,
+                deductions: deductions,
+                netSalary: netSalary,
+                isActive: salaryInfo.salaryProfile.isActive
+              };
+            }
+
+            if (salaryInfo.latestPayment) {
+              formattedSalaryData.latestPayment = {
+                amount: parseFloat(salaryInfo.latestPayment.amount) || 0,
+                date: salaryInfo.latestPayment.paymentDate,
+                status: salaryInfo.latestPayment.status
+              };
+            }
+          }
+          setSalaryData(formattedSalaryData);
+        }
+
+      } catch (err) {
+        console.error('Error fetching HOD dashboard data:', err);
+      }
+    };
+    fetchDashboardData();
+  }, []);
+
+
+  const todayDateString = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   });
 
   const hodName = user?.name || 'HOD';
   const hodDepartment = user?.department || 'Department information not available yet';
 
-  const dashboardStats: StatItem[] = [
+    const dashboardStats: StatItem[] = [
     {
       id: 'stat_teachers',
       title: 'DEPARTMENT TEACHERS',
-      value: '-',
+      value: stats.teachers.toString(),
       change: 'Teachers',
       isPositive: true,
       neutral: true,
-      subtext: 'Not available yet',
+      subtext: 'Registered staff',
       iconName: 'UserCheck',
       color: 'blue'
     },
     {
       id: 'stat_students',
       title: 'DEPARTMENT STUDENTS',
-      value: '-',
+      value: stats.students.toString(),
       change: 'Students',
       isPositive: true,
       neutral: true,
-      subtext: 'Not available yet',
+      subtext: 'Enrolled students',
       iconName: 'Users',
       color: 'purple'
     },
     {
       id: 'stat_classes',
       title: 'DEPARTMENT CLASSES',
-      value: '-',
+      value: stats.classes.toString(),
       change: 'Classes',
       isPositive: true,
       neutral: true,
-      subtext: 'Not available yet',
+      subtext: 'Active sections',
       iconName: 'BookOpen',
       color: 'indigo'
     },
     {
       id: 'stat_attendance',
       title: 'DEPARTMENT ATTENDANCE',
-      value: '-',
-      change: '0%',
+      value: stats.attendance,
+      change: 'Avg',
       isPositive: true,
       neutral: true,
-      subtext: 'Not available yet',
+      subtext: 'Today\'s attendance',
       iconName: 'Calendar',
       color: 'emerald'
     },
     {
       id: 'stat_examinations',
       title: 'EXAMINATIONS',
-      value: '-',
-      change: '0',
+      value: stats.examinations.toString(),
+      change: 'Exams',
       isPositive: true,
       neutral: true,
-      subtext: 'Not available yet',
+      subtext: 'Scheduled exams',
       iconName: 'FileText',
       color: 'rose'
     },
     {
       id: 'stat_timetable',
       title: 'DEPARTMENT TIMETABLE',
-      value: '-',
-      change: '0',
+      value: stats.timetable.toString(),
+      change: 'Periods',
       isPositive: true,
       neutral: true,
-      subtext: 'Not available yet',
+      subtext: 'Scheduled periods',
       iconName: 'Clock',
       color: 'amber'
     }
@@ -147,8 +246,8 @@ export const HODDashboardPage: React.FC<HODDashboardPageProps> = ({ user }) => {
       <div className="pt-6 border-t border-slate-200 mt-8 space-y-4">
         <h2 className="text-lg font-extrabold text-slate-900 px-1">My Personal Staff Details</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StaffAttendanceCard isApiAvailable={false} />
-          <StaffPaymentCard isApiAvailable={false} />
+          <StaffAttendanceCard isApiAvailable={true} data={null} />
+          <StaffPaymentCard isApiAvailable={true} data={salaryData} />
         </div>
       </div>
 

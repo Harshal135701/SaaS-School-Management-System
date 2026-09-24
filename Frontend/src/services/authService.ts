@@ -9,82 +9,199 @@ export const login = async (email: string, password: string) => {
     if (token) {
       sessionStorage.setItem("token", token);
       localStorage.setItem("token", token);
-      const userToStore = { ...admin, role: 'SYSTEM_ADMIN' };
+
+      const userToStore = { ...admin, role: "SYSTEM_ADMIN" };
+
       sessionStorage.setItem("user", JSON.stringify(userToStore));
       localStorage.setItem("user", JSON.stringify(userToStore));
     }
 
-    return { token, admin: { ...admin, role: 'SYSTEM_ADMIN' } };
+    return {
+      token,
+      admin: { ...admin, role: "SYSTEM_ADMIN" },
+    };
   } catch (error: any) {
-    if (error.response?.status === 401 || error.response?.status === 404) {
+    if (
+      error.response?.status === 401 ||
+      error.response?.status === 404
+    ) {
       try {
         // Fallback: Attempt Franchise Admin Login
-        const frRes = await api.post("/franchise/auth/login", { email, password });
+        const frRes = await api.post("/franchise/auth/login", {
+          email,
+          password,
+        });
+
         const { token, admin } = frRes.data;
 
         if (token) {
           sessionStorage.setItem("token", token);
           localStorage.setItem("token", token);
-          const userToStore = { ...admin, role: 'FRANCHISE_ADMIN' };
-          sessionStorage.setItem("user", JSON.stringify(userToStore));
-          localStorage.setItem("user", JSON.stringify(userToStore));
+
+          const userToStore = {
+            ...admin,
+            role: "FRANCHISE_ADMIN",
+          };
+
+          sessionStorage.setItem(
+            "user",
+            JSON.stringify(userToStore)
+          );
+
+          localStorage.setItem(
+            "user",
+            JSON.stringify(userToStore)
+          );
         }
 
-        return { token, admin: { ...admin, role: 'FRANCHISE_ADMIN' } };
+        return {
+          token,
+          admin: {
+            ...admin,
+            role: "FRANCHISE_ADMIN",
+          },
+        };
       } catch (frError: any) {
-        if (frError.response?.status === 401 || frError.response?.status === 404 || frError.response?.status === 403) {
+        if (
+          frError.response?.status === 401 ||
+          frError.response?.status === 404 ||
+          frError.response?.status === 403
+        ) {
           try {
             // Fallback: Attempt Teacher/HOD Login
-            const teacherRes = await api.post("/teacher/auth/login", { email, password });
+            const teacherRes = await api.post(
+              "/teacher/auth/login",
+              {
+                email,
+                password,
+              }
+            );
+
             const { token, teacher } = teacherRes.data;
 
             if (token) {
-              const mappedRole = teacher.role;
+              // Preserve HOD role, otherwise treat as TEACHER
+              const mappedRole =
+                teacher.role === "HOD" ? "HOD" : "TEACHER";
+
               sessionStorage.setItem("token", token);
               localStorage.setItem("token", token);
-              const userToStore = { ...teacher, role: mappedRole };
-              sessionStorage.setItem("user", JSON.stringify(userToStore));
-              localStorage.setItem("user", JSON.stringify(userToStore));
 
-              return { token, admin: { ...teacher, role: mappedRole } };
+              const userToStore = {
+                ...teacher,
+                role: mappedRole,
+              };
+
+              sessionStorage.setItem(
+                "user",
+                JSON.stringify(userToStore)
+              );
+
+              localStorage.setItem(
+                "user",
+                JSON.stringify(userToStore)
+              );
+
+              return {
+                token,
+                admin: {
+                  ...teacher,
+                  role: mappedRole,
+                },
+              };
             }
           } catch (teacherError: any) {
-            if (teacherError.response?.status === 401 || teacherError.response?.status === 404 || teacherError.response?.status === 403) {
+            if (
+              teacherError.response?.status === 401 ||
+              teacherError.response?.status === 404 ||
+              teacherError.response?.status === 403
+            ) {
               // Fallback: Attempt Parent Login
-              const parentRes = await api.post("/parent/auth/login", { email, password });
+              const parentRes = await api.post(
+                "/parent/auth/login",
+                {
+                  email,
+                  password,
+                }
+              );
+
               const { token, parent } = parentRes.data;
 
               if (token) {
                 sessionStorage.setItem("token", token);
                 localStorage.setItem("token", token);
-                const userToStore = { ...parent, role: 'PARENT' };
-                sessionStorage.setItem("user", JSON.stringify(userToStore));
-                localStorage.setItem("user", JSON.stringify(userToStore));
+
+                const userToStore = {
+                  ...parent,
+                  role: "PARENT",
+                };
+
+                sessionStorage.setItem(
+                  "user",
+                  JSON.stringify(userToStore)
+                );
+
+                localStorage.setItem(
+                  "user",
+                  JSON.stringify(userToStore)
+                );
               }
 
-              return { token, admin: { ...parent, role: 'PARENT' } };
+              return {
+                token,
+                admin: {
+                  ...parent,
+                  role: "PARENT",
+                },
+              };
             }
+
             throw teacherError;
           }
         }
+
         throw frError;
       }
     }
+
     throw error;
   }
 };
 
 export const requestPasswordReset = async (email: string) => {
-  const response = await api.post("/auth/forgot-password", { email });
+  const response = await api.post("/auth/forgot-password", {
+    email,
+  });
+
   return response.data;
 };
 
-export const verifyOTP = async (email: string, otp: string, userType: string) => {
-  const response = await api.post("/auth/verify-otp", { email, otp, userType });
+export const verifyOTP = async (
+  email: string,
+  otp: string,
+  userType: string
+) => {
+  const response = await api.post("/auth/verify-otp", {
+    email,
+    otp,
+    userType,
+  });
+
   return response.data;
 };
 
-export const resetPassword = async (email: string, userType: string, resetToken: string, newPassword: string) => {
-  const response = await api.post("/auth/reset-password", { email, userType, resetToken, newPassword });
+export const resetPassword = async (
+  email: string,
+  userType: string,
+  resetToken: string,
+  newPassword: string
+) => {
+  const response = await api.post("/auth/reset-password", {
+    email,
+    userType,
+    resetToken,
+    newPassword,
+  });
+
   return response.data;
 };

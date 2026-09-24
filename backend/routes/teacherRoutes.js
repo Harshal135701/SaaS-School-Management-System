@@ -24,7 +24,6 @@ const teacherViewAccess = allowRoles(
 // Teacher management is restricted to management roles.
 const teacherManageAccess = allowRoles(
 "PRINCIPAL",
-"HOD",
 "FRANCHISE_ADMIN"
 );
 

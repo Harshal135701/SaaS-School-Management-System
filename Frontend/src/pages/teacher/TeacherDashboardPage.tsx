@@ -1,6 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
-import { 
-  Calendar, 
+import {
+  Calendar,
   CheckCircle2,
   Info,
   Clock,
@@ -46,17 +46,18 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
   const [attendanceStats, setAttendanceStats] = useState<{ total: number; present: number }>({ total: 0, present: 0 });
   const [examsCount, setExamsCount] = useState<number>(0);
   const [homeworkCount, setHomeworkCount] = useState<number>(0);
+    const [salaryData, setSalaryData] = useState<any>(null);
 
-  const todayDateString = new Date().toLocaleDateString('en-US', { 
-    weekday: 'long', 
-    month: 'long', 
-    day: 'numeric', 
-    year: 'numeric' 
+  const todayDateString = new Date().toLocaleDateString('en-US', {
+    weekday: 'long',
+    month: 'long',
+    day: 'numeric',
+    year: 'numeric'
   });
 
   const fetchDashboardData = useCallback(async () => {
     try {
-      const teacherId = user?.id;
+
 
       // Concurrently fetch all teacher-related endpoints
       const [
@@ -65,27 +66,26 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
         studentsRes,
         attendanceRes,
         examsRes,
-        homeworkRes
-      ] = await Promise.all([
-        teacherId ? api.get(`/franchise/teachers/${teacherId}`).catch(() => ({ data: { success: false, data: null } })) : Promise.resolve({ data: { success: false, data: null } }),
-        api.get('/franchise/timetable').catch(() => ({ data: { success: false, data: [] } })),
-        api.get('/franchise/students', { params: { limit: 100 } }).catch(() => ({ data: { success: false, data: [] } })),
-        api.get('/franchise/attendance').catch(() => ({ data: { success: false, data: [] } })),
-        api.get('/franchise/examinations').catch(() => ({ data: { success: false, data: [] } })),
-        api.get('/franchise/homework').catch(() => ({ data: { success: false, data: [] } }))
+        homeworkRes,
+          salaryRes
+        ] = await Promise.all([
+        api.get('/teacher/auth/me').catch(() => ({ data: { success: false, teacher: null } })),
+        api.get('/teacher/me/timetable').catch(() => ({ data: { success: false, data: [] } })),
+        api.get('/teacher/me/students').catch(() => ({ data: { success: false, data: [] } })),
+        api.get('/teacher/me/attendance').catch(() => ({ data: { success: false, data: [] } })),
+        api.get('/teacher/me/examinations').catch(() => ({ data: { success: false, data: [] } })),
+        api.get('/teacher/me/homework').catch(() => ({ data: { success: false, data: [] } })),
+          api.get('/teacher/me/salary').catch(() => ({ data: { success: false, data: null } }))
       ]);
 
-      if (profileRes.data?.success && profileRes.data.data) {
-        setTeacherProfile(profileRes.data.data);
+      if (profileRes.data?.success && profileRes.data.teacher) {
+        setTeacherProfile(profileRes.data.teacher);
       }
 
       let myTimetable: TimetableItem[] = [];
       if (timetableRes.data?.success && Array.isArray(timetableRes.data.data)) {
-        const allItems: TimetableItem[] = timetableRes.data.data;
-        myTimetable = allItems.filter(
-          (t) => t.teacherId === teacherId || t.teacher?.id === teacherId
-        );
-        setTimetableList(myTimetable.length > 0 ? myTimetable : allItems);
+        myTimetable = timetableRes.data.data;
+        setTimetableList(myTimetable);
       }
 
       if (studentsRes.data?.success && Array.isArray(studentsRes.data.data)) {
@@ -106,9 +106,40 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
       }
 
       if (homeworkRes.data?.success && Array.isArray(homeworkRes.data.data)) {
-        const allHw = homeworkRes.data.data;
-        const myHw = allHw.filter((h: any) => h.teacherId === teacherId);
-        setHomeworkCount(myHw.length > 0 ? myHw.length : allHw.length);
+        setHomeworkCount(homeworkRes.data.data.length);
+      }
+
+      if (salaryRes.data?.success && salaryRes.data.data) {
+        const salaryInfo = salaryRes.data.data;
+        let formattedSalaryData = null;
+
+        if (salaryInfo.salaryProfile || salaryInfo.latestPayment) {
+          formattedSalaryData = {} as any;
+
+          if (salaryInfo.salaryProfile) {
+            const basic = parseFloat(salaryInfo.salaryProfile.basicSalary) || 0;
+            const allowances = parseFloat(salaryInfo.salaryProfile.allowances) || 0;
+            const deductions = parseFloat(salaryInfo.salaryProfile.deductions) || 0;
+            const netSalary = basic + allowances - deductions;
+
+            formattedSalaryData.salaryProfile = {
+              basicSalary: basic,
+              allowances: allowances,
+              deductions: deductions,
+              netSalary: netSalary,
+              isActive: salaryInfo.salaryProfile.isActive
+            };
+          }
+
+          if (salaryInfo.latestPayment) {
+            formattedSalaryData.latestPayment = {
+              amount: parseFloat(salaryInfo.latestPayment.amount) || 0,
+              date: salaryInfo.latestPayment.paymentDate,
+              status: salaryInfo.latestPayment.status
+            };
+          }
+        }
+        setSalaryData(formattedSalaryData);
       }
     } catch (err) {
       console.error('Error fetching teacher dashboard data:', err);
@@ -130,8 +161,8 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
   const assignedClasses = Array.from(assignedClassSet);
 
   const attendancePercent = attendanceStats.total > 0
-    ? `${Math.round((attendanceStats.present / attendanceStats.total) * 100)}%`
-    : '100%';
+    ? `${((attendanceStats.present / attendanceStats.total) * 100).toFixed(2).replace(/\.00$/, '')}%`
+    : 'Not marked';
 
   const dashboardStats: StatItem[] = [
     {
@@ -352,8 +383,8 @@ export const TeacherDashboardPage: React.FC<TeacherDashboardPageProps> = ({ onNa
       <div className="pt-6 border-t border-slate-200 mt-8 space-y-4">
         <h2 className="text-lg font-extrabold text-slate-900 px-1">My Personal Staff Details</h2>
         <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-          <StaffAttendanceCard isApiAvailable={false} />
-          <StaffPaymentCard isApiAvailable={false} />
+          <StaffAttendanceCard isApiAvailable={true} data={null} />
+          <StaffPaymentCard isApiAvailable={true} data={salaryData} />
         </div>
       </div>
 
